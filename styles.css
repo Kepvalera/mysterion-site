@@ -977,3 +977,28 @@ main,.footer{position:relative;z-index:1}
     overflow-x: hidden;
   }
 }
+
+
+.mysterion-socials {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 24px 16px;
+}
+
+.mysterion-socials a {
+  padding: 12px 20px;
+  border: 1px solid #d7bd83;
+  border-radius: 30px;
+  color: #234a69;
+  text-decoration: none;
+  font-weight: 600;
+  transition: 0.2s ease;
+}
+
+.mysterion-socials a:hover {
+  background: #d7bd83;
+  color: #142c43;
+}
+
