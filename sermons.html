@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#c8e1f1">
+  <meta name="description" content="Мистерион — международное христианское служение. Школы, конференции, духовное наставничество и пространство для познания Бога.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Мистерион | Международное христианское служение">
+  <meta property="og:description" content="Пространство познания Бога, духовного возрастания и раскрытия призвания.">
+  <title>Проповеди | MYSTERION</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="script.js"></script>
+  <script defer src="sermons-data.js"></script>
+  <script defer src="sermons-page.js"></script>
+</head>
+<body data-page="sermons">
+<a class="skip-link" href="#main" data-i18n="skip">Перейти к содержимому</a>
+<header class="site-header" id="top">
+  <div class="header-inner container">
+    <a href="index.html#home" class="brand" aria-label="Mysterion">
+      <span class="brand-symbol crown-mark" aria-hidden="true">♛</span>
+      <span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span>
+    </a>
+    <nav class="desktop-nav" aria-label="Main navigation">
+      <a href="index.html#about" data-i18n="navAbout">О нас</a>
+      <a href="index.html#founders" data-i18n="navFounders">Основатели</a>
+      <a href="index.html#ministry" data-i18n="navMinistry">Направления</a>
+      <a href="index.html#events" data-i18n="navEvents">События</a>
+      <a href="sermons.html" data-i18n="navSermons">Проповеди</a>
+      <a href="photos.html" data-i18n="navPhotos">Фото</a>
+      <a href="index.html#media" data-i18n="navMedia">Медиа</a>
+      <a href="index.html#contacts" data-i18n="navContacts">Контакты</a>
+    </nav>
+    <div class="header-actions">
+      <button class="lang-toggle" type="button" aria-label="Switch language to English"><span class="lang-strong">RU</span><span class="lang-muted"> / EN</span></button>
+      <a class="header-cta" href="index.html#contacts"><span data-i18n="headerCta">Связаться</span><span aria-hidden="true">↗</span></a>
+      <button class="menu-toggle" type="button" aria-controls="mobile-nav" aria-expanded="false" aria-label="Open menu"><span></span><span></span></button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation" hidden>
+    <a href="index.html#about" data-i18n="navAbout">О нас</a>
+    <a href="index.html#founders" data-i18n="navFounders">Основатели</a>
+    <a href="index.html#ministry" data-i18n="navMinistry">Направления</a>
+    <a href="index.html#events" data-i18n="navEvents">События</a>
+    <a href="sermons.html" data-i18n="navSermons">Проповеди</a>
+      <a href="photos.html" data-i18n="navPhotos">Фото</a>
+      <a href="index.html#media" data-i18n="navMedia">Медиа</a>
+    <a href="index.html#contacts" data-i18n="navContacts">Контакты</a>
+  </nav>
+</header>
+<main id="main" class="library-page">
+  <section class="library-intro container">
+    <p class="eyebrow"><span class="eyebrow-line"></span><span data-i18n="libEyebrow">СЛОВО · ВЕРА · ГЛУБИНА</span></p>
+    <h1><span data-i18n="libHead">Проповеди</span><br><em data-i18n="libHeadEm">и учения.</em></h1>
+    <p class="library-lead" data-i18n="libIntro">Послания, записи школ и международных конференций служения «Мистерион». Здесь будут собраны наши видео.</p>
+    <div class="library-actions"><a class="btn btn-dark" href="index.html#media"><span data-i18n="backMedia">На главную</span><span aria-hidden="true">↗</span></a></div>
+  </section>
+  <section class="container library-content" aria-labelledby="catalog-heading">
+    <div class="section-number"><span>01 / VIDEO</span><span data-i18n="libCollection">ВИДЕОТЕКА</span></div>
+    <div class="library-tools"><div class="library-filters" role="group" aria-label="Категории видео">
+      <button type="button" class="filter active" data-category="all" data-i18n="catAll">Все</button>
+      <button type="button" class="filter" data-category="sermon" data-i18n="catSermon">Проповеди</button>
+      <button type="button" class="filter" data-category="conference" data-i18n="catConference">Конференции</button>
+      <button type="button" class="filter" data-category="school" data-i18n="catSchool">Школы</button>
+      <button type="button" class="filter" data-category="testimony" data-i18n="catTestimony">Свидетельства</button>
+    </div><label class="search-field"><span class="sr-only" data-i18n="searchLabel">Поиск</span><input id="video-search" type="search" placeholder="Поиск по названию или спикеру" aria-label="Поиск видео"></label></div>
+    <div id="video-grid" class="video-grid" aria-live="polite"></div>
+    <div id="playlist-wrap" class="playlist-wrap" hidden><h2 data-i18n="playlistTitle">Все видео из плейлиста</h2><div class="playlist-frame"><iframe id="playlist-frame" title="Mysterion YouTube playlist" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>
+  </section>
+</main>
+<dialog id="video-dialog" class="video-dialog"><button type="button" class="dialog-close" aria-label="Закрыть видео">✕</button><div class="video-player" id="video-player"></div><div class="dialog-caption" id="dialog-caption"></div></dialog>
+<footer class="footer">
+  <div class="container footer-grid">
+    <a href="index.html#home" class="brand footer-brand"><span class="brand-symbol crown-mark" aria-hidden="true">♛</span><span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span></a>
+    <p data-i18n="footerDescription">Пространство познания Бога, духовного возрастания и раскрытия призвания.</p>
+    <p>© <span id="copyright-year">2026</span> MYSTERION <span data-i18n="footerRights">Все права защищены</span></p>
+  </div>
+</footer>
+</body></html>
