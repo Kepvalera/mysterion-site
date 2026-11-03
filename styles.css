@@ -1002,3 +1002,35 @@ main,.footer{position:relative;z-index:1}
   color: #142c43;
 }
 
+
+.contact-social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.contact-social-links a {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 18px;
+  border: 1px solid #c69a54;
+  border-radius: 30px;
+  color: #19496b;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: 0.2s ease;
+}
+
+.contact-social-links a:hover {
+  background: #c69a54;
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .contact-social-links a {
+    font-size: 14px;
+    padding: 11px 15px;
+  }
+}
