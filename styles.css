@@ -921,3 +921,59 @@ main,.footer{position:relative;z-index:1}
 .hero-art-image::after {
     display: none !important;
 }
+
+/* MYSTERION — MOBILE FIX */
+@media (max-width: 768px) {
+
+  /* Мобильная навигация */
+  .desktop-nav {
+    display: none !important;
+  }
+
+  .mobile-nav:not([hidden]) {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0 !important;
+    width: 100% !important;
+    padding: 16px 20px !important;
+  }
+
+  .mobile-nav a {
+    display: block !important;
+    width: 100% !important;
+    padding: 14px 8px !important;
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+    white-space: normal !important;
+    border-bottom: 1px solid rgba(30, 75, 110, 0.12);
+  }
+
+  /* Фотографии */
+  .photo-card img,
+  .gallery-card img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
+  /* Карточки */
+  .photo-card,
+  .gallery-card {
+    overflow: hidden;
+    border-radius: 20px;
+  }
+
+  .photo-card h3,
+  .gallery-card h3 {
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+    overflow-wrap: anywhere;
+  }
+
+  /* Предотвращаем горизонтальную прокрутку */
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+}
