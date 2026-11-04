@@ -9,7 +9,14 @@
 .jubilee-copy h2>strong { margin-top:18px; color:#e7cd96; font:600 clamp(16px,2.1vw,27px)/1.5 var(--font-body); letter-spacing:.17em; }
 .jubilee-year { margin:20px 0; color:#e8cc95; font:500 clamp(44px,6vw,76px)/1 var(--font-display); letter-spacing:.12em; }
 .jubilee-subtitle { max-width:560px; margin:28px 0; color:#e1e3f6; font-size:clamp(17px,1.8vw,21px); line-height:1.7; }
-.jubilee-button { margin-top:8px; background:linear-gradient(125deg,#f4e4bd,#d9b779); color:#302844; border-color:#f8e8c5; box-shadow:0 8px 32px #d6b77122; }
+.jubilee-button { position:relative; isolation:isolate; overflow:hidden; margin-top:8px; background:linear-gradient(125deg,#f4e4bd,#d9b779); color:#302844; border-color:#f8e8c5; box-shadow:0 8px 32px #d6b77122; transition:box-shadow .35s ease,transform .25s ease,background-color .3s ease; }
+.jubilee-button>span { position:relative; z-index:1; }
+.jubilee-button>span:last-child { transition:transform .3s ease; }
+.jubilee-button::before,.jubilee-button::after { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0; }
+.jubilee-button::before { background:radial-gradient(ellipse at 50% 120%,#fff3ca80,transparent 70%); opacity:.25; }
+.jubilee-button::after { background:linear-gradient(105deg,transparent 25%,#fffdf040 43%,#fffdf0b3 50%,#fffdf040 57%,transparent 75%); transform:translateX(-145%) skewX(-15deg); opacity:0; }
+.jubilee-banner[data-cta-ready="true"] .jubilee-button { box-shadow:0 0 24px #e5c16b38,0 9px 30px #d6b77130; }
+.jubilee-button:focus-visible { outline:2px solid #fff8dd; outline-offset:5px; box-shadow:0 0 0 4px #302844,0 0 26px #e5c16b66; }
 .jubilee-details { padding:clamp(28px,5vw,64px); border:1px solid var(--line); border-top:0; border-radius:0 0 30px 30px; background:linear-gradient(135deg,#fffdf8,#eeeef9); }
 .jubilee-wrap:has(.jubilee-details) .jubilee-banner { border-radius:32px 32px 0 0; }
 .jubilee-quote { max-width:940px; margin-bottom:28px; color:#625039; font:500 clamp(25px,3vw,37px)/1.4 var(--font-display); }
@@ -24,8 +31,9 @@
 .jubilee-with-speaker .jubilee-copy { min-width:0; padding:clamp(28px,4vw,56px); }
 .jubilee-with-speaker .jubilee-copy h2 { font-size:clamp(40px,4.7vw,68px); }
 .jubilee-speaker { position:relative; z-index:1; min-width:0; margin:0; padding:32px 32px 32px 0; }
-.jubilee-speaker-photo { overflow:hidden; border:1px solid #e7cd9680; border-radius:120px 120px 26px 26px; background:#25264b; box-shadow:0 0 36px #e6c68128,0 18px 45px #080d2c66; }
+.jubilee-speaker-photo { overflow:hidden; border:1px solid #e7cd9680; border-radius:120px 120px 26px 26px; background:#25264b; box-shadow:0 0 36px #e6c68128,0 18px 45px #080d2c66; transition:box-shadow 1.8s ease; }
 .jubilee-speaker-photo img { display:block; width:100%; height:auto; }
+.jubilee-banner[data-sky-awake="true"] .jubilee-speaker-photo { box-shadow:0 0 35px #e6c68160,0 0 65px #a378cc40,0 18px 45px #080d2c66; }
 .jubilee-speaker figcaption { max-width:440px; margin:22px auto 0; padding-inline:12px; color:#f2dfb6; font:500 clamp(24px,2.4vw,32px)/1.3 var(--font-display); text-align:center; text-wrap:balance; }
 @media(max-width:970px) {
   .jubilee-with-speaker { grid-template-columns:1fr; }
@@ -54,8 +62,22 @@
   .jubilee-speaker { animation:jubilee-enter 1s .15s both; }
   @keyframes jubilee-enter { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
   @keyframes jubilee-light { from { transform:rotate(-5deg); } to { transform:rotate(6deg); } }
+  .jubilee-banner[data-cta-ready="true"] .jubilee-button::after { animation:jubilee-button-sheen 1.15s .15s both; }
+  .jubilee-banner[data-cta-ready="true"] .jubilee-button::before { animation:jubilee-button-breathe 8s 1.3s ease-in-out infinite alternate; }
+  .jubilee-button::before,.jubilee-button::after { animation-play-state:paused; }
+  .jubilee-banner[data-cta-ready="true"][data-sky-active="false"] .jubilee-button::before,.jubilee-banner[data-cta-ready="true"][data-sky-active="false"] .jubilee-button::after { animation-play-state:paused; }
+  @keyframes jubilee-button-sheen { 0% { opacity:0; transform:translateX(-145%) skewX(-15deg); } 20% { opacity:.7; } 80% { opacity:.7; } 100% { opacity:0; transform:translateX(145%) skewX(-15deg); } }
+  @keyframes jubilee-button-breathe { from { opacity:.25; } to { opacity:.5; } }
 }
-@media(hover:hover) { .jubilee-button:hover { background:#f6e7c9; box-shadow:0 8px 40px #e5cc923b; } }
+@media(hover:hover) and (pointer:fine) {
+  .jubilee-banner .jubilee-button:hover { background:#f6e7c9; box-shadow:0 0 32px #e5cc9266,0 12px 36px #e5cc923b; transform:translateY(-2px); }
+  .jubilee-button:hover>span:last-child { transform:translateX(4px); }
+}
+.jubilee-banner .jubilee-button:active { transform:translateY(1px) scale(.985); box-shadow:0 0 18px #e5cc9240; transition-duration:.12s; }
+@media(prefers-reduced-motion:reduce) {
+  .jubilee-button::before,.jubilee-button::after { animation:none; }
+  .jubilee-banner .jubilee-button:hover,.jubilee-banner .jubilee-button:active,.jubilee-button:hover>span:last-child { transform:none; }
+}
 
 
 /* Single full-scene starfield. Foreground content keeps its existing z-index:1. */
