@@ -1,52 +1,503 @@
-/* One continuous opening scene. Decorative canvases never intercept interaction. */
-.heavenly-hero { position:relative; isolation:isolate; min-height:min(850px,calc(100svh - var(--header-height))); overflow:clip; background:radial-gradient(ellipse at 68% 20%,#bcd8edb3,transparent 55%),radial-gradient(ellipse at 20% 48%,#e5deefb3,transparent 60%),radial-gradient(ellipse at 50% 65%,#f1dfb740,transparent 55%),#f3f5f9; }
-.heavenly-art { position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:var(--heavenly-fade,1); will-change:opacity; transform:translateZ(0); }
-.heavenly-canvas { display:block; width:100%; height:100%; }
-.heavenly-rays { position:absolute; inset:-15% -20%; background:conic-gradient(from 160deg at 64% 4%,transparent 0deg,#fff6d450 9deg,transparent 18deg,#ffffff66 27deg,transparent 38deg,#e8d7ac33 48deg,transparent 59deg); -webkit-mask-image:linear-gradient(#000,transparent 90%); mask-image:linear-gradient(#000,transparent 90%); opacity:.48; transform-origin:64% 4%; will-change:transform; transform:translateZ(0); }
-.heavenly-hero::after { content:''; position:absolute; z-index:-1; inset:65% 0 0; pointer-events:none; background:linear-gradient(transparent,#f3f5f9); }
-.heavenly-content { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:inherit; padding:44px 0 54px; text-align:center; }
-.heavenly-wordmark { max-width:100%; color:#273f5c; font-size:clamp(48px,8vw,116px); line-height:.95; letter-spacing:-.045em; overflow-wrap:normal; text-shadow:0 1px 22px #ffffffbd; }
-.heavenly-wordmark>span { display:block; margin-top:18px; font:500 clamp(12px,1.5vw,20px)/1.4 var(--font-body); color:#75623d; letter-spacing:.42em; }
-.heavenly-label { max-width:100%; margin:24px 0 0; font-size:10px; letter-spacing:.14em; color:#5a6579; }
-.editorial-main .heavenly-statement { max-width:760px; margin:28px 0 0; font-size:clamp(29px,3vw,44px); line-height:1.18; text-wrap:balance; }
-.heavenly-hero .e-hero-lead { max-width:650px; margin:22px 0 0; font-size:15px; color:#46566c; text-shadow:0 1px 12px #fff; }
-.heavenly-hero .e-hero-buttons { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:22px; margin-top:26px; }
-.heavenly-hero .e-hero-footnote { display:flex; justify-content:center; flex-wrap:wrap; gap:18px; margin-top:26px; font-size:9px; letter-spacing:.12em; color:#657287; }
-.heavenly-emblem { position:relative; isolation:isolate; width:clamp(210px,24vw,340px); margin-bottom:26px; contain:layout style; }
-.heavenly-emblem::before { content:''; position:absolute; z-index:-1; inset:-35%; background:radial-gradient(ellipse,#e5bc6545,transparent 65%); opacity:.5; pointer-events:none; border-radius:50%; will-change:transform,opacity; transform:translateZ(0); }
-.heavenly-emblem::after { content:''; position:absolute; left:49%; top:24%; width:15px; height:15px; background:#fff6d2; opacity:0; clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%); pointer-events:none; will-change:transform,opacity; transform:translateZ(0); }
-.heavenly-emblem img { display:block; width:100%; height:auto; max-height:190px; object-fit:contain; filter:drop-shadow(0 0 16px #d9b56c66); will-change:transform; transform:translateZ(0); backface-visibility:hidden; }
-/* The scene fades into this exact color, without a boundary or spacer. */
-.heavenly-hero + #about { position:relative; background:linear-gradient(#f3f5f9,#f3f5f900); padding-top:24px; }
-.heavenly-hero + #about .section-number { border:0; margin-bottom:24px; padding:0; }
-@media(max-width:640px) {
-  .heavenly-content { padding:36px 0 40px; }
-  .heavenly-wordmark { font-size:clamp(41px,11.5vw,64px); }
-  .heavenly-wordmark>span { font-size:12px; letter-spacing:.28em; margin-top:14px; }
-  .heavenly-label { font-size:8px; letter-spacing:.08em; margin-top:20px; }
-  .editorial-main .heavenly-statement { margin-top:24px; font-size:32px; }
-  .heavenly-hero .e-hero-lead { font-size:14px; margin-top:20px; }
-  .heavenly-hero .e-hero-buttons { gap:20px; margin-top:24px; }
-  .heavenly-hero .e-hero-footnote { font-size:8px; gap:10px; margin-top:24px; }
-  .heavenly-emblem { width:220px; margin-bottom:20px; }
+/* Heavenly Cinematic Luxury — Mysterion International opening scene. */
+.heavenly-hero {
+  position: relative;
+  isolation: isolate;
+  min-height: min(880px, calc(100svh - var(--header-height)));
+  overflow: clip;
+  background:
+    radial-gradient(ellipse at 66% 14%, rgba(191, 224, 247, 0.85), transparent 58%),
+    radial-gradient(ellipse at 18% 44%, rgba(229, 222, 239, 0.82), transparent 60%),
+    radial-gradient(ellipse at 50% 62%, rgba(247, 230, 192, 0.55), transparent 55%),
+    #f3f5f9;
 }
-@media(prefers-reduced-motion:no-preference) {
-  .heavenly-rays { animation:heavenly-rays 18s ease-in-out infinite alternate; animation-play-state:paused; }
-  .heavenly-hero[data-active="true"] .heavenly-rays { animation-play-state:running; }
-  .heavenly-wordmark { animation:heavenly-title 2.7s cubic-bezier(0.16,1,0.3,1) both; }
-  .heavenly-emblem { animation:heavenly-crown-enter 2.2s cubic-bezier(0.16,1,0.3,1) both; }
-  .heavenly-emblem img { animation:heavenly-crown-float 7s ease-in-out infinite alternate; animation-play-state:paused; }
-  .heavenly-hero[data-active="true"] .heavenly-emblem img { animation-play-state:running; }
-  .heavenly-emblem::before { animation:heavenly-crown-halo 7s ease-in-out infinite alternate; animation-play-state:paused; }
-  .heavenly-hero[data-active="true"] .heavenly-emblem::before { animation-play-state:running; }
-  .heavenly-emblem::after { animation:heavenly-crown-glint 14s 2s ease-in-out infinite; animation-play-state:paused; }
-  .heavenly-hero[data-active="true"] .heavenly-emblem::after { animation-play-state:running; }
-  .heavenly-about-revealed { animation:heavenly-about .8s cubic-bezier(0.16,1,0.3,1) both; }
-  @keyframes heavenly-title { from { opacity:.55; transform:translate3d(0,10px,0); } to { opacity:1; transform:translate3d(0,0,0); } }
-  @keyframes heavenly-crown-enter { from { opacity:.15; transform:translate3d(0,14px,0); } to { opacity:1; transform:translate3d(0,0,0); } }
-  @keyframes heavenly-crown-float { from { transform:translate3d(0,0,0); } to { transform:translate3d(0,-6px,0); } }
-  @keyframes heavenly-crown-halo { from { opacity:.45; transform:scale(1); } to { opacity:.68; transform:scale(1.07); } }
-  @keyframes heavenly-crown-glint { 0%,12%,100% { opacity:0; transform:scale(.5); } 5% { opacity:.85; transform:scale(1); } }
-  @keyframes heavenly-rays { from { transform:rotate(0deg); opacity:.48; } to { transform:rotate(5deg); opacity:.65; } }
-  @keyframes heavenly-about { from { opacity:.65; transform:translate3d(0,12px,0); } to { opacity:1; transform:translate3d(0,0,0); } }
+
+.heavenly-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--heavenly-fade, 1);
+  will-change: opacity;
+  transform: translateZ(0);
+}
+
+.heavenly-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Volumetric Heavenly God Rays */
+.heavenly-rays {
+  position: absolute;
+  inset: -20% -25%;
+  background: conic-gradient(
+    from 155deg at 65% 2%,
+    transparent 0deg,
+    rgba(255, 248, 225, 0.52) 8deg,
+    transparent 17deg,
+    rgba(255, 255, 255, 0.68) 25deg,
+    transparent 35deg,
+    rgba(246, 224, 165, 0.48) 45deg,
+    transparent 58deg,
+    rgba(255, 255, 255, 0.4) 70deg,
+    transparent 84deg
+  );
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.88) 55%, transparent 95%);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.88) 55%, transparent 95%);
+  opacity: 0.65;
+  transform-origin: 65% 2%;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* Atmospheric mist softly dissolving into section 01 (#about) */
+.heavenly-hero::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 58% 0 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(243, 245, 249, 0.4) 40%,
+    rgba(243, 245, 249, 0.85) 75%,
+    #f3f5f9 100%
+  );
+}
+
+.heavenly-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: inherit;
+  padding: 42px 0 56px;
+  text-align: center;
+}
+
+/* Crown Emblem & 2.5D Jewelry Stage */
+.heavenly-emblem {
+  position: relative;
+  isolation: isolate;
+  width: clamp(230px, 25vw, 360px);
+  margin-bottom: 26px;
+  perspective: 1200px;
+  transform-style: preserve-3d;
+  contain: layout style;
+}
+
+.crown-halo {
+  position: absolute;
+  inset: -45%;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 55%,
+    rgba(255, 246, 215, 0.72) 0%,
+    rgba(244, 212, 130, 0.48) 28%,
+    rgba(215, 172, 85, 0.22) 50%,
+    rgba(180, 205, 245, 0.08) 68%,
+    transparent 78%
+  );
+  filter: blur(10px);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.heavenly-crown-stage {
+  position: relative;
+  width: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.heavenly-emblem img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 195px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 20px rgba(217, 181, 108, 0.58)) drop-shadow(0 0 12px rgba(255, 235, 170, 0.4));
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Diagonal Golden Specular Shimmer across Crown Metal */
+.crown-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: hidden;
+  -webkit-mask-image: url('assets/photos/mysterion-crown-480.webp');
+  mask-image: url('assets/photos/mysterion-crown-480.webp');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.crown-shimmer::before {
+  content: '';
+  position: absolute;
+  top: -60%;
+  left: -130%;
+  width: 75%;
+  height: 220%;
+  background: linear-gradient(
+    110deg,
+    transparent 15%,
+    rgba(255, 248, 220, 0.25) 36%,
+    rgba(255, 255, 255, 0.92) 50%,
+    rgba(235, 195, 105, 0.55) 64%,
+    transparent 82%
+  );
+  transform: rotate(22deg);
+}
+
+/* Sapphire Gemstones */
+.crown-gem {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 3;
+  mix-blend-mode: screen;
+  will-change: opacity, transform;
+}
+
+.crown-sapphire {
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  background: radial-gradient(circle, #eff6ff 0%, #60a5fa 32%, #1d4ed8 65%, transparent 75%);
+  box-shadow: 0 0 16px 3px rgba(96, 165, 250, 0.8);
+  opacity: 0;
+}
+
+.sapphire-center { left: 49.5%; top: 67%; }
+.sapphire-left { left: 36.5%; top: 68.5%; width: 18px; height: 18px; margin: -9px 0 0 -9px; }
+.sapphire-right { left: 62.5%; top: 68.5%; width: 18px; height: 18px; margin: -9px 0 0 -9px; }
+
+/* Pearls Luster */
+.crown-pearl {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 15%, #fef3c7 45%, rgba(224, 231, 255, 0.5) 70%, transparent 80%);
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0.2;
+  will-change: opacity, transform;
+}
+
+.pearl-finial { left: 49.5%; top: 25%; }
+.pearl-left { left: 33%; top: 46%; }
+.pearl-right { left: 66%; top: 46%; }
+
+/* Star Sparkles */
+.crown-sparkle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  background: #fff8db;
+  clip-path: polygon(50% 0%, 57% 43%, 100% 50%, 57% 57%, 50% 100%, 43% 57%, 0% 50%, 43% 43%);
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  box-shadow: 0 0 12px 2px rgba(245, 212, 130, 0.85);
+  will-change: opacity, transform;
+}
+
+.sparkle-top { left: 49.5%; top: 22%; }
+.sparkle-left { left: 24%; top: 38%; }
+.sparkle-right { left: 75%; top: 38%; }
+.sparkle-cross { left: 56%; top: 56%; }
+
+/* Typography */
+.heavenly-wordmark {
+  max-width: 100%;
+  color: #273f5c;
+  font-size: clamp(48px, 8vw, 116px);
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+  overflow-wrap: normal;
+  text-shadow: 0 1px 24px rgba(255, 255, 255, 0.95);
+}
+
+.heavenly-wordmark > span {
+  display: block;
+  margin-top: 18px;
+  font: 500 clamp(12px, 1.5vw, 20px) / 1.4 var(--font-body);
+  color: #75623d;
+  letter-spacing: 0.42em;
+}
+
+.heavenly-label {
+  max-width: 100%;
+  margin: 24px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #5a6579;
+}
+
+.editorial-main .heavenly-statement {
+  max-width: 760px;
+  margin: 28px 0 0;
+  font-size: clamp(29px, 3vw, 44px);
+  line-height: 1.18;
+  text-wrap: balance;
+  text-shadow: 0 1px 18px rgba(255, 255, 255, 0.9);
+}
+
+.heavenly-hero .e-hero-lead {
+  max-width: 650px;
+  margin: 22px 0 0;
+  font-size: 15px;
+  color: #3f4e62;
+  text-shadow: 0 1px 14px rgba(255, 255, 255, 0.95);
+}
+
+.heavenly-hero .e-hero-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-top: 26px;
+}
+
+.heavenly-hero .btn-dark {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.28s ease, box-shadow 0.28s ease, background-color 0.28s ease;
+}
+
+.heavenly-hero .btn-dark:hover {
+  transform: translate3d(0, -2px, 0);
+  box-shadow: 0 12px 28px rgba(212, 175, 55, 0.28), 0 4px 12px rgba(0, 0, 0, 0.14);
+}
+
+.heavenly-hero .text-arrow {
+  transition: transform 0.28s ease, color 0.28s ease;
+}
+
+.heavenly-hero .text-arrow:hover {
+  color: #94703b;
+  transform: translate3d(3px, 0, 0);
+}
+
+.heavenly-hero .e-hero-footnote {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 26px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: #657287;
+}
+
+/* Seamless bridge into #about section */
+.heavenly-hero + #about {
+  position: relative;
+  background: linear-gradient(#f3f5f9, rgba(243, 245, 249, 0));
+  padding-top: 24px;
+}
+
+.heavenly-hero + #about .section-number {
+  border: 0;
+  margin-bottom: 24px;
+  padding: 0;
+}
+
+/* Mobile Responsiveness */
+@media(max-width: 640px) {
+  .heavenly-content { padding: 36px 0 42px; }
+  .heavenly-wordmark { font-size: clamp(42px, 12vw, 66px); }
+  .heavenly-wordmark > span { font-size: 12px; letter-spacing: 0.28em; margin-top: 14px; }
+  .heavenly-label { font-size: 8.5px; letter-spacing: 0.09em; margin-top: 20px; }
+  .editorial-main .heavenly-statement { margin-top: 24px; font-size: 32px; }
+  .heavenly-hero .e-hero-lead { font-size: 14px; margin-top: 20px; }
+  .heavenly-hero .e-hero-buttons { gap: 18px; margin-top: 24px; }
+  .heavenly-hero .e-hero-footnote { font-size: 8px; gap: 10px; margin-top: 24px; }
+  .heavenly-emblem { width: clamp(210px, 58vw, 240px); margin-bottom: 20px; }
+}
+
+/* Cinematic Animations */
+@media(prefers-reduced-motion: no-preference) {
+  .heavenly-rays {
+    animation: heavenly-rays 18s ease-in-out infinite alternate;
+    animation-play-state: paused;
+  }
+  .heavenly-hero[data-active="true"] .heavenly-rays {
+    animation-play-state: running;
+  }
+
+  /* Staggered Entrance */
+  .heavenly-emblem { animation: heavenly-crown-enter 2.0s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .heavenly-wordmark { animation: heavenly-title-enter 2.2s 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .heavenly-wordmark > span { animation: heavenly-fade-up 1.8s 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .heavenly-label { animation: heavenly-fade-up 1.8s 0.65s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .editorial-main .heavenly-statement { animation: heavenly-fade-up 2.0s 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .heavenly-hero .e-hero-lead { animation: heavenly-fade-up 2.0s 1.0s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .heavenly-hero .e-hero-buttons { animation: heavenly-fade-up 2.0s 1.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .heavenly-hero .e-hero-footnote { animation: heavenly-fade-up 2.0s 1.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  /* Crown Levitation & 2.5D Rocking */
+  .heavenly-crown-stage {
+    animation: heavenly-crown-float-3d 8.5s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .heavenly-hero[data-active="true"] .heavenly-crown-stage {
+    animation-play-state: running;
+  }
+
+  /* Crown Halo Sunburst Breathing */
+  .crown-halo {
+    animation: crown-halo-breathe 8s ease-in-out infinite alternate;
+    animation-play-state: paused;
+  }
+  .heavenly-hero[data-active="true"] .crown-halo {
+    animation-play-state: running;
+  }
+
+  /* Crown Shimmer Sweep */
+  .crown-shimmer {
+    animation: crown-shimmer-sweep 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation-play-state: paused;
+  }
+  .crown-shimmer::before {
+    animation: crown-shimmer-bar 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation-play-state: paused;
+  }
+  .heavenly-hero[data-active="true"] .crown-shimmer,
+  .heavenly-hero[data-active="true"] .crown-shimmer::before {
+    animation-play-state: running;
+  }
+
+  /* Sapphire Gemstone Flashes */
+  .sapphire-center {
+    animation: sapphire-flash 6s 1.2s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .sapphire-left {
+    animation: sapphire-flash 6.5s 3.2s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .sapphire-right {
+    animation: sapphire-flash 6.5s 4.8s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .heavenly-hero[data-active="true"] .crown-sapphire {
+    animation-play-state: running;
+  }
+
+  /* Pearl Shimmer */
+  .pearl-finial { animation: pearl-shimmer 5s 0s ease-in-out infinite alternate; animation-play-state: paused; }
+  .pearl-left { animation: pearl-shimmer 5s 1.8s ease-in-out infinite alternate; animation-play-state: paused; }
+  .pearl-right { animation: pearl-shimmer 5s 3.4s ease-in-out infinite alternate; animation-play-state: paused; }
+  .heavenly-hero[data-active="true"] .crown-pearl {
+    animation-play-state: running;
+  }
+
+  /* Star Sparkles */
+  .sparkle-top { animation: crown-sparkle 7s 0.5s ease-in-out infinite; animation-play-state: paused; }
+  .sparkle-left { animation: crown-sparkle 8s 2.8s ease-in-out infinite; animation-play-state: paused; }
+  .sparkle-right { animation: crown-sparkle 7.5s 4.5s ease-in-out infinite; animation-play-state: paused; }
+  .sparkle-cross { animation: crown-sparkle 9s 6.0s ease-in-out infinite; animation-play-state: paused; }
+  .heavenly-hero[data-active="true"] .crown-sparkle {
+    animation-play-state: running;
+  }
+
+  .heavenly-about-revealed { animation: heavenly-about 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  /* Keyframe Definitions */
+  @keyframes heavenly-crown-enter {
+    from { opacity: 0.15; transform: translate3d(0, 16px, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+
+  @keyframes heavenly-title-enter {
+    from { opacity: 0.3; transform: translate3d(0, 18px, 0); letter-spacing: -0.06em; }
+    to { opacity: 1; transform: translate3d(0, 0, 0); letter-spacing: -0.045em; }
+  }
+
+  @keyframes heavenly-fade-up {
+    from { opacity: 0; transform: translate3d(0, 14px, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+
+  @keyframes heavenly-crown-float-3d {
+    0% {
+      transform: translate3d(0, 0, 0) rotateX(2deg) rotateY(-3.5deg) rotateZ(0.5deg);
+    }
+    25% {
+      transform: translate3d(2px, -8px, 12px) rotateX(-1deg) rotateY(-1deg) rotateZ(-0.5deg);
+    }
+    50% {
+      transform: translate3d(0, -16px, 20px) rotateX(-3deg) rotateY(3deg) rotateZ(-1deg);
+    }
+    75% {
+      transform: translate3d(-2px, -8px, 10px) rotateX(0deg) rotateY(1deg) rotateZ(0.5deg);
+    }
+    100% {
+      transform: translate3d(0, 0, 0) rotateX(2deg) rotateY(-3.5deg) rotateZ(0.5deg);
+    }
+  }
+
+  @keyframes crown-halo-breathe {
+    0% { transform: scale(0.92); opacity: 0.55; }
+    50% { transform: scale(1.08); opacity: 0.85; filter: blur(14px); }
+    100% { transform: scale(0.92); opacity: 0.55; }
+  }
+
+  @keyframes crown-shimmer-sweep {
+    0%, 14% { opacity: 0; }
+    22%, 36% { opacity: 0.95; }
+    46%, 100% { opacity: 0; }
+  }
+
+  @keyframes crown-shimmer-bar {
+    0%, 14% { transform: translateX(0) rotate(22deg); }
+    42%, 100% { transform: translateX(360%) rotate(22deg); }
+  }
+
+  @keyframes sapphire-flash {
+    0%, 12%, 100% { opacity: 0; transform: scale(0.55); }
+    4%, 7% { opacity: 0.95; transform: scale(1.2); filter: drop-shadow(0 0 10px #93c5fd); }
+    9% { opacity: 0.25; transform: scale(0.8); }
+  }
+
+  @keyframes pearl-shimmer {
+    0% { opacity: 0.15; transform: scale(0.75); }
+    50% { opacity: 0.85; transform: scale(1.15); filter: drop-shadow(0 0 7px #fffbe6); }
+    100% { opacity: 0.2; transform: scale(0.85); }
+  }
+
+  @keyframes crown-sparkle {
+    0%, 14%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+    5% { opacity: 1; transform: scale(1.25) rotate(45deg); filter: drop-shadow(0 0 10px #fff7d6); }
+    9% { opacity: 0; transform: scale(0.35) rotate(90deg); }
+  }
+
+  @keyframes heavenly-rays {
+    from { transform: rotate(-3deg); opacity: 0.55; }
+    to { transform: rotate(4deg); opacity: 0.78; }
+  }
+
+  @keyframes heavenly-about {
+    from { opacity: 0.65; transform: translate3d(0, 12px, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
 }

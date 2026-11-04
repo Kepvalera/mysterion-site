@@ -1,4 +1,4 @@
-/* Procedural opening scene: optimized 60fps canvas, zero layout-thrashing, smooth parallax. */
+/* Heavenly Cinematic Luxury — procedural sky, atmospheric celestial sphere, pearl-lavender clouds & golden stardust. */
 (() => {
   const hero = document.querySelector('.heavenly-hero');
   if (!hero) return;
@@ -27,7 +27,7 @@
            (hash(ix, iy + 1) * (1 - fx) + hash(ix + 1, iy + 1) * fx) * fy;
   }
   function fbm(x, y) {
-    return noise(x, y) * 0.55 + noise(x * 2, y * 2) * 0.28 + noise(x * 4, y * 4) * 0.17;
+    return noise(x, y) * 0.53 + noise(x * 2, y * 2) * 0.28 + noise(x * 4, y * 4) * 0.19;
   }
   function texture(w, h, pixel) {
     const c = document.createElement('canvas');
@@ -46,62 +46,135 @@
     return c;
   }
 
-  // Pre-rendered procedural cloud texture
-  const cloud = texture(384, 192, (x, y) => {
-    const n = fbm(x / 43, y / 32), edge = Math.sin(Math.PI * x / 384) ** 0.4 * Math.sin(Math.PI * y / 192) ** 1.5;
-    const alpha = Math.max(0, Math.min(1, (n - 0.26) * 2.8)) * edge;
-    return [251 + n * 4, 251 + n * 4, 255, alpha * 225];
+  // Texture 1: Billowy Pearl & Azure Cumulus with Sunlit Golden Linings
+  const cloudCumulus = texture(480, 240, (x, y) => {
+    const nx = x / 480, ny = y / 240;
+    const n = fbm(x / 46, y / 34);
+    const edge = Math.sin(Math.PI * nx) ** 0.45 * Math.sin(Math.PI * ny) ** 1.35;
+    const alpha = Math.max(0, Math.min(1, (n - 0.24) * 3.0)) * edge;
+    const sunRim = Math.max(0, Math.min(1, (1 - ny) * 1.8 * (n + 0.2)));
+    // Sunlit pearl crest (warm gold/white), azure body, lavender under-depths
+    const r = Math.min(255, 195 + n * 35 + sunRim * 45);
+    const g = Math.min(255, 215 + n * 28 + sunRim * 35);
+    const b = Math.min(255, 242 + n * 12 + (1 - sunRim) * 12);
+    return [r, g, b, alpha * 240];
   });
 
-  // Pre-rendered celestial sphere/planet texture
-  const planet = texture(360, 360, (x, y) => {
-    const nx = (x - 180) / 170, ny = (y - 180) / 170, r = nx * nx + ny * ny;
+  // Texture 2: High Wispy Pearl-Lavender Cirrus Veil
+  const cloudCirrus = texture(480, 200, (x, y) => {
+    const nx = x / 480, ny = y / 200;
+    const n = fbm(x / 88, y / 28);
+    const edge = Math.sin(Math.PI * nx) ** 0.35 * Math.sin(Math.PI * ny) ** 1.5;
+    const alpha = Math.max(0, Math.min(1, (n - 0.28) * 2.8)) * edge;
+    // Delicate ethereal lavender-white wisps
+    return [236 + n * 18, 232 + n * 20, 252, alpha * 210];
+  });
+
+  // Texture 3: Soft Horizon Mist bridging gently into section 01 (#about)
+  const cloudMist = texture(480, 220, (x, y) => {
+    const nx = x / 480, ny = y / 220;
+    const n = fbm(x / 62, y / 40);
+    const edge = Math.sin(Math.PI * nx) ** 0.3 * Math.sin(Math.PI * ny) ** 1.1;
+    const alpha = Math.max(0, Math.min(1, (n - 0.22) * 2.6)) * edge;
+    // Pearlescent azure-gold mist
+    return [240 + n * 14, 244 + n * 10, 252, alpha * 225];
+  });
+
+  // Atmospheric Celestial Sphere with 3D Depth, Swirling Bands and Soft Limb
+  const celestialSphere = texture(420, 420, (x, y) => {
+    const nx = (x - 210) / 195, ny = (y - 210) / 195, r = nx * nx + ny * ny;
     if (r >= 1) return [0, 0, 0, 0];
-    const z = Math.sqrt(1 - r), n = fbm(nx * 6 + z * 4 + 12, ny * 7 + z * 2 + 9);
-    const swirls = fbm(nx * 14 + n * 4 + 8, ny * 13 + n * 3 + 11);
-    const cloudCover = Math.max(0, Math.min(1, (swirls - 0.44) * 4));
-    const light = 0.4 + 0.6 * Math.max(0, Math.min(1, -nx * 0.45 - ny * 0.42 + z * 0.78));
-    const rim = (1 - z) ** 5;
-    const dissolve = 1 - smooth(Math.max(0, Math.min(1, (ny - 0.1) / 0.9)));
+    const z = Math.sqrt(1 - r);
+    // Dynamic spherical cloud swirls
+    const swirls = fbm(nx * 8 + z * 3.5 + 14, ny * 9 + z * 2 + 10);
+    const bandNoise = fbm(nx * 15 + swirls * 4 + 7, ny * 14 + swirls * 3 + 12);
+    const cloudCover = Math.max(0, Math.min(1, (bandNoise - 0.42) * 3.8));
+    // Soft directional celestial light from upper-right
+    const light = 0.38 + 0.62 * Math.max(0, Math.min(1, -nx * 0.42 - ny * 0.38 + z * 0.82));
+    // Luminous atmospheric rim (Fresnel glow)
+    const rim = (1 - z) ** 4.2;
+    // Soft outer boundary dissolve so there is NEVER a harsh circular edge
+    const softEdge = smooth(Math.max(0, Math.min(1, (1 - r) * 14)));
+    const dissolveBottom = 1 - smooth(Math.max(0, Math.min(1, (ny - 0.05) / 0.95)));
+
+    const red = (95 + swirls * 38 + cloudCover * 115) * light + rim * 85;
+    const green = (145 + swirls * 30 + cloudCover * 75) * light + rim * 72;
+    const blue = (195 + swirls * 28 + cloudCover * 45) * light + rim * 52;
+    const alpha = softEdge * dissolveBottom * 245;
+
     return [
-      (99 + n * 32 + cloudCover * 105) * light + rim * 64,
-      (149 + n * 25 + cloudCover * 65) * light + rim * 58,
-      (189 + n * 25 + cloudCover * 30) * light + rim * 40,
-      Math.min(1, (1 - r) * 80) * dissolve * 255
+      Math.min(255, red),
+      Math.min(255, green),
+      Math.min(255, blue),
+      alpha
     ];
   });
 
-  // Pre-rendered atmosphere glow to avoid recreating radial gradient every frame
-  const atmosphereGlow = (() => {
+  // Multi-stop Corona Glow for the Celestial Sphere
+  const sphereCorona = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 540;
+    const gCtx = c.getContext('2d');
+    if (!gCtx) return c;
+    const rad = gCtx.createRadialGradient(270, 270, 270 * 0.26, 270, 270, 270 * 0.95);
+    rad.addColorStop(0, 'rgba(255, 245, 210, 0.42)');
+    rad.addColorStop(0.35, 'rgba(244, 215, 140, 0.24)');
+    rad.addColorStop(0.65, 'rgba(175, 212, 245, 0.22)');
+    rad.addColorStop(0.85, 'rgba(215, 205, 240, 0.12)');
+    rad.addColorStop(1, 'rgba(215, 205, 240, 0)');
+    gCtx.fillStyle = rad;
+    gCtx.fillRect(0, 0, 540, 540);
+    return c;
+  })();
+
+  // Multi-tier Atmospheric Heavenly Light Aura behind the Crown
+  const divineSunburst = (() => {
     const c = document.createElement('canvas'); c.width = c.height = 512;
     const gCtx = c.getContext('2d');
     if (!gCtx) return c;
-    const rad = gCtx.createRadialGradient(256, 256, 256 * 0.28, 256, 256, 256 * 0.92);
-    rad.addColorStop(0, 'rgba(160,197,228,0)');
-    rad.addColorStop(0.65, 'rgba(244,220,162,.16)');
-    rad.addColorStop(0.8, 'rgba(145,195,230,.24)');
-    rad.addColorStop(1, 'rgba(145,195,230,0)');
+    const rad = gCtx.createRadialGradient(256, 256, 10, 256, 256, 250);
+    rad.addColorStop(0, 'rgba(255, 250, 230, 0.7)');
+    rad.addColorStop(0.22, 'rgba(248, 222, 148, 0.48)');
+    rad.addColorStop(0.48, 'rgba(224, 182, 92, 0.25)');
+    rad.addColorStop(0.75, 'rgba(190, 215, 245, 0.12)');
+    rad.addColorStop(1, 'rgba(190, 215, 245, 0)');
     gCtx.fillStyle = rad;
     gCtx.fillRect(0, 0, 512, 512);
     return c;
   })();
 
-  const STAR_COLORS = ['#6281a6', '#ab8850', '#ffffff', '#8591b1'];
+  // Twinkling Diamond & Gold Stars
+  const STAR_COLORS = ['#ffffff', '#f4d27e', '#88c2f5', '#fff4d6', '#dfbe86'];
   const stars = Array.from({ length: 150 }, (_, i) => ({
     x: ((i + 0.5) * 0.6180339) % 1,
     y: ((i + 0.5) * 0.7548776) % 1,
-    size: 0.55 + (i % 4) * 0.35,
-    phase: i * 2.4,
-    speed: 0.5 + (i % 6) * 0.18,
-    color: STAR_COLORS[i % 4],
-    hasCross: i % 37 === 0
+    size: 0.65 + (i % 5) * 0.38,
+    phase: i * 2.34,
+    speed: 0.6 + (i % 7) * 0.16,
+    color: STAR_COLORS[i % 5],
+    isFlareStar: i % 24 === 0, // 6 prominent stars with diamond cross-diffraction flares
+    flareLength: 7 + (i % 4) * 4
   }));
 
-  const CLOUD_LAYERS = [
-    [-0.3,  0.03, 1.5,  0.5,   0.7, 12],
-    [ 0.15, 0.22, 1.35, 0.38, -0.45, 24],
-    [-0.22, 0.58, 1.6,  0.48,  0.9, 36],
-    [ 0.05, 0.76, 1.4,  0.38, -0.7, 48]
+  // Floating Golden Stardust Particles around the Crown
+  const DUST_COUNT = 32;
+  const goldenDust = Array.from({ length: DUST_COUNT }, (_, i) => ({
+    radiusX: 0.12 + ((i * 1.618) % 1) * 0.38, // relative to width around crown
+    radiusY: 0.08 + ((i * 2.718) % 1) * 0.30,
+    size: 1.1 + (i % 4) * 0.45,
+    speed: 0.35 + (i % 5) * 0.12,
+    driftSpeed: 0.2 + (i % 6) * 0.08,
+    phase: i * 1.85,
+    color: ['#ffea9f', '#fff4ce', '#e6b958', '#ffffff'][i % 4]
+  }));
+
+  // 5 Distinct, Living Cloud Streams (Moving in Opposite Directions with Infinite Depth)
+  const CLOUD_STREAMS = [
+    // [texture, x, y, widthScale, heightScale, speed, parallax, alpha]
+    [cloudCirrus,  -0.12,  0.03, 1.45, 0.38,  0.22, 10, 0.70], // High wisps drifting right
+    [cloudCumulus,  0.12,  0.16, 1.40, 0.45, -0.32, 22, 0.82], // Pearl-blue cumulus drifting left behind crown
+    [cloudCumulus, -0.22,  0.42, 1.55, 0.48,  0.35, 34, 0.88], // Golden-rimmed cumulus drifting right
+    [cloudMist,     0.06,  0.64, 1.50, 0.44, -0.26, 46, 0.80], // Lavender mist
+    [cloudMist,    -0.12,  0.80, 1.65, 0.50,  0.20, 56, 0.90]  // Base transition cloud flowing into #about
   ];
 
   let width = 0, height = 0, heroHeight = 0, dpr = 1;
@@ -113,55 +186,101 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
-    const intro = reduced.matches ? 1 : Math.min(1, 0.3 + time / 2.3);
-    const size = Math.min(width * 0.9, 720);
-    const px = width * (width < 641 ? 0.48 : 0.68) - size / 2;
-    const py = -size * 0.23 - progress * 28;
+    const intro = reduced.matches ? 1 : Math.min(1, 0.35 + time / 2.2);
+    const isMobile = width < 641;
 
-    // Fast atmosphere glow from pre-rendered sprite
-    ctx.globalAlpha = intro * 0.8;
-    ctx.drawImage(atmosphereGlow, px - size * 0.2, py - size * 0.2, size * 1.4, size * 1.4);
+    // 1. Celestial Sphere & Corona
+    const sphereSize = Math.min(width * (isMobile ? 0.92 : 0.85), 680);
+    const sphereX = width * (isMobile ? 0.48 : 0.66) - sphereSize / 2;
+    const sphereY = -sphereSize * 0.18 - progress * 26;
 
-    // Planet
-    ctx.globalAlpha = intro * 0.38;
-    ctx.drawImage(planet, px + Math.sin(time * 0.025) * 7, py, size, size);
+    // Outer luminous corona halo
+    ctx.globalAlpha = intro * 0.85;
+    ctx.drawImage(sphereCorona, sphereX - sphereSize * 0.15, sphereY - sphereSize * 0.15, sphereSize * 1.3, sphereSize * 1.3);
 
-    // Stars - zero allocation loop
-    const starCount = width < 641 ? 80 : 150;
+    // Living Celestial Sphere with subtle sway
+    ctx.globalAlpha = intro * 0.48;
+    const sphereWobble = Math.sin(time * 0.03) * 6;
+    ctx.drawImage(celestialSphere, sphereX + sphereWobble, sphereY, sphereSize, sphereSize);
+
+    // 2. Divine Sunburst Aura behind the Crown position
+    const crownCenterX = width * 0.5;
+    const crownCenterY = isMobile ? 140 : 165;
+    const sunburstSize = isMobile ? 320 : 440;
+    const sunburstPulse = 1 + Math.sin(time * 0.5) * 0.05;
+    ctx.globalAlpha = intro * 0.65;
+    ctx.drawImage(
+      divineSunburst,
+      crownCenterX - (sunburstSize * sunburstPulse) / 2,
+      crownCenterY - (sunburstSize * sunburstPulse) / 2 - progress * 20,
+      sunburstSize * sunburstPulse,
+      sunburstSize * sunburstPulse
+    );
+
+    // 3. Living Cloud Layers (Pass 1: Background streams 0 and 1)
+    for (let i = 0; i < 2; i++) {
+      const [cTex, cx, cy, cw, ch, cspeed, cparallax, cAlpha] = CLOUD_STREAMS[i];
+      ctx.globalAlpha = cAlpha * intro;
+      const drift = Math.sin(time * 0.035 * cspeed + i) * width * 0.05;
+      ctx.drawImage(cTex, width * cx + drift, height * cy - progress * cparallax, width * cw, height * ch);
+    }
+
+    // 4. Twinkling Diamond & Gold Stars
+    const starCount = isMobile ? 85 : 150;
     const starProgressFade = 1 - progress * 0.75;
     for (let i = 0; i < starCount; i++) {
       const s = stars[i];
-      const alpha = (0.18 + (Math.sin(time * s.speed + s.phase) + 1) * 0.23) * intro * starProgressFade * (1 - s.y * 0.7);
+      const pulse = (Math.sin(time * s.speed + s.phase) + 1) * 0.5;
+      const alpha = (0.22 + pulse * 0.58) * intro * starProgressFade * (1 - s.y * 0.65);
       if (alpha <= 0.01) continue;
-      const x = s.x * width + Math.sin(time * 0.05 + s.phase) * 2;
-      const y = s.y * height - progress * (8 + (i % 3) * 5);
+
+      const x = s.x * width + Math.sin(time * 0.04 + s.phase) * 2;
+      const y = s.y * height - progress * (8 + (i % 3) * 6);
 
       ctx.globalAlpha = alpha;
       ctx.fillStyle = s.color;
       ctx.beginPath();
-      ctx.arc(x, y, s.size, 0, Math.PI * 2);
+      ctx.arc(x, y, s.size * (0.85 + pulse * 0.35), 0, Math.PI * 2);
       ctx.fill();
 
-      if (s.hasCross) {
-        const glow = (Math.sin(time * 0.4 + s.phase) + 1) * 0.5;
-        ctx.globalAlpha = alpha * glow;
-        ctx.strokeStyle = '#aa8750';
-        ctx.lineWidth = 0.7;
+      // Sharp 4-point cross diffraction flares on prominent stars
+      if (s.isFlareStar && pulse > 0.55) {
+        const flareAlpha = alpha * ((pulse - 0.55) / 0.45);
+        ctx.globalAlpha = flareAlpha * 0.85;
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = 0.8;
+        const len = s.flareLength * pulse;
         ctx.beginPath();
-        ctx.moveTo(x - 6, y);
-        ctx.lineTo(x + 6, y);
-        ctx.moveTo(x, y - 6);
-        ctx.lineTo(x, y + 6);
+        ctx.moveTo(x - len, y); ctx.lineTo(x + len, y);
+        ctx.moveTo(x, y - len); ctx.lineTo(x, y + len);
         ctx.stroke();
       }
     }
 
-    // Clouds - smooth layered drift and parallax
-    for (let i = 0; i < CLOUD_LAYERS.length; i++) {
-      const [cx, cy, cw, ch, cspeed, cparallax] = CLOUD_LAYERS[i];
-      ctx.globalAlpha = (i < 2 ? 0.7 : 0.9) * intro;
-      const drift = Math.sin(time * 0.03 * cspeed + i) * width * 0.04;
-      ctx.drawImage(cloud, width * cx + drift, height * cy - progress * cparallax, width * cw, height * ch);
+    // 5. Floating Golden Stardust Particles around the Crown
+    const dustProgress = 1 - progress * 0.85;
+    for (let i = 0; i < goldenDust.length; i++) {
+      const p = goldenDust[i];
+      const pPulse = (Math.sin(time * p.speed + p.phase) + 1) * 0.5;
+      const pAlpha = (0.25 + pPulse * 0.65) * intro * dustProgress;
+      if (pAlpha <= 0.01) continue;
+
+      const pX = crownCenterX + Math.cos(time * p.driftSpeed + p.phase) * (width * p.radiusX);
+      const pY = crownCenterY + Math.sin(time * p.speed + p.phase) * (height * p.radiusY) - progress * 24;
+
+      ctx.globalAlpha = pAlpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(pX, pY, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 6. Living Cloud Layers (Pass 2: Midground and Horizon clouds 2, 3, 4)
+    for (let i = 2; i < CLOUD_STREAMS.length; i++) {
+      const [cTex, cx, cy, cw, ch, cspeed, cparallax, cAlpha] = CLOUD_STREAMS[i];
+      ctx.globalAlpha = cAlpha * intro;
+      const drift = Math.sin(time * 0.035 * cspeed + i) * width * 0.05;
+      ctx.drawImage(cTex, width * cx + drift, height * cy - progress * cparallax, width * cw, height * ch);
     }
 
     ctx.globalAlpha = 1;
