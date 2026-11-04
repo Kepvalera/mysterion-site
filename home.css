@@ -259,7 +259,13 @@
 .founders-dust { position:absolute; inset:0; opacity:.65; background:radial-gradient(circle at 9% 32%,#b68f46 0 1px,transparent 2px),radial-gradient(circle at 42% 16%,#fff 0 1.5px,transparent 3px),radial-gradient(circle at 53% 76%,#b88b3d 0 1px,transparent 2px),radial-gradient(circle at 18% 66%,#fff 0 2px,transparent 4px),radial-gradient(circle at 88% 18%,#b68f46 0 1px,transparent 2px); }
 .founders .section-number { border:0; padding:0; }
 .e-founders-grid { display:grid; grid-template-columns:minmax(0,1.22fr) minmax(0,1fr); gap:clamp(24px,4vw,56px); align-items:center; }
-.e-founders-visual { position:relative; min-width:0; }
+.e-founders-visual { position:relative; min-width:0; isolation:isolate; }
+.e-founders-visual picture { position:relative; display:block; z-index:1; }
+.e-founders-visual::before { content:''; position:absolute; z-index:-1; inset:-10% -15% 0; pointer-events:none; background:radial-gradient(ellipse at 50% 42%,#fff8dfeb 0%,#f3cf8280 24%,#e5b85e33 45%,transparent 68%); mask-image:radial-gradient(ellipse,#000 25%,transparent 70%); -webkit-mask-image:radial-gradient(ellipse,#000 25%,transparent 70%); opacity:.8; }
+.e-founders-visual::after { content:''; position:absolute; z-index:2; inset:48% -10% -4%; pointer-events:none; background:radial-gradient(ellipse at 15% 65%,#eaf3fbe6,transparent 47%),radial-gradient(ellipse at 85% 75%,#f2f5fce6,transparent 47%),linear-gradient(transparent 65%,#eef1f8a6); opacity:.28; }
+.founders-stars { position:absolute; inset:0 -5%; z-index:0; pointer-events:none; }
+.founders-star { position:absolute; left:var(--x); top:var(--y); width:var(--size); height:var(--size); border-radius:50%; background:#fff8dc; box-shadow:0 0 5px #ad7c27b3,0 0 12px #f6ce7899; opacity:.65; }
+.founders-star:nth-child(4n)::after { content:''; position:absolute; inset:-4px; background:linear-gradient(90deg,transparent 42%,#fff4ca 50%,transparent 58%),linear-gradient(transparent 42%,#fff4ca 50%,transparent 58%); }
 .founders-cutout { display:block; width:100%; height:auto; max-height:760px; object-fit:contain; }
 .founders-role { color:#75603b; font-size:12px; letter-spacing:.13em; margin-bottom:18px; }
 .founders-brand { display:flex; align-items:center; gap:14px; color:#876b36; font-size:10px; letter-spacing:.18em; margin-bottom:22px; }
@@ -272,16 +278,26 @@
 .e-biography summary:focus-visible { outline:2px solid #94713a; outline-offset:5px; }
 @media (prefers-reduced-motion:no-preference) {
   .founders-clouds { animation:founders-clouds 22s ease-in-out infinite alternate; animation-play-state:paused; }
-  .founders-rays { animation:founders-light 12s ease-in-out infinite alternate; animation-play-state:paused; }
+  .founders-rays { animation:founders-rays 14s ease-in-out infinite alternate; animation-play-state:paused; }
   .founders-dust { animation:founders-dust 8s ease-in-out infinite alternate; animation-play-state:paused; }
   .founders[data-visible="true"] .founders-clouds,.founders[data-visible="true"] .founders-rays,.founders[data-visible="true"] .founders-dust { animation-play-state:running; }
-  .founders[data-visible="true"]::before { animation:founders-light 14s ease-in-out infinite alternate; }
-  .founders.founders-revealed .e-founders-visual { animation:founders-arrive .95s both; }
+  .e-founders-visual::before { animation:founders-halo 9s ease-in-out infinite alternate; animation-play-state:paused; }
+  .founders-star { animation:founders-twinkle var(--duration) var(--delay) ease-in-out infinite alternate; animation-play-state:paused; }
+  .founders[data-visible="true"] .e-founders-visual::before,.founders[data-visible="true"] .founders-star { animation-play-state:running; }
+  .founders.founders-revealed .e-founders-visual picture { animation:founders-materialize 1.8s ease-out both; }
+  .founders.founders-revealed .e-founders-visual::after { animation:founders-mist-arrive 2.2s ease-out both,founders-mist-drift 18s 2.2s ease-in-out infinite alternate; animation-play-state:paused; }
+  .founders.founders-revealed[data-visible="true"] .e-founders-visual::after { animation-play-state:running; }
   .founders.founders-revealed .e-founders-text { animation:founders-arrive .95s .15s both; }
   .founders.founders-revealed .founders-brand::before { animation:founders-line 1s .25s both; }
   @keyframes founders-arrive { from { opacity:.45; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
   @keyframes founders-line { from { transform:scaleX(.15); } to { transform:scaleX(1); } }
   @keyframes founders-light { from { opacity:.45; } to { opacity:1; } }
+  @keyframes founders-materialize { from { opacity:.25; } to { opacity:1; } }
+  @keyframes founders-mist-arrive { from { opacity:.9; transform:translateY(-6%); } to { opacity:.28; transform:translateY(0); } }
+  @keyframes founders-mist-drift { from { transform:translateX(-2%); opacity:.22; } to { transform:translateX(3%); opacity:.36; } }
+  @keyframes founders-halo { from { opacity:.5; transform:scale(.97); } to { opacity:.95; transform:scale(1.04); } }
+  @keyframes founders-twinkle { from { opacity:.18; transform:translateY(3px) scale(.75); } to { opacity:.95; transform:translateY(-6px) scale(1.1); } }
+  @keyframes founders-rays { from { opacity:.24; transform:rotate(-3deg); } to { opacity:.6; transform:rotate(3deg); } }
   @keyframes founders-clouds { to { transform:translate3d(4%,-2%,0) scale(1.04); } }
   @keyframes founders-dust { to { opacity:.25; transform:translateY(-12px); } }
 }

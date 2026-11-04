@@ -15,10 +15,26 @@
   };
   window.addEventListener('mysterion:language',translate); translate();
   const founders = document.getElementById('founders');
+  if (founders) {
+    const stars = founders.querySelector('.founders-stars');
+    if (stars && !stars.childElementCount) {
+      const positions = [[8,18],[91,13],[15,37],[85,32],[5,58],[94,52],[18,76],[82,73],[11,91],[91,87],[33,7],[73,5],[4,45],[97,65],[28,93],[75,95]];
+      positions.forEach(([x,y], i) => {
+        const star = document.createElement('span');
+        star.className = 'founders-star';
+        star.style.cssText = `--x:${x}%;--y:${y}%;--size:${i % 4 === 0 ? 3 : 2}px;--duration:${3.5 + i % 5}s;--delay:${-i * .7}s`;
+        stars.append(star);
+      });
+    }
+  }
   if (founders && 'IntersectionObserver' in window) {
+    let inView = false;
+    const syncFounders = () => { founders.dataset.visible = String(inView && !document.hidden); };
+    document.addEventListener('visibilitychange', syncFounders);
     const foundersObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
-        founders.dataset.visible = String(entry.isIntersecting);
+        inView = entry.isIntersecting;
+        syncFounders();
         if (entry.isIntersecting) founders.classList.add('founders-revealed');
       });
     }, {threshold:.08});
