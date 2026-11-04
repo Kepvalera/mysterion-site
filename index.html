@@ -14,6 +14,7 @@
   <script defer src="script.js"></script>
 </head>
 <body>
+<div class="reading-progress" aria-hidden="true"></div>
 <a class="skip-link" href="#main" data-i18n="skip">Перейти к содержимому</a>
 <header class="site-header" id="top">
   <div class="header-inner container">
@@ -32,7 +33,14 @@
       <a href="#contacts" data-i18n="navContacts">Контакты</a>
     </nav>
     <div class="header-actions">
-      <button class="lang-toggle" type="button" aria-label="Switch language to English"><span class="lang-strong">RU</span><span class="lang-muted"> / EN</span></button>
+      <div class="language-picker">
+        <button class="lang-toggle" type="button" aria-label="Language: Русский" aria-haspopup="listbox" aria-controls="language-menu" aria-expanded="false"><span aria-hidden="true">🌐</span><span class="lang-strong">RU</span><span class="language-chevron" aria-hidden="true">⌄</span></button>
+        <div class="language-menu" id="language-menu" role="listbox" aria-label="Choose language" hidden>
+          <button type="button" role="option" data-lang="ru" aria-selected="true">🇷🇺 Русский <span>RU</span></button>
+          <button type="button" role="option" data-lang="en" aria-selected="false">🇬🇧 English <span>EN</span></button>
+          <button type="button" role="option" data-lang="de" aria-selected="false">🇩🇪 Deutsch <span>DE</span></button>
+        </div>
+      </div>
       <a class="header-cta" href="#contacts"><span data-i18n="headerCta">Связаться</span><span aria-hidden="true">↗</span></a>
       <button class="menu-toggle" type="button" aria-controls="mobile-nav" aria-expanded="false" aria-label="Open menu"><span></span><span></span></button>
     </div>
