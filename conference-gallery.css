@@ -1,0 +1,18 @@
+/* Isolated photo-archive refinements; other catalogs keep their existing styles. */
+.conference-photo-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+.conference-photo-grid .archive-item { box-shadow:var(--shadow); }
+.conference-photo-grid .archive-item img { transition:transform .3s ease; }
+.conference-photo-viewer { width:fit-content; }
+.conference-photo-viewer #viewer-content img { width:auto; height:auto; object-fit:contain; }
+@media (max-width:1023px) {
+  .conference-photo-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+}
+@media (max-width:640px) {
+  .conference-photo-grid { grid-template-columns:1fr; }
+}
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+  .conference-photo-grid .archive-item:hover img { transform:scale(1.035); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .conference-photo-grid .archive-item img { transition:none; }
+}

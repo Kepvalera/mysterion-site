@@ -4,18 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#c8e1f1">
-  <meta name="description" content="Мистерион — международное христианское служение. Школы, конференции, духовное наставничество и пространство для познания Бога.">
+  <meta name="description" content="Фотоархив конференции MYSTERION INTERNATIONAL 2025 года. Фотографии с просмотром в увеличенном виде.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Мистерион | Международное христианское служение">
-  <meta property="og:description" content="Пространство познания Бога, духовного возрастания и раскрытия призвания.">
-  <title>Конференция 2025 — Медиаархив | MYSTERION</title>
+  <meta property="og:title" content="Конференция 2025 — Фотоархив | MYSTERION INTERNATIONAL">
+  <meta property="og:description" content="Фотографии конференции MYSTERION INTERNATIONAL 2025 года.">
+  <title>Конференция 2025 — Фотоархив | MYSTERION</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="conference-gallery.css?v=20261104-photos">
   <script defer src="script.js"></script>
   <script defer src="conference-2025-data.js"></script>
-  <script defer src="conference-2025.js"></script>
+  <script defer src="conference-gallery.js?v=20261104-photos"></script>
 </head>
-<body data-page="photos">
+<body data-page="photos" data-conference-year="2025">
 <a class="skip-link" href="#main" data-i18n="skip">Перейти к содержимому</a>
 <header class="site-header" id="top">
   <div class="header-inner container">
@@ -55,13 +56,14 @@
 <main id="main" class="library-page">
   <section class="library-intro container">
     <p class="eyebrow"><span class="eyebrow-line"></span><span data-i18n="galleryEyebrow">МГНОВЕНИЯ НАШИХ ВСТРЕЧ</span></p>
-    <h1><span >Конференция 2025</span><br><em>«Величие Царя в славе и изобилии».</em></h1>
-    <p class="library-lead" >Фотографии и видео конференции 2025 года — в одном архиве. Выберите материал, чтобы посмотреть его.</p>
+    <h1><span data-archive-text="heading">Конференция 2025</span><br><em data-archive-text="name">«Величие Царя в славе и изобилии».</em></h1>
+    <p class="library-lead" data-archive-text="lead">Фотографии конференции 2025 года. Нажмите на фотографию, чтобы открыть её в увеличенном виде.</p>
     <div class="library-actions"><a class="btn btn-dark" href="index.html#media"><span data-i18n="backMedia">На главную</span><span aria-hidden="true">↗</span></a></div>
   </section>
-  <section class="container library-content" aria-label="Фотогалерея">
-    <div class="section-number"><span>2025 / MEDIA</span><span>ФОТО И ВИДЕО</span></div>
-    <p style="max-width:850px;margin:0 0 20px;color:#244664;font-size:15px;line-height:1.6">Это облегчённая версия сайта для удобного скачивания: все фотографии и обложки видео доступны, но сами видеофайлы не включены. После публикации видео на видеохостинге их можно подключить к странице.</p><div class="media-filters" role="group" aria-label="Фильтр медиа"><button type="button" class="media-filter active" data-filter="all">Все</button><button type="button" class="media-filter" data-filter="photo">Фото</button><button type="button" class="media-filter" data-filter="video">Видео</button></div><div id="archive-grid" class="photo-grid"></div><dialog id="media-viewer" class="media-viewer"><button class="viewer-close" type="button" aria-label="Закрыть">×</button><div id="viewer-content"></div></dialog>
+  <section class="container library-content" aria-labelledby="archive-heading">
+    <div class="section-number"><span>2025 / PHOTO</span><span id="archive-heading" data-archive-text="collection">ФОТОАРХИВ</span></div>
+    <div id="archive-grid" class="photo-grid conference-photo-grid"></div>
+    <dialog id="media-viewer" class="media-viewer conference-photo-viewer" aria-label="Просмотр фотографии"><button class="viewer-close" type="button" aria-label="Закрыть">×</button><div id="viewer-content"></div></dialog>
   </section>
 </main>
 <footer class="footer">
