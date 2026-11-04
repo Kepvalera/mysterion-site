@@ -249,13 +249,40 @@
   line-height: 1.6;
   color: #58677c;
 }
-.editorial-main .founders { background:linear-gradient(115deg,#e4eef7,#eeeaf4); }
-.e-founders-grid { display:grid; grid-template-columns:1.2fr 1fr; gap:64px; align-items:center; }
-.e-founders-visual { min-width:0; }
-.e-founders-visual .photo-frame { aspect-ratio:4/4.6; border:0; border-radius:180px 12px 12px 12px; box-shadow:none; }
-.e-founders-visual .photo-frame img { object-position:50% 38%; }
-.e-founders-text h2 { margin-bottom:24px; }
-.e-founders-text .intro-text { font-size:18px; }
+.editorial-main .founders { position:relative; isolation:isolate; background:linear-gradient(180deg,#f3f5f9,#eef4fa 42%,#f6f5f9 80%,#f6f7fa); padding-block:clamp(36px,5vw,72px); }
+.founders::before { content:''; position:absolute; inset:0; z-index:-1; pointer-events:none; background:radial-gradient(ellipse at 25% 45%,#e7c78333,transparent 55%),radial-gradient(ellipse at 85% 55%,#d6e6f555,transparent 55%); }
+.founders .section-number { border:0; padding:0; }
+.e-founders-grid { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:clamp(36px,6vw,88px); align-items:center; }
+.e-founders-visual { position:relative; min-width:0; padding:0 12% 0 0; }
+.e-founders-visual .photo-frame { aspect-ratio:3/4; border:1px solid #b59a6066; padding:7px; border-radius:2px; box-shadow:none; background:#f8f7f2; overflow:visible; }
+.e-founders-visual .photo-frame img { object-fit:contain; object-position:center; }
+.founders-portrait { position:absolute; width:32%; right:0; bottom:12%; padding:5px; background:#fbfaf6; border:1px solid #b59a6070; }
+.founders-portrait img { display:block; width:100%; height:auto; }
+.founders .photo-caption { color:#655c4b; font:400 clamp(18px,1.7vw,24px)/1.35 var(--font-display); letter-spacing:0; margin-top:18px; }
+.founders .photo-caption>span:last-child { font:500 10px/2 var(--font-body); color:#8b703e; }
+.founders-brand { display:flex; align-items:center; gap:14px; color:#876b36; font-size:10px; letter-spacing:.18em; margin-bottom:22px; }
+.founders-brand::before { content:''; flex:0 0 36px; height:1px; background:#b99a59; transform-origin:left; }
+.e-founders-text { min-width:0; }
+.editorial-main .e-founders-text h2 { font-size:clamp(38px,4.3vw,64px); line-height:1.06; text-transform:none; margin:0 0 24px; color:#233b53; }
+.founders-names { font:500 clamp(27px,2.7vw,38px)/1.2 var(--font-display); color:#263e55; margin-bottom:22px; }
+.founders-names em { color:#8a6a34; font-weight:400; }
+.e-founders-text .intro-text { font-size:17px; line-height:1.75; color:#4b5a6f; }
+.e-biography summary { padding-block:8px; min-height:44px; }
+.e-biography summary:focus-visible { outline:2px solid #94713a; outline-offset:5px; }
+@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference) {
+  .e-founders-visual .photo-frame,.founders-portrait { transition:transform .5s ease; }
+  .e-founders-visual:hover .photo-frame { transform:perspective(1200px) rotateY(1deg); }
+  .e-founders-visual:hover .founders-portrait { transform:translateY(-3px); }
+}
+@media (prefers-reduced-motion:no-preference) {
+  .founders[data-visible="true"]::before { animation:founders-light 14s ease-in-out infinite alternate; }
+  .founders.founders-revealed .e-founders-visual { animation:founders-arrive .95s both; }
+  .founders.founders-revealed .e-founders-text { animation:founders-arrive .95s .15s both; }
+  .founders.founders-revealed .founders-brand::before { animation:founders-line 1s .25s both; }
+  @keyframes founders-arrive { from { opacity:.45; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes founders-line { from { transform:scaleX(.15); } to { transform:scaleX(1); } }
+  @keyframes founders-light { from { opacity:.45; } to { opacity:1; } }
+}
 .e-biography { border-top:1px solid #a58b5b60; margin-top:24px; padding-top:18px; }
 .e-biography summary { cursor:pointer; color:var(--gold); font-size:13px; font-weight:600; }
 .e-biography p { font-size:14px; color:var(--ink2); margin-top:18px; }
@@ -336,7 +363,7 @@
   .editorial-main .container { width:calc(100% - 40px); }
   .e-values { grid-template-columns:1fr; }
   .e-value { border-bottom:1px solid var(--line); padding:18px 0; }
-  .e-founders-visual .photo-frame { border-radius:100px 4px 4px 4px; }
+  .e-founders-visual { max-width:480px; width:100%; margin-inline:auto; }
   .e-founders-text .intro-text { font-size:17px; }
   .editorial-main .section-topline { grid-template-columns:1fr; gap:22px; margin-bottom:26px; }
   .e-directions { grid-template-columns:1fr; gap:0; }
