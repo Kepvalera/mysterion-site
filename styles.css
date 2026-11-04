@@ -1107,3 +1107,14 @@ html {scroll-padding-top:94px}
 }
 @media(prefers-reduced-motion:reduce){.motion-ready .motion-reveal{opacity:1!important;transform:none!important;transition:none!important}.hero-art-image,.vision-star{animation:none!important}.reading-progress{transition:none!important}}
 @media(max-width:720px){.motion-ready .motion-reveal{transition-duration:.55s;transition-delay:0ms!important}.hero-art-image{animation:none!important}}
+
+
+
+/* Единый шрифт для имён основателей */
+.founders-text h2,
+.founders-text h2 em {
+  font-family: 'Manrope', sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: -0.055em;
+}
