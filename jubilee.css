@@ -1,7 +1,5 @@
 /* A celestial accent within the existing light identity. */
 .jubilee-wrap { margin-block:40px 72px; scroll-margin-top:calc(var(--header-height) + 24px); }
-.home-page > .jubilee-wrap { margin-block:0; padding-block:var(--section-half); }
-.home-page .jubilee-banner { min-height:0; }
 .jubilee-banner { position:relative; isolation:isolate; overflow:hidden; min-height:570px; border:1px solid #c9a86680; border-radius:32px; background:radial-gradient(ellipse at 85% 25%,#4a367c 0,transparent 52%),linear-gradient(130deg,#101d40,#192954 50%,#211b40); box-shadow:0 28px 65px #20295826; }
 .jubilee-banner::before { content:''; position:absolute; z-index:-1; inset:-40%; background:conic-gradient(from 195deg at 70% 40%,transparent 0deg,#f6dfad16 18deg,transparent 30deg,#d0c0ff14 42deg,transparent 57deg); filter:blur(14px); pointer-events:none; }
 .jubilee-copy { position:relative; z-index:1; max-width:800px; padding:clamp(32px,5vw,72px); }

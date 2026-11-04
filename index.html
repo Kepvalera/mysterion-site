@@ -12,16 +12,18 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="jubilee.css">
+  <link rel="stylesheet" href="home.css">
   <script defer src="script.js"></script>
   <script defer src="jubilee.js"></script>
+  <script defer src="home.js"></script>
 </head>
-<body>
+<body class="editorial-home">
 <div class="reading-progress" aria-hidden="true"></div>
 <a class="skip-link" href="#main" data-i18n="skip">Перейти к содержимому</a>
 <header class="site-header" id="top">
   <div class="header-inner container">
     <a href="#home" class="brand" aria-label="Mysterion">
-      <span class="brand-symbol crown-mark" aria-hidden="true">♛</span>
+      <span class="brand-symbol crown-mark" aria-hidden="true">M</span>
       <span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span>
     </a>
     <nav class="desktop-nav" aria-label="Main navigation">
@@ -37,11 +39,11 @@
     </nav>
     <div class="header-actions">
       <div class="language-picker">
-        <button class="lang-toggle" type="button" aria-label="Language: Русский" aria-haspopup="listbox" aria-controls="language-menu" aria-expanded="false"><span aria-hidden="true">🌐</span><span class="lang-strong">RU</span><span class="language-chevron" aria-hidden="true">⌄</span></button>
+        <button class="lang-toggle" type="button" aria-label="Language: Русский" aria-haspopup="listbox" aria-controls="language-menu" aria-expanded="false"><span aria-hidden="true"></span><span class="lang-strong">RU</span><span class="language-chevron" aria-hidden="true">⌄</span></button>
         <div class="language-menu" id="language-menu" role="listbox" aria-label="Choose language" hidden>
-          <button type="button" role="option" data-lang="ru" aria-selected="true">🇷🇺 Русский <span>RU</span></button>
-          <button type="button" role="option" data-lang="en" aria-selected="false">🇬🇧 English <span>EN</span></button>
-          <button type="button" role="option" data-lang="de" aria-selected="false">🇩🇪 Deutsch <span>DE</span></button>
+          <button type="button" role="option" data-lang="ru" aria-selected="true">Русский <span>RU</span></button>
+          <button type="button" role="option" data-lang="en" aria-selected="false">English <span>EN</span></button>
+          <button type="button" role="option" data-lang="de" aria-selected="false">Deutsch <span>DE</span></button>
         </div>
       </div>
       <a class="header-cta" href="#contacts"><span data-i18n="headerCta">Связаться</span><span aria-hidden="true">↗</span></a>
@@ -61,28 +63,91 @@
   </nav>
 </header>
 
-<main id="main" class="home-page">
-  <section class="hero cosmic-hero" id="home" aria-labelledby="hero-heading">
-    <div class="container hero-grid">
-      <div class="hero-copy">
+<main id="main" class="editorial-main">
+  <section class="e-hero cosmic-hero" id="home" aria-labelledby="hero-heading">
+    <div class="container e-hero-grid">
+      <div class="e-hero-copy">
         <p class="eyebrow"><span class="eyebrow-line"></span><span data-i18n="heroEyebrow">МЕЖДУНАРОДНОЕ ХРИСТИАНСКОЕ СЛУЖЕНИЕ</span></p>
-        <h1 id="hero-heading"><span data-i18n="heroHead1">Пространство,</span><br><span data-i18n="heroHead2">где вера</span><br><em data-i18n="heroHead3">становится жизнью.</em></h1>
-        <p class="hero-lead" data-i18n="heroLead">Объединяем людей из разных стран, чтобы вместе глубже познавать Бога, возрастать в вере и открывать своё призвание.</p>
-        <div class="hero-buttons">
+        <h1 id="hero-heading" class="e-wordmark">MYSTERION <span>INTERNATIONAL</span></h1><h2 class="e-statement"><span data-i18n="heroHead1">Пространство,</span><br><span data-i18n="heroHead2">где вера</span><br><em data-i18n="heroHead3">становится жизнью.</em></h2>
+        <p class="e-hero-lead" data-i18n="heroLead">Объединяем людей из разных стран, чтобы вместе глубже познавать Бога, возрастать в вере и открывать своё призвание.</p>
+        <div class="e-hero-buttons">
           <a class="btn btn-dark" href="#about"><span data-i18n="heroPrimary">Узнать о служении</span><span aria-hidden="true">↗</span></a>
           <a class="text-arrow" href="#events"><span data-i18n="heroSecondary">Школы и конференции</span><span aria-hidden="true">↗</span></a>
         </div>
-        <div class="hero-footnote"><span>01 / MYSTERION</span><span data-i18n="heroFoot">ВЕРА • ЕДИНСТВО • ПРИЗВАНИЕ</span></div>
+        <div class="e-hero-footnote"><span>01 / MYSTERION</span><span data-i18n="heroFoot">ВЕРА • ЕДИНСТВО • ПРИЗВАНИЕ</span></div>
       </div>
-      <div class="hero-art" aria-hidden="true">
-        <div class="hero-art-image"></div>
-        <div class="art-halo halo-a"></div><div class="art-halo halo-b"></div><div class="art-halo halo-c"></div>
-        <div class="art-center"><span class="art-star">✳</span><span>MYSTERION</span><small>KNOW GOD · LIVE FULLY</small></div>
-        <div class="art-tag tag-top"><span>✦</span> MYSTERION</div>
-        <div class="art-tag tag-bottom">FAITH<br>IN MOTION <b>↗</b></div>
+      <div class="e-hero-art" aria-hidden="true">
+        <img class="e-hero-image" src="mysterion-crown.webp" alt="" width="640" height="640" fetchpriority="high"><span class="e-orbit" aria-hidden="true"></span>
+
       </div>
     </div>
     <div class="hero-bottom-line" aria-hidden="true"></div>
+  </section>
+
+
+
+  <section class="e-section about" id="about">
+    <div class="container">
+      <div class="section-number"><span>01</span><span data-i18n="aboutLabel">О СЛУЖЕНИИ</span></div>
+      <div class="e-about-grid">
+        <div class="section-heading">
+          <p class="eyebrow muted" data-i18n="aboutEyebrow">КТО МЫ</p>
+          <h2><span data-i18n="aboutHead1">Больше, чем</span><br><em data-i18n="aboutHead2">встреча.</em></h2>
+        </div>
+        <div class="e-about-copy">
+          <p class="intro-text" data-i18n="aboutIntro">«Мистерион» — международное христианское служение, которое объединяет людей, стремящихся к глубоким отношениям с Богом и духовному возрастанию.</p>
+          <p data-i18n="aboutText">Мы верим, что вера преображает не только знания, но и повседневную жизнь: мышление, отношения, решения и наше отношение к людям. Через школы, конференции, молитву и общение мы создаём пространство, где человек может укрепляться в Боге, раскрывать свои дары и делиться ими с другими.</p>
+          <a href="#ministry" class="text-arrow dark-arrow"><span data-i18n="aboutLink">Чем мы занимаемся</span><span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+      <div class="e-values" aria-label="Core values">
+        <div class="e-value"><span>01</span><div><strong data-i18n="pillar1">Познание Бога</strong><p data-i18n="pillar1Text">Глубже открывать Его сердце и характер</p></div></div>
+        <div class="e-value"><span>02</span><div><strong data-i18n="pillar2">Духовное возрастание</strong><p data-i18n="pillar2Text">Укрепляться в вере и обновлять мышление</p></div></div>
+        <div class="e-value"><span>03</span><div><strong data-i18n="pillar3">Единство и служение</strong><p data-i18n="pillar3Text">Делать добро, поддерживать и созидать</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="e-section founders" id="founders">
+    <div class="container">
+      <div class="section-number"><span>02</span><span data-i18n="foundersLabel">ЛЮДИ И ВИДЕНИЕ</span></div>
+      <div class="e-founders-grid">
+        <div class="e-founders-visual">
+          <div class="photo-frame founders-photo" role="img" aria-label="Фотография Эдуарда и Натальи Хестановых">
+            <img src="assets/photos/founders-conference.webp" alt="Эдуард и Наталья Хестановы" loading="lazy" onerror="this.hidden=true">
+            <div class="photo-placeholder"><span class="e-light-mark" aria-hidden="true"></span><span data-i18n="foundersPhoto">Фотография основателей</span></div>
+          </div>
+          <div class="photo-caption"><span>EDUARD & NATALIA KHESTANOV</span><span>✦</span></div>
+        </div>
+        <div class="e-founders-text">
+          <p class="eyebrow muted" data-i18n="foundersEyebrow">ОСНОВАТЕЛИ СЛУЖЕНИЯ</p>
+          <h2><span data-i18n="foundersHead1">Эдуард и</span><br><em data-i18n="foundersHead2">Наталья Хестановы</em></h2>
+          <p class="intro-text" data-i18n="foundersIntro">Основатели международного христианского служения «Мистерион», пасторы, духовные наставники и учителя.</p>
+          <details class="e-biography"><summary data-editorial="biography">История и видение служения</summary><p data-i18n="foundersP1">С 2008 года Эдуард и Наталья несут пастырское служение в Московском регионе, посвящая себя духовному наставничеству, обучению и поддержке людей. За годы служения они помогали многим людям и семьям глубже познавать Бога, укрепляться в вере и открывать своё призвание.</p>
+          <p data-i18n="foundersP2">Их служение включает духовные школы, обучающие программы, молитвенные встречи и международные конференции. Они также участвуют в миссионерских поездках, в том числе в Африке, и развивают сотрудничество с церквями и служителями из разных стран.</p>
+          <p data-i18n="foundersP3">Их видение — видеть людей, укоренённых во Христе, утверждённых в своей идентичности и раскрывающих свои дары, чтобы приносить перемены в окружающий мир.</p>
+          </details><span class="signature">Mysterion</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="e-section ministries" id="ministry">
+    <div class="container">
+      <div class="section-number"><span>03</span><span data-i18n="ministryLabel">НАПРАВЛЕНИЯ</span></div>
+      <div class="section-topline">
+        <div><p class="eyebrow muted" data-i18n="ministryEyebrow">ЧЕМ МЫ ЗАНИМАЕМСЯ</p><h2><span data-i18n="ministryHead1">Разные пути.</span><br><em data-i18n="ministryHead2">Одно призвание.</em></h2></div>
+        <p data-i18n="ministryIntro">Мы создаём возможности для личного духовного роста, общения и практического служения — от наставничества до международных встреч.</p>
+      </div>
+      <div class="e-directions">
+        <article class="e-direction"><span class="card-number">01</span><h3 data-i18n="card1Title">Духовное наставничество</h3><p data-i18n="card1Text">Помогаем укрепляться в отношениях с Богом, проходить жизненные перемены и раскрывать своё призвание.</p><a href="#contacts" aria-label="Связаться" class="e-direction-link">↗</a></article>
+        <article class="e-direction"><span class="card-number">02</span><h3 data-i18n="card2Title">Школы и обучение</h3><p data-i18n="card2Text">Проводим программы о познании Бога, духовном возрастании, обновлении мышления и практической жизни веры.</p><a href="#events" aria-label="События" class="e-direction-link">↗</a></article>
+        <article class="e-direction"><span class="card-number">03</span><h3 data-i18n="card3Title">Международные конференции</h3><p data-i18n="card3Text">Объединяем служителей и участников из разных стран для обучения, молитвы, поклонения и общения.</p><a href="#events" aria-label="Конференции" class="e-direction-link">↗</a></article>
+        <article class="e-direction"><span class="card-number">04</span><h3 data-i18n="card4Title">Молитва и поклонение</h3><p data-i18n="card4Text">Создаём пространство для совместной молитвы, поклонения Богу и духовного укрепления.</p><a href="#contacts" aria-label="Контакты" class="e-direction-link">↗</a></article>
+        <article class="e-direction"><span class="card-number">05</span><h3 data-i18n="card5Title">Миссия и сотрудничество</h3><p data-i18n="card5Text">Развиваем международные связи с церквями и служителями, участвуем в миссионерских инициативах.</p><a href="#contacts" aria-label="Сотрудничество" class="e-direction-link">↗</a></article>
+        <article class="e-direction accent-card"><span class="card-number">06</span><h3 data-i18n="card6Title">Сообщество и единство</h3><p data-i18n="card6Text">Объединяем людей разных поколений, культур и общин для поддержки, общения и совместного служения.</p><a href="#contacts" aria-label="Присоединиться" class="e-direction-link">↗</a></article>
+      </div>
+    </div>
   </section>
 
   <section class="jubilee-wrap container" aria-labelledby="jubilee-home-heading">
@@ -101,119 +166,56 @@
       </figure>
     </div>
   </section>
-
-  <section class="section about" id="about">
-    <div class="container">
-      <div class="section-number"><span>01</span><span data-i18n="aboutLabel">О СЛУЖЕНИИ</span></div>
-      <div class="about-grid">
-        <div class="section-heading">
-          <p class="eyebrow muted" data-i18n="aboutEyebrow">КТО МЫ</p>
-          <h2><span data-i18n="aboutHead1">Больше, чем</span><br><em data-i18n="aboutHead2">встреча.</em></h2>
-        </div>
-        <div class="about-copy">
-          <p class="intro-text" data-i18n="aboutIntro">«Мистерион» — международное христианское служение, которое объединяет людей, стремящихся к глубоким отношениям с Богом и духовному возрастанию.</p>
-          <p data-i18n="aboutText">Мы верим, что вера преображает не только знания, но и повседневную жизнь: мышление, отношения, решения и наше отношение к людям. Через школы, конференции, молитву и общение мы создаём пространство, где человек может укрепляться в Боге, раскрывать свои дары и делиться ими с другими.</p>
-          <a href="#ministry" class="text-arrow dark-arrow"><span data-i18n="aboutLink">Чем мы занимаемся</span><span aria-hidden="true">↗</span></a>
-        </div>
-      </div>
-      <div class="pillars" aria-label="Core values">
-        <div class="pillar"><span>01</span><div><strong data-i18n="pillar1">Познание Бога</strong><p data-i18n="pillar1Text">Глубже открывать Его сердце и характер</p></div></div>
-        <div class="pillar"><span>02</span><div><strong data-i18n="pillar2">Духовное возрастание</strong><p data-i18n="pillar2Text">Укрепляться в вере и обновлять мышление</p></div></div>
-        <div class="pillar"><span>03</span><div><strong data-i18n="pillar3">Единство и служение</strong><p data-i18n="pillar3Text">Делать добро, поддерживать и созидать</p></div></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section founders" id="founders">
-    <div class="container">
-      <div class="section-number"><span>02</span><span data-i18n="foundersLabel">ЛЮДИ И ВИДЕНИЕ</span></div>
-      <div class="founders-grid">
-        <div class="founders-visual">
-          <div class="photo-frame founders-photo" role="img" aria-label="Фотография Эдуарда и Натальи Хестановых">
-            <img src="assets/photos/founders-conference.webp" alt="Эдуард и Наталья Хестановы" loading="lazy" onerror="this.hidden=true">
-            <div class="photo-placeholder"><span class="photo-glyph">✳</span><span data-i18n="foundersPhoto">Фотография основателей</span></div>
-          </div>
-          <div class="photo-caption"><span>EDUARD & NATALIA KHESTANOV</span><span>✦</span></div>
-        </div>
-        <div class="founders-text">
-          <p class="eyebrow muted" data-i18n="foundersEyebrow">ОСНОВАТЕЛИ СЛУЖЕНИЯ</p>
-          <h2><span data-i18n="foundersHead1">Эдуард и</span><br><em data-i18n="foundersHead2">Наталья Хестановы</em></h2>
-          <p class="intro-text" data-i18n="foundersIntro">Основатели международного христианского служения «Мистерион», пасторы, духовные наставники и учителя.</p>
-          <p data-i18n="foundersP1">С 2008 года Эдуард и Наталья несут пастырское служение в Московском регионе, посвящая себя духовному наставничеству, обучению и поддержке людей. За годы служения они помогали многим людям и семьям глубже познавать Бога, укрепляться в вере и открывать своё призвание.</p>
-          <p data-i18n="foundersP2">Их служение включает духовные школы, обучающие программы, молитвенные встречи и международные конференции. Они также участвуют в миссионерских поездках, в том числе в Африке, и развивают сотрудничество с церквями и служителями из разных стран.</p>
-          <p data-i18n="foundersP3">Их видение — видеть людей, укоренённых во Христе, утверждённых в своей идентичности и раскрывающих свои дары, чтобы приносить перемены в окружающий мир.</p>
-          <span class="signature">Mysterion <i>✳</i></span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section ministries" id="ministry">
-    <div class="container">
-      <div class="section-number"><span>03</span><span data-i18n="ministryLabel">НАПРАВЛЕНИЯ</span></div>
-      <div class="section-topline">
-        <div><p class="eyebrow muted" data-i18n="ministryEyebrow">ЧЕМ МЫ ЗАНИМАЕМСЯ</p><h2><span data-i18n="ministryHead1">Разные пути.</span><br><em data-i18n="ministryHead2">Одно призвание.</em></h2></div>
-        <p data-i18n="ministryIntro">Мы создаём возможности для личного духовного роста, общения и практического служения — от наставничества до международных встреч.</p>
-      </div>
-      <div class="cards-grid">
-        <article class="ministry-card"><span class="card-number">01</span><span class="card-symbol" aria-hidden="true">✳</span><h3 data-i18n="card1Title">Духовное наставничество</h3><p data-i18n="card1Text">Помогаем укрепляться в отношениях с Богом, проходить жизненные перемены и раскрывать своё призвание.</p><a href="#contacts" aria-label="Связаться" class="card-arrow">↗</a></article>
-        <article class="ministry-card"><span class="card-number">02</span><span class="card-symbol" aria-hidden="true">⌁</span><h3 data-i18n="card2Title">Школы и обучение</h3><p data-i18n="card2Text">Проводим программы о познании Бога, духовном возрастании, обновлении мышления и практической жизни веры.</p><a href="#events" aria-label="События" class="card-arrow">↗</a></article>
-        <article class="ministry-card"><span class="card-number">03</span><span class="card-symbol" aria-hidden="true">◎</span><h3 data-i18n="card3Title">Международные конференции</h3><p data-i18n="card3Text">Объединяем служителей и участников из разных стран для обучения, молитвы, поклонения и общения.</p><a href="#events" aria-label="Конференции" class="card-arrow">↗</a></article>
-        <article class="ministry-card"><span class="card-number">04</span><span class="card-symbol" aria-hidden="true">✦</span><h3 data-i18n="card4Title">Молитва и поклонение</h3><p data-i18n="card4Text">Создаём пространство для совместной молитвы, поклонения Богу и духовного укрепления.</p><a href="#contacts" aria-label="Контакты" class="card-arrow">↗</a></article>
-        <article class="ministry-card"><span class="card-number">05</span><span class="card-symbol" aria-hidden="true">↗</span><h3 data-i18n="card5Title">Миссия и сотрудничество</h3><p data-i18n="card5Text">Развиваем международные связи с церквями и служителями, участвуем в миссионерских инициативах.</p><a href="#contacts" aria-label="Сотрудничество" class="card-arrow">↗</a></article>
-        <article class="ministry-card accent-card"><span class="card-number">06</span><span class="card-symbol" aria-hidden="true">+</span><h3 data-i18n="card6Title">Сообщество и единство</h3><p data-i18n="card6Text">Объединяем людей разных поколений, культур и общин для поддержки, общения и совместного служения.</p><a href="#contacts" aria-label="Присоединиться" class="card-arrow">↗</a></article>
-      </div>
-    </div>
-  </section>
-
-  <section class="vision-band cosmic-band">
-    <div class="container vision-content">
-      <span class="vision-star" aria-hidden="true">✳</span>
+  <section class="e-vision">
+    <div class="container e-vision-content">
+      <span class="e-light-mark" aria-hidden="true"></span>
       <p class="vision-quote" data-i18n="visionQuote">Мы верим в поколение людей, которые глубоко знают Бога, живут в своей идентичности во Христе и смело следуют за Его призванием.</p>
       <span class="vision-credit" data-i18n="visionCredit">ВИДЕНИЕ СЛУЖЕНИЯ «МИСТЕРИОН»</span>
     </div>
   </section>
 
-  <section class="section events" id="events">
+  <section class="e-section events" id="events">
     <div class="container">
       <div class="section-number"><span>04</span><span data-i18n="eventsLabel">ШКОЛЫ И КОНФЕРЕНЦИИ</span></div>
       <div class="section-topline">
         <div><p class="eyebrow muted" data-i18n="eventsEyebrow">НАШИ ВСТРЕЧИ</p><h2><span data-i18n="eventsHead1">Время для</span><br><em data-i18n="eventsHead2">новой глубины.</em></h2></div>
         <p data-i18n="eventsIntro">Обучение, живое общение, молитва и совместное поклонение — важная часть международного сообщества «Мистерион».</p>
       </div>
-      <div class="events-list">
-        <article class="event-card event-school">
-          <div class="event-art event-art-school"><span class="event-art-word">SCHOOL</span><span class="event-art-symbol">✳</span></div>
+      <div class="e-events">
+        <a class="e-archive e-archive-primary" href="conference-2025.html"><img src="assets/conference-2025/photo-000.webp" width="1280" height="960" alt="" loading="lazy" decoding="async"><span><small>2025</small><strong data-editorial="archive2025">Конференция 2025</strong><i aria-hidden="true">↗</i></span></a>
+        <a class="e-archive e-archive-secondary" href="conference-2024.html"><img src="assets/conference-2024/photo-022.webp" width="1280" height="960" alt="" loading="lazy" decoding="async"><span><small>2024</small><strong data-editorial="archive2024">Конференция 2024</strong><i aria-hidden="true">↗</i></span></a>
+        <article class="e-event event-school">
+          <div class="e-event-art event-art-school"><span class="event-art-word">SCHOOL</span><span class="event-art-symbol">✳</span></div>
           <div class="event-copy"><span class="event-type" data-i18n="schoolType">ОБУЧЕНИЕ</span><h3 data-i18n="schoolTitle">Международная школа «Мистерион»</h3><p data-i18n="schoolText">Программа для тех, кто стремится глубже познавать Бога, укрепляться в вере, обновлять мышление и развивать духовные дары. Информация о следующем потоке предоставляется командой служения.</p><a class="text-arrow dark-arrow" href="online-school.html"><span data-i18n="schoolButton">Узнать о школе</span><span aria-hidden="true">↗</span></a></div>
         </article>
-        <article class="event-card event-conference">
-          <div class="event-art event-art-conference"><span class="event-art-word">GATHERING</span><span class="event-art-symbol">∞</span></div>
+        <article class="e-event event-conference">
+          <div class="e-event-art event-art-conference"><span class="event-art-word">GATHERING</span><span class="event-art-symbol">∞</span></div>
           <div class="event-copy"><span class="event-type" data-i18n="conferenceType">МЕЖДУНАРОДНЫЕ ВСТРЕЧИ</span><h3 data-i18n="conferenceTitle">Конференции «Мистерион»</h3><p data-i18n="conferenceText">Встречи с участием международных спикеров и служителей. В октябре 2026 года конференция прошла в Аланье, Турция. Следите за анонсами новых мероприятий.</p><a class="text-arrow dark-arrow" href="mailto:mistirion@list.ru?subject=Mysterion%20Conferences"><span data-i18n="conferenceButton">Связаться с организаторами</span><span aria-hidden="true">↗</span></a></div>
         </article>
       </div>
     </div>
   </section>
 
-  <section class="section media" id="media">
+  <section class="e-section media" id="media">
     <div class="container">
       <div class="section-number"><span>05</span><span data-i18n="mediaLabel">МЕДИА И ИСТОРИИ</span></div>
       <div class="section-topline">
         <div><p class="eyebrow muted" data-i18n="mediaEyebrow">ДЕЛИМСЯ ВАЖНЫМ</p><h2><span data-i18n="mediaHead1">Истории,</span><br><em data-i18n="mediaHead2">которые вдохновляют.</em></h2></div>
         <p data-i18n="mediaIntro">Свидетельства участников, записи проповедей, фотографии и материалы встреч помогают оставаться частью сообщества.</p>
       </div>
-      <div class="media-grid">
-        <article class="media-card"><div class="media-cover cover-one"><span>✳</span></div><div class="media-category" data-i18n="media1Cat">СВИДЕТЕЛЬСТВА</div><h3 data-i18n="media1Title">Истории Божьих перемен в жизни людей</h3><p data-i18n="media1Desc">Реальные истории участников служения.</p></article>
-        <article class="media-card"><a href="sermons.html" class="media-card-link" aria-label="Открыть проповеди"><div class="media-cover cover-two"><span>⌁</span></div><div class="media-category" data-i18n="media2Cat">ПРОПОВЕДИ И ОБУЧЕНИЕ</div><h3 data-i18n="media2Title">Слова, которые укрепляют веру</h3><p data-i18n="media2Desc">Учение, записи школ и конференций.</p><span class="media-more" data-i18n="mediaMore">Смотреть все ↗</span></a></article>
-        <article class="media-card"><a href="photos.html" class="media-card-link" aria-label="Открыть фотографии"><div class="media-cover cover-three"><span>∞</span></div><div class="media-category" data-i18n="media3Cat">СОБЫТИЯ</div><h3 data-i18n="media3Title">Моменты наших общих встреч</h3><p data-i18n="media3Desc">Фотографии, видео и воспоминания.</p><span class="media-more" data-i18n="mediaMore">Смотреть все ↗</span></a></article>
+      <div class="e-media">
+        <article class="e-media-story"><div class="e-media-image"><img src="assets/conference-2025/photo-000.webp" alt="" loading="lazy" decoding="async" width="1280" height="960"></div><div class="media-category" data-i18n="media1Cat">СВИДЕТЕЛЬСТВА</div><h3 data-i18n="media1Title">Истории Божьих перемен в жизни людей</h3><p data-i18n="media1Desc">Реальные истории участников служения.</p></article>
+        <article class="e-media-story"><a href="sermons.html" class="media-card-link" aria-label="Открыть проповеди"><div class="e-media-image"><img src="assets/conference-2024/photo-022.webp" alt="" loading="lazy" decoding="async" width="1280" height="960"></div><div class="media-category" data-i18n="media2Cat">ПРОПОВЕДИ И ОБУЧЕНИЕ</div><h3 data-i18n="media2Title">Слова, которые укрепляют веру</h3><p data-i18n="media2Desc">Учение, записи школ и конференций.</p><span class="media-more" data-i18n="mediaMore">Смотреть все ↗</span></a></article>
+        <article class="e-media-story"><a href="photos.html" class="media-card-link" aria-label="Открыть фотографии"><div class="e-media-image"><img src="assets/photos/founders-portrait.webp" alt="" loading="lazy" decoding="async" width="960" height="1280"></div><div class="media-category" data-i18n="media3Cat">СОБЫТИЯ</div><h3 data-i18n="media3Title">Моменты наших общих встреч</h3><p data-i18n="media3Desc">Фотографии, видео и воспоминания.</p><span class="media-more" data-i18n="mediaMore">Смотреть все ↗</span></a></article>
       </div>
       <p class="media-note" data-i18n="mediaNote">Здесь появятся реальные фотографии и видео служения после добавления материалов.</p>
     </div>
   </section>
 
-  <section class="section faq" id="faq">
-    <div class="container faq-grid">
+  <section class="e-section faq" id="faq">
+    <div class="container e-faq-grid">
       <div><div class="section-number"><span>06</span><span data-i18n="faqLabel">ВОПРОСЫ И ОТВЕТЫ</span></div><h2><span data-i18n="faqHead1">Часто</span><br><em data-i18n="faqHead2">спрашивают.</em></h2></div>
-      <div class="faq-items">
+      <div class="e-faq-items">
         <details><summary><span data-i18n="faq1Q">Кто может присоединиться к мероприятиям?</span><span class="plus">+</span></summary><p data-i18n="faq1A">Мы открыты к общению с людьми из разных стран и христианских общин. Для конкретной школы или конференции условия участия могут отличаться — уточняйте информацию у команды служения.</p></details>
         <details><summary><span data-i18n="faq2Q">Как узнать о ближайшей школе или конференции?</span><span class="plus">+</span></summary><p data-i18n="faq2A">Напишите на нашу электронную почту. Команда поделится актуальной информацией о программах и условиях участия.</p></details>
         <details><summary><span data-i18n="faq3Q">Можно ли обсудить сотрудничество?</span><span class="plus">+</span></summary><p data-i18n="faq3A">Да. Мы открыты для общения с церквями, служителями и инициативами, разделяющими ценности духовного возрастания, единства и служения людям.</p></details>
@@ -221,8 +223,8 @@
     </div>
   </section>
 
-  <section class="contact cosmic-contact" id="contacts">
-    <div class="container contact-grid">
+  <section class="e-contact cosmic-contact" id="contacts">
+    <div class="container e-contact-grid">
       <div><div class="section-number contact-number"><span>07</span><span data-i18n="contactLabel">БУДЕМ НА СВЯЗИ</span></div><p class="eyebrow" data-i18n="contactEyebrow">ВАШ СЛЕДУЮЩИЙ ШАГ</p><h2><span data-i18n="contactHead1">Давайте</span><br><em data-i18n="contactHead2">знакомиться.</em></h2><p data-i18n="contactText">Хотите узнать о наших школах и конференциях, поделиться свидетельством или обсудить сотрудничество? Будем рады вашему сообщению.</p><a class="btn btn-gold" href="mailto:mistirion@list.ru?subject=Mysterion"><span data-i18n="contactButton">Написать нам</span><span aria-hidden="true">↗</span></a></div>
       <div class="contact-aside">
         <span class="contact-item-label" data-i18n="emailLabel">ЭЛЕКТРОННАЯ ПОЧТА</span>
@@ -243,7 +245,7 @@
 
 <footer class="footer">
   <div class="container footer-grid">
-    <a href="#home" class="brand footer-brand"><span class="brand-symbol crown-mark" aria-hidden="true">♛</span><span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span></a>
+    <a href="#home" class="brand footer-brand"><span class="brand-symbol crown-mark" aria-hidden="true">M</span><span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span></a>
     <p data-i18n="footerDescription">Пространство познания Бога, духовного возрастания и раскрытия призвания.</p>
     <p>© <span id="copyright-year">2026</span> MYSTERION <span data-i18n="footerRights">Все права защищены</span></p>
   </div>
