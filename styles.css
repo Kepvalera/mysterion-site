@@ -83,6 +83,18 @@ h1 em,h2 em { font-family:var(--font-display); font-weight:inherit; color:var(--
 .section-number span:first-child { color:var(--gold); }
 
 /* Home and ministry sections */
+.home-page { --section-space:80px; --content-space:28px; --section-half:calc(var(--section-space)/2); }
+.home-page > .section,.home-page > .vision-band,.home-page > .contact { padding-block:var(--section-half); }
+.home-page > .hero { padding-block:var(--section-half); }
+.home-page .hero-grid { min-height:0; }
+.home-page .hero-copy { padding-block:0; }
+.home-page .hero-art { height:clamp(340px,34vw,480px); }
+.home-page .hero-footnote { margin-top:var(--content-space); }
+.home-page .hero-bottom-line { display:none; }
+.home-page .section-number { margin-bottom:var(--content-space); padding-bottom:0; border-bottom:0; }
+.home-page .section-topline { margin-bottom:var(--content-space); }
+.home-page .pillars { margin-top:var(--content-space); }
+.home-page .founders-text h2,.home-page .contact h2 { margin-bottom:var(--content-space); }
 .hero { position:relative; overflow:hidden; padding:54px 0 64px; background:radial-gradient(ellipse at 15% 35%,#ffffffd9,transparent 60%); }
 .hero-grid { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); align-items:center; gap:clamp(28px,4vw,64px); min-height:620px; }
 .hero-copy { padding:24px 0; }
@@ -246,6 +258,7 @@ h1 em,h2 em { font-family:var(--font-display); font-weight:inherit; color:var(--
   .footer-grid { grid-template-columns:1fr; gap:22px; }
 }
 @media (max-width:640px) {
+  .home-page { --section-space:48px; --content-space:24px; }
   .container { width:calc(100% - 40px); }
   .header-inner { width:calc(100% - 32px); gap:10px; }
   .brand { gap:8px; }
@@ -292,10 +305,10 @@ h1 em,h2 em { font-family:var(--font-display); font-weight:inherit; color:var(--
   .hero h1 { font-size:36px; }
 }
 
-/* Keep both existing reveal scripts supported without stacked transitions. */
+/* Visibility is the default; observers only trigger a brief entrance animation. */
 @media (prefers-reduced-motion:no-preference) {
-  .reveal-on-scroll,.motion-ready .motion-reveal { opacity:0; transform:translate3d(0,22px,0); transition:opacity .72s ease,transform .72s cubic-bezier(.2,.7,.2,1); transition-delay:var(--motion-delay,var(--reveal-delay,0ms)); }
-  .reveal-on-scroll.is-visible,.motion-ready .motion-reveal.motion-visible { opacity:1; transform:none; }
+  .motion-ready .motion-reveal.motion-visible { animation:section-arrive .65s var(--motion-delay,0ms) backwards; }
+  @keyframes section-arrive { from { opacity:.65; translate:0 12px; } to { opacity:1; translate:0 0; } }
   .hero-copy { animation:mysterion-enter .8s both; }
   .hero-art { animation:mysterion-enter .95s .1s both; }
   .hero-art-image { animation:mysterion-art-breathe 11s ease-in-out infinite alternate; }
