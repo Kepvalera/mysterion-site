@@ -311,14 +311,9 @@
 /* Seamless bridge into #about section */
 .heavenly-hero + #about {
   position: relative;
-  background: linear-gradient(#f3f5f9, rgba(243, 245, 249, 0));
-  padding-top: 24px;
-}
-
-.heavenly-hero + #about .section-number {
-  border: 0;
-  margin-bottom: 24px;
-  padding: 0;
+  background: transparent;
+  padding-top: 0;
+  margin-top: 0;
 }
 
 /* Mobile Responsiveness */

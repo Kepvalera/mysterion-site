@@ -14,15 +14,241 @@
 .editorial-home .brand-text { min-width:0; }
 .editorial-home .brand-text small { overflow-wrap:anywhere; }
 .editorial-home .lang-toggle { min-width:64px; }
-.e-about-grid { display:grid; grid-template-columns:1fr 1.2fr; gap:64px; align-items:start; }
-.e-about-copy { columns:1; }
-.e-about-copy .intro-text { font:500 clamp(24px,2.6vw,34px)/1.4 var(--font-display); color:#3c4e65; }
-.e-about-copy>p:not(.intro-text) { color:var(--ink2); font-size:15px; }
-.e-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:32px; border-top:1px solid var(--line); }
-.e-value { display:flex; align-items:start; gap:16px; padding:24px 24px 0 0; }
-.e-value>span { font:500 30px/1 var(--font-display); color:var(--gold); }
-.e-value strong { font-size:15px; font-weight:600; }
-.e-value p { color:var(--muted); font-size:13px; margin:8px 0 0; }
+/* ========================================================
+   ABOUT SECTION ? Celestial Luxury / Premium Editorial
+   ======================================================== */
+.editorial-main .about {
+  position: relative;
+  overflow: clip;
+  isolation: isolate;
+  padding-top: clamp(32px, 4.5vw, 56px);
+  padding-bottom: clamp(48px, 6vw, 84px);
+  background:
+    radial-gradient(ellipse at 82% 0%, rgba(244, 218, 148, 0.28) 0%, transparent 55%),
+    radial-gradient(ellipse at 15% 25%, rgba(195, 222, 248, 0.26) 0%, transparent 60%),
+    linear-gradient(180deg, #f3f5f9 0%, #f6f8fb 55%, #f3f5f9 100%);
+}
+
+.about-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle at 65% 20%, rgba(246, 224, 160, 0.18), transparent 60%);
+  filter: blur(24px);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.about-header-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: clamp(32px, 4.2vw, 56px);
+}
+
+.about-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #75623d;
+  white-space: nowrap;
+}
+
+.about-tag-num {
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1;
+  color: #a68446;
+  font-weight: 400;
+}
+
+.about-tag-star {
+  font-size: 11px;
+  color: #c49d48;
+}
+
+.about-tag-label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #75623d;
+}
+
+.about-gold-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, #c49d48 0%, rgba(196, 157, 72, 0.3) 70%, transparent 100%);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.about.about-revealed .about-gold-line {
+  transform: scaleX(1);
+}
+
+.e-about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.32fr;
+  gap: clamp(40px, 5.5vw, 84px);
+  align-items: start;
+  margin-bottom: clamp(48px, 5.5vw, 76px);
+}
+
+.about-heading-block {
+  min-width: 0;
+}
+
+.about-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: #9b783e;
+  text-transform: uppercase;
+}
+
+.about-eyebrow::before {
+  content: '';
+  width: 28px;
+  height: 1px;
+  background: #c49d48;
+}
+
+.about-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(38px, 4.6vw, 66px);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  color: #1e334a;
+  text-wrap: balance;
+}
+
+.about-title em {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  color: #9b783e;
+  background: linear-gradient(135deg, #7c5820 0%, #b88d3e 55%, #8e6822 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.about-copy-block {
+  columns: 1;
+  min-width: 0;
+}
+
+.about-intro {
+  margin: 0 0 22px;
+  font-family: var(--font-display);
+  font-size: clamp(21px, 2.2vw, 29px);
+  font-weight: 400;
+  line-height: 1.42;
+  color: #273e57;
+  text-wrap: pretty;
+}
+
+.about-text {
+  margin: 0 0 28px;
+  font-size: 15.5px;
+  line-height: 1.74;
+  color: #4b5a6f;
+  max-width: 640px;
+  text-wrap: pretty;
+}
+
+.about-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1e334a;
+  transition: color 0.28s ease, transform 0.28s ease;
+}
+
+.about-link:hover {
+  color: #9b783e;
+  transform: translate3d(4px, 0, 0);
+}
+
+/* Core Pillars ? Celestial Luxury */
+.about-pillars {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(24px, 3.5vw, 48px);
+  padding-top: clamp(28px, 3.8vw, 44px);
+  border-top: 1px solid rgba(196, 157, 72, 0.28);
+}
+
+.about-pillar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  padding-right: 12px;
+  transition: transform 0.3s ease;
+}
+
+.about-pillar:hover {
+  transform: translate3d(0, -3px, 0);
+}
+
+.about-pillar:nth-child(2),
+.about-pillar:nth-child(3) {
+  border-left: 1px solid rgba(196, 157, 72, 0.18);
+  padding-left: clamp(20px, 3vw, 40px);
+}
+
+.pillar-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.pillar-number {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 3vw, 42px);
+  font-weight: 300;
+  line-height: 1;
+  color: #9b783e;
+  letter-spacing: -0.02em;
+}
+
+.pillar-mark {
+  font-size: 10px;
+  color: #c49d48;
+  opacity: 0.85;
+}
+
+.pillar-body strong {
+  display: block;
+  font-size: 16.5px;
+  font-weight: 600;
+  color: #1e334a;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.pillar-body p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #58677c;
+}
 .editorial-main .founders { background:linear-gradient(115deg,#e4eef7,#eeeaf4); }
 .e-founders-grid { display:grid; grid-template-columns:1.2fr 1fr; gap:64px; align-items:center; }
 .e-founders-visual { min-width:0; }
@@ -141,4 +367,111 @@
 @media(prefers-reduced-motion:no-preference) {
   .e-revealed { animation:editorial-photo .7s cubic-bezier(0.16, 1, 0.3, 1) both; will-change:transform,opacity; }
   @keyframes editorial-photo { from { opacity:.4; transform:translate3d(0,10px,0); } to { opacity:1; transform:translate3d(0,0,0); } }
+}
+
+/* Celestial Luxury ? About Section Responsive & Motion */
+@media(max-width:1023px) {
+  .about-pillar:nth-child(2),
+  .about-pillar:nth-child(3) {
+    padding-left: clamp(16px, 2.5vw, 28px);
+  }
+}
+
+@media(max-width:768px) {
+  .editorial-main .about {
+    padding-top: 32px;
+    padding-bottom: 48px;
+  }
+  .about-header-bar {
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .about-title {
+    font-size: clamp(34px, 8.5vw, 48px);
+  }
+  .about-intro {
+    font-size: clamp(19px, 4.8vw, 24px);
+    margin-bottom: 16px;
+  }
+  .about-text {
+    font-size: 15px;
+    margin-bottom: 22px;
+  }
+  .about-pillars {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding-top: 24px;
+  }
+  .about-pillar {
+    padding: 18px 0;
+    border-bottom: 1px solid rgba(196, 157, 72, 0.16);
+  }
+  .about-pillar:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  .about-pillar:nth-child(2),
+  .about-pillar:nth-child(3) {
+    border-left: none;
+    padding-left: 0;
+  }
+  .pillar-number {
+    font-size: 32px;
+  }
+}
+
+@media(max-width:360px) {
+  .about-title { font-size: 30px; }
+  .about-intro { font-size: 18px; }
+  .about-tag-label { font-size: 9px; letter-spacing: 0.12em; }
+}
+
+@media(prefers-reduced-motion:no-preference) {
+  .about-ambient {
+    animation: about-ambient-breathe 18s ease-in-out infinite alternate;
+  }
+
+  .about:not(.about-revealed) .about-heading-block,
+  .about:not(.about-revealed) .about-copy-block,
+  .about:not(.about-revealed) .about-pillar {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+
+  .about.about-revealed .about-heading-block {
+    animation: about-block-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .about.about-revealed .about-copy-block {
+    animation: about-block-reveal 0.85s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .about.about-revealed .about-pillar:nth-child(1) {
+    animation: about-block-reveal 0.85s 0.30s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .about.about-revealed .about-pillar:nth-child(2) {
+    animation: about-block-reveal 0.85s 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .about.about-revealed .about-pillar:nth-child(3) {
+    animation: about-block-reveal 0.85s 0.54s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes about-block-reveal {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 18px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes about-ambient-breathe {
+    0% { opacity: 0.45; transform: scale(0.98); }
+    50% { opacity: 0.75; transform: scale(1.03); }
+    100% { opacity: 0.45; transform: scale(0.98); }
+  }
 }

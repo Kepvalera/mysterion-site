@@ -400,11 +400,14 @@
   if (about && 'IntersectionObserver' in window) {
     const observer = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting) {
+        about.classList.add('about-revealed');
         about.querySelectorAll('.section-heading,.e-about-copy').forEach(n => n.classList.add('heavenly-about-revealed'));
         observer.disconnect();
       }
-    }, { threshold: 0.12 });
+    }, { threshold: 0.08 });
     observer.observe(about);
+  } else if (about) {
+    about.classList.add('about-revealed');
   }
 
   resize();
