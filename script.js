@@ -468,16 +468,26 @@ if (copyrightYear) copyrightYear.textContent = new Date().getFullYear();
   const progress = document.querySelector('.reading-progress');
   const header = document.querySelector('.site-header');
   let scrollPending = false;
+  let maxScroll = 1;
+  const measureScroll = () => {
+    maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  };
+  measureScroll();
+  let wasScrolled = false;
   const updateScroll = () => {
-    const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    if (progress) progress.style.transform = `scaleX(${Math.min(1, Math.max(0, window.scrollY / maxScroll))})`;
-    if (header) header.classList.toggle('is-scrolled', window.scrollY > 24);
+    const y = window.scrollY || window.pageYOffset || 0;
+    if (progress) progress.style.transform = `scaleX(${Math.min(1, Math.max(0, y / maxScroll))})`;
+    const isScrolled = y > 24;
+    if (header && isScrolled !== wasScrolled) {
+      header.classList.toggle('is-scrolled', isScrolled);
+      wasScrolled = isScrolled;
+    }
     scrollPending = false;
   };
   window.addEventListener('scroll', () => {
     if (!scrollPending) { scrollPending = true; window.requestAnimationFrame(updateScroll); }
   }, {passive:true});
-  window.addEventListener('resize', updateScroll, {passive:true});
+  window.addEventListener('resize', () => { measureScroll(); updateScroll(); }, {passive:true});
   updateScroll();
   if (reduceMotion || !('IntersectionObserver' in window)) return;
   const targets = document.querySelectorAll('.section-heading, .section-topline, .section-number, .about-copy, .founders-visual, .founders-text, .pillar, .ministry-card, .event-card, .media-card, .vision-content, .faq-grid, .contact-grid');

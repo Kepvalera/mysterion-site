@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "files": {
+    "conference-2024-data.js": {
+      "hash": "085c710bb60698ed",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "conference-2024.js": {
+      "hash": "88929b1579f238e6",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "conference-2025-data.js": {
+      "hash": "325693c676a57229",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "conference-2025.js": {
+      "hash": "1e99ca689cee5f2e",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "conference-gallery.js": {
+      "hash": "dc904f2066599167",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "heavenly.js": {
+      "hash": "d166f0abe9e5afb7",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "home.js": {
+      "hash": "e19dfe66d09173ab",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "jubilee.js": {
+      "hash": "d58fd7e75204ae61",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "photos-data.js": {
+      "hash": "ae0da6eaa3a1b4a3",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "photos-page.js": {
+      "hash": "3d628e65e8c0e51e",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "school-data.js": {
+      "hash": "b4b97c40490d712b",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "school-page.js": {
+      "hash": "8eac8f2519a5a155",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "script.js": {
+      "hash": "b709e72f875b7f0e",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "sermons-data.js": {
+      "hash": "d1987f5c2a84c7a0",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    },
+    "sermons-page.js": {
+      "hash": "cace421e024863f8",
+      "generatedAt": "2026-11-04T11:55:08.095Z"
+    }
+  }
+}

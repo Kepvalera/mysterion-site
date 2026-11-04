@@ -1,8 +1,8 @@
 /* One continuous opening scene. Decorative canvases never intercept interaction. */
 .heavenly-hero { position:relative; isolation:isolate; min-height:min(850px,calc(100svh - var(--header-height))); overflow:clip; background:radial-gradient(ellipse at 68% 20%,#bcd8edb3,transparent 55%),radial-gradient(ellipse at 20% 48%,#e5deefb3,transparent 60%),radial-gradient(ellipse at 50% 65%,#f1dfb740,transparent 55%),#f3f5f9; }
-.heavenly-art { position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:var(--heavenly-fade,1); }
+.heavenly-art { position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:var(--heavenly-fade,1); will-change:opacity; transform:translateZ(0); }
 .heavenly-canvas { display:block; width:100%; height:100%; }
-.heavenly-rays { position:absolute; inset:-15% -20%; background:conic-gradient(from 160deg at 64% 4%,transparent 0deg,#fff6d450 9deg,transparent 18deg,#ffffff66 27deg,transparent 38deg,#e8d7ac33 48deg,transparent 59deg); mask-image:linear-gradient(#000,transparent 90%); opacity:.48; }
+.heavenly-rays { position:absolute; inset:-15% -20%; background:conic-gradient(from 160deg at 64% 4%,transparent 0deg,#fff6d450 9deg,transparent 18deg,#ffffff66 27deg,transparent 38deg,#e8d7ac33 48deg,transparent 59deg); -webkit-mask-image:linear-gradient(#000,transparent 90%); mask-image:linear-gradient(#000,transparent 90%); opacity:.48; transform-origin:64% 4%; will-change:transform; transform:translateZ(0); }
 .heavenly-hero::after { content:''; position:absolute; z-index:-1; inset:65% 0 0; pointer-events:none; background:linear-gradient(transparent,#f3f5f9); }
 .heavenly-content { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:inherit; padding:44px 0 54px; text-align:center; }
 .heavenly-wordmark { max-width:100%; color:#273f5c; font-size:clamp(48px,8vw,116px); line-height:.95; letter-spacing:-.045em; overflow-wrap:normal; text-shadow:0 1px 22px #ffffffbd; }
@@ -12,10 +12,10 @@
 .heavenly-hero .e-hero-lead { max-width:650px; margin:22px 0 0; font-size:15px; color:#46566c; text-shadow:0 1px 12px #fff; }
 .heavenly-hero .e-hero-buttons { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:22px; margin-top:26px; }
 .heavenly-hero .e-hero-footnote { display:flex; justify-content:center; flex-wrap:wrap; gap:18px; margin-top:26px; font-size:9px; letter-spacing:.12em; color:#657287; }
-.heavenly-emblem { position:relative; isolation:isolate; width:clamp(210px,24vw,340px); margin-bottom:26px; }
-.heavenly-emblem::before { content:''; position:absolute; z-index:-1; inset:-35%; background:radial-gradient(ellipse,#e5bc6545,transparent 65%); opacity:.5; pointer-events:none; }
-.heavenly-emblem::after { content:''; position:absolute; left:49%; top:24%; width:15px; height:15px; background:#fff6d2; opacity:0; clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%); pointer-events:none; }
-.heavenly-emblem img { display:block; width:100%; height:auto; max-height:190px; object-fit:contain; filter:drop-shadow(0 0 16px #d9b56c66); }
+.heavenly-emblem { position:relative; isolation:isolate; width:clamp(210px,24vw,340px); margin-bottom:26px; contain:layout style; }
+.heavenly-emblem::before { content:''; position:absolute; z-index:-1; inset:-35%; background:radial-gradient(ellipse,#e5bc6545,transparent 65%); opacity:.5; pointer-events:none; border-radius:50%; will-change:transform,opacity; transform:translateZ(0); }
+.heavenly-emblem::after { content:''; position:absolute; left:49%; top:24%; width:15px; height:15px; background:#fff6d2; opacity:0; clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%); pointer-events:none; will-change:transform,opacity; transform:translateZ(0); }
+.heavenly-emblem img { display:block; width:100%; height:auto; max-height:190px; object-fit:contain; filter:drop-shadow(0 0 16px #d9b56c66); will-change:transform; transform:translateZ(0); backface-visibility:hidden; }
 /* The scene fades into this exact color, without a boundary or spacer. */
 .heavenly-hero + #about { position:relative; background:linear-gradient(#f3f5f9,#f3f5f900); padding-top:24px; }
 .heavenly-hero + #about .section-number { border:0; margin-bottom:24px; padding:0; }
@@ -33,17 +33,20 @@
 @media(prefers-reduced-motion:no-preference) {
   .heavenly-rays { animation:heavenly-rays 18s ease-in-out infinite alternate; animation-play-state:paused; }
   .heavenly-hero[data-active="true"] .heavenly-rays { animation-play-state:running; }
-  .heavenly-wordmark { animation:heavenly-title 2.7s both; }
-  .heavenly-emblem { animation:heavenly-crown-enter 2.2s both; }
+  .heavenly-wordmark { animation:heavenly-title 2.7s cubic-bezier(0.16,1,0.3,1) both; }
+  .heavenly-emblem { animation:heavenly-crown-enter 2.2s cubic-bezier(0.16,1,0.3,1) both; }
   .heavenly-emblem img { animation:heavenly-crown-float 7s ease-in-out infinite alternate; animation-play-state:paused; }
   .heavenly-hero[data-active="true"] .heavenly-emblem img { animation-play-state:running; }
+  .heavenly-emblem::before { animation:heavenly-crown-halo 7s ease-in-out infinite alternate; animation-play-state:paused; }
+  .heavenly-hero[data-active="true"] .heavenly-emblem::before { animation-play-state:running; }
   .heavenly-emblem::after { animation:heavenly-crown-glint 14s 2s ease-in-out infinite; animation-play-state:paused; }
   .heavenly-hero[data-active="true"] .heavenly-emblem::after { animation-play-state:running; }
-  .heavenly-about-revealed { animation:heavenly-about .8s both; }
-  @keyframes heavenly-title { from { opacity:.55; translate:0 10px; } to { opacity:1; translate:0 0; } }
-  @keyframes heavenly-crown-enter { from { opacity:.15; translate:0 14px; } to { opacity:1; translate:0 0; } }
-  @keyframes heavenly-crown-float { to { transform:translateY(-6px); } }
+  .heavenly-about-revealed { animation:heavenly-about .8s cubic-bezier(0.16,1,0.3,1) both; }
+  @keyframes heavenly-title { from { opacity:.55; transform:translate3d(0,10px,0); } to { opacity:1; transform:translate3d(0,0,0); } }
+  @keyframes heavenly-crown-enter { from { opacity:.15; transform:translate3d(0,14px,0); } to { opacity:1; transform:translate3d(0,0,0); } }
+  @keyframes heavenly-crown-float { from { transform:translate3d(0,0,0); } to { transform:translate3d(0,-6px,0); } }
+  @keyframes heavenly-crown-halo { from { opacity:.45; transform:scale(1); } to { opacity:.68; transform:scale(1.07); } }
   @keyframes heavenly-crown-glint { 0%,12%,100% { opacity:0; transform:scale(.5); } 5% { opacity:.85; transform:scale(1); } }
-  @keyframes heavenly-rays { to { transform:rotate(5deg); opacity:.65; } }
-  @keyframes heavenly-about { from { opacity:.65; translate:0 12px; } to { opacity:1; translate:0 0; } }
+  @keyframes heavenly-rays { from { transform:rotate(0deg); opacity:.48; } to { transform:rotate(5deg); opacity:.65; } }
+  @keyframes heavenly-about { from { opacity:.65; transform:translate3d(0,12px,0); } to { opacity:1; transform:translate3d(0,0,0); } }
 }
