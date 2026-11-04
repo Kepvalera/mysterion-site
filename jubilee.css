@@ -1,0 +1,70 @@
+/* A celestial accent within the existing light identity. */
+.jubilee-wrap { margin-block:40px 72px; scroll-margin-top:calc(var(--header-height) + 24px); }
+.jubilee-banner { position:relative; isolation:isolate; overflow:hidden; min-height:570px; border:1px solid #c9a86680; border-radius:32px; background:radial-gradient(ellipse at 85% 25%,#4a367c 0,transparent 52%),linear-gradient(130deg,#101d40,#192954 50%,#211b40); box-shadow:0 28px 65px #20295826; }
+.jubilee-banner::before { content:''; position:absolute; z-index:-1; inset:-40%; background:conic-gradient(from 195deg at 70% 40%,transparent 0deg,#f6dfad16 18deg,transparent 30deg,#d0c0ff14 42deg,transparent 57deg); filter:blur(14px); pointer-events:none; }
+.jubilee-copy { position:relative; z-index:1; max-width:800px; padding:clamp(32px,5vw,72px); }
+.jubilee-eyebrow { color:#e6cf9c; font-size:10px; letter-spacing:.18em; font-weight:600; }
+.jubilee-copy h2 { color:#fff6e4; font-size:clamp(44px,6.2vw,88px); letter-spacing:.015em; line-height:1.05; text-shadow:0 0 35px #e6c38130; }
+.jubilee-copy h2>span,.jubilee-copy h2>strong { display:block; }
+.jubilee-copy h2>strong { margin-top:18px; color:#e7cd96; font:600 clamp(16px,2.1vw,27px)/1.5 var(--font-body); letter-spacing:.17em; }
+.jubilee-year { margin:20px 0; color:#e8cc95; font:500 clamp(44px,6vw,76px)/1 var(--font-display); letter-spacing:.12em; }
+.jubilee-subtitle { max-width:560px; margin:28px 0; color:#e1e3f6; font-size:clamp(17px,1.8vw,21px); line-height:1.7; }
+.jubilee-button { margin-top:8px; background:linear-gradient(125deg,#f4e4bd,#d9b779); color:#302844; border-color:#f8e8c5; box-shadow:0 8px 32px #d6b77122; }
+.jubilee-sky { position:absolute; z-index:-1; inset:0; pointer-events:none; background:radial-gradient(2px 2px at 80% 15%,#fff6e4 50%,transparent),radial-gradient(2px 2px at 65% 72%,#e6cf9c 50%,transparent),radial-gradient(1px 1px at 92% 80%,#fff 50%,transparent),radial-gradient(2px 2px at 52% 20%,#e1d6ff 50%,transparent),radial-gradient(1px 1px at 20% 90%,#fff 50%,transparent),radial-gradient(ellipse at 85% 52%,#e6c68128,transparent 36%); }
+.jubilee-sky::before,.jubilee-sky::after { content:''; position:absolute; width:410px; height:410px; right:-30px; top:80px; border:1px solid #d5b67c40; border-radius:50%; box-shadow:0 0 65px #b799d32b,inset 0 0 60px #b799d31a; }
+.jubilee-sky::after { inset:110px 0 auto auto; width:350px; height:350px; border-color:#d5b67c24; }
+.jubilee-sky>span { position:absolute; right:45px; top:34px; font:500 450px/1.2 var(--font-display); color:#f4deaa19; text-shadow:0 0 70px #e5c98f22; }
+.jubilee-details { padding:clamp(28px,5vw,64px); border:1px solid var(--line); border-top:0; border-radius:0 0 30px 30px; background:linear-gradient(135deg,#fffdf8,#eeeef9); }
+.jubilee-wrap:has(.jubilee-details) .jubilee-banner { border-radius:32px 32px 0 0; }
+.jubilee-quote { max-width:940px; margin-bottom:28px; color:#625039; font:500 clamp(25px,3vw,37px)/1.4 var(--font-display); }
+.jubilee-description { max-width:850px; color:var(--ink2); font-size:17px; }
+.jubilee-details h3 { margin-top:36px; }
+.jubilee-themes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin:26px 0 0; padding:0; list-style:none; }
+.jubilee-themes li { padding:26px; border:1px solid var(--line); border-radius:20px; background:#ffffffa8; }
+.jubilee-themes li>span { color:var(--gold); font:500 30px var(--font-display); }
+.jubilee-themes p { margin:12px 0 0; color:var(--ink); }
+.school-cohort-upcoming { border-color:#b99b68; background:linear-gradient(135deg,#f6ecd8,#e9e4f6); }
+.jubilee-with-speaker { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); align-items:center; }
+.jubilee-with-speaker .jubilee-copy { min-width:0; padding:clamp(28px,4vw,56px); }
+.jubilee-with-speaker .jubilee-copy h2 { font-size:clamp(40px,4.7vw,68px); }
+.jubilee-speaker { position:relative; z-index:1; min-width:0; margin:0; padding:32px 32px 32px 0; }
+.jubilee-speaker-photo { overflow:hidden; border:1px solid #e7cd9680; border-radius:120px 120px 26px 26px; background:#25264b; box-shadow:0 0 36px #e6c68128,0 18px 45px #080d2c66; }
+.jubilee-speaker-photo img { display:block; width:100%; height:auto; }
+.jubilee-speaker figcaption { max-width:440px; margin:22px auto 0; padding-inline:12px; color:#f2dfb6; font:500 clamp(24px,2.4vw,32px)/1.3 var(--font-display); text-align:center; text-wrap:balance; }
+@media(max-width:970px) {
+  .jubilee-with-speaker { grid-template-columns:1fr; }
+  .jubilee-speaker { width:min(100%,580px); margin-inline:auto; padding:0 32px 40px; }
+  .jubilee-copy { max-width:740px; }
+  .jubilee-sky { opacity:.6; }
+  .jubilee-sky>span { right:0; }
+}
+@media(max-width:640px) {
+  .jubilee-wrap { margin-block:24px 48px; }
+  .jubilee-banner { min-height:0; border-radius:24px; }
+  .jubilee-copy { padding:36px 24px; }
+  .jubilee-copy h2 { font-size:clamp(35px,9vw,55px); }
+  .jubilee-copy h2>strong { font-size:15px; letter-spacing:.1em; }
+  .jubilee-eyebrow { font-size:9px; letter-spacing:.09em; }
+  .jubilee-sky>span { top:70px; right:-35px; font-size:360px; }
+  .jubilee-sky::before { right:-220px; }
+  .jubilee-sky::after { right:-190px; }
+  .jubilee-button { width:100%; padding-inline:16px; }
+  .jubilee-themes { grid-template-columns:1fr; }
+  .jubilee-details { padding:28px 24px; }
+  .jubilee-with-speaker .jubilee-copy { padding:36px 24px 28px; }
+  .jubilee-with-speaker .jubilee-copy h2 { font-size:clamp(35px,9vw,55px); }
+  .jubilee-speaker { padding:0 24px 32px; }
+  .jubilee-speaker-photo { border-radius:80px 80px 22px 22px; }
+}
+@media(prefers-reduced-motion:no-preference) {
+  .jubilee-copy { animation:jubilee-enter .9s both; }
+  .jubilee-banner::before { animation:jubilee-light 18s ease-in-out infinite alternate; }
+  .jubilee-sky { animation:jubilee-glow 9s ease-in-out infinite alternate; }
+  .jubilee-speaker { animation:jubilee-enter 1s .15s both; }
+  .jubilee-speaker-photo { animation:jubilee-portrait-glow 7s ease-in-out infinite alternate; }
+  @keyframes jubilee-portrait-glow { from { box-shadow:0 0 30px #e6c68120,0 18px 45px #080d2c66; } to { box-shadow:0 0 48px #e6c68142,0 18px 45px #080d2c66; } }
+  @keyframes jubilee-enter { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
+  @keyframes jubilee-light { from { transform:rotate(-5deg); } to { transform:rotate(6deg); } }
+  @keyframes jubilee-glow { from { opacity:.65; } to { opacity:1; } }
+}
+@media(hover:hover) { .jubilee-button:hover { background:#f6e7c9; box-shadow:0 8px 40px #e5cc923b; } }

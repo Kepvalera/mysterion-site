@@ -11,9 +11,11 @@
   <title>Онлайн-школа | MYSTERION INTERNATIONAL</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="school.css">
+  <link rel="stylesheet" href="jubilee.css">
   <script defer src="script.js"></script>
   <script defer src="school-data.js"></script>
   <script defer src="school-page.js"></script>
+  <script defer src="jubilee.js"></script>
 </head>
 <body data-page="school">
 <a class="skip-link" href="#main" data-i18n="skip">Перейти к содержимому</a>
@@ -56,12 +58,33 @@
   <section class="library-intro school-intro container" aria-labelledby="school-heading">
     <p class="eyebrow" data-school-text="eyebrow">MYSTERION INTERNATIONAL · ОНЛАЙН-ШКОЛА</p>
     <h1 id="school-heading" data-school-text="head">Онлайн-школа.</h1>
-    <p class="library-lead" data-school-text="lead">Четыре прошедших потока: 3, 4, 5 и 6 — отдельные наборы учеников. Выберите поток, чтобы перейти к его спикерам и материалам.</p>
+    <p class="library-lead" data-school-text="lead">Предстоящий юбилейный поток 6 — в 2027 году. Здесь также собраны разделы потоков 3, 4 и 5.</p>
     <div class="library-actions"><a class="btn btn-dark" href="index.html#media"><span data-i18n="backMedia">На главную</span><span aria-hidden="true">↗</span></a></div>
   </section>
+  <section id="jubilee-2027" class="jubilee-wrap container" aria-labelledby="jubilee-school-heading">
+    <div class="jubilee-banner jubilee-with-speaker">
+      <div class="jubilee-sky" aria-hidden="true"><span>6</span></div>
+      <div class="jubilee-copy">
+        <p class="jubilee-eyebrow"><span data-jubilee="upcoming">ПРЕДСТОЯЩИЙ СЕЗОН</span> · 2027</p>
+        <h2 id="jubilee-school-heading"><span data-jubilee="title">МИСТЕРИОН 6</span><strong data-jubilee="anniversary">ЮБИЛЕЙНЫЙ ПОТОК</strong></h2>
+        <p class="jubilee-year">2027</p>
+        <p class="jubilee-subtitle" data-jubilee="subtitle">Отец призывает тебя к глубине, зрелости и подлинной духовной силе!</p>
+      </div>
+      <figure class="jubilee-speaker">
+        <div class="jubilee-speaker-photo"><img src="assets/photos/nancy-couwen.png" width="1312" height="1199" alt="Нэнси Коун" data-jubilee-alt="nancyName" loading="lazy" decoding="async"></div>
+        <figcaption data-jubilee="nancyCaption">Нэнси Коун — впервые в Мистерион!</figcaption>
+      </figure>
+    </div>
+    <div class="jubilee-details">
+      <p class="jubilee-quote" data-jubilee="quote">«Юбилейная труба уже готова прозвучать! Верим, что её звук откроет новые измерения откровения, силы и духовного преображения».</p>
+      <p class="jubilee-description" data-jubilee="description">Онлайн-школа «Мистерион» — это три месяца глубокого духовного обновления, посвящённые познанию Бога, духовной зрелости и раскрытию призвания.</p>
+      <h3 data-jubilee="themes">Основные темы и направления</h3>
+      <ul class="jubilee-themes"><li><span aria-hidden="true">01</span><p data-jubilee="theme1">Кристальная ясность призвания и духовная зрелость.</p></li><li><span aria-hidden="true">02</span><p data-jubilee="theme2">Исцеление и обновление физического тела</p></li></ul>
+    </div>
+  </section>
   <section id="cohorts" class="container school-content" aria-labelledby="cohorts-heading">
-    <div class="section-number"><span>01 / SCHOOL</span><span data-school-text="archive">АРХИВ ШКОЛЫ</span></div>
-    <h2 id="cohorts-heading" class="school-section-title" data-school-text="cohorts">Прошедшие потоки</h2>
+    <div class="section-number"><span>01 / SCHOOL</span><span data-school-text="archive">ОНЛАЙН-ШКОЛА</span></div>
+    <h2 id="cohorts-heading" class="school-section-title" data-school-text="cohorts">Потоки школы</h2>
     <div id="school-cohorts" class="school-cohorts"></div>
     <noscript><p>Для просмотра разделов потоков включите JavaScript. / Enable JavaScript. / Aktivieren Sie JavaScript.</p></noscript>
     <section id="school-detail" class="school-detail" aria-labelledby="cohort-heading" hidden></section>

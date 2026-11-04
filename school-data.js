@@ -12,7 +12,7 @@ window.MYSTERION_SCHOOL = {
   cohorts: [3, 4, 5, 6].map(number => ({
     id: `cohort-${number}`,
     number,
-    status: 'completed',
+    status: number === 6 ? 'upcoming' : 'completed',
     title: {ru: `Поток ${number}`, en: `Cohort ${number}`, de: `Jahrgang ${number}`},
     description: {ru: '', en: '', de: ''},
     dates: {start: '', end: ''},

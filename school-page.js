@@ -4,6 +4,9 @@
     en: {title:'Online School | MYSTERION INTERNATIONAL', description:'MYSTERION INTERNATIONAL Online School. Four past cohorts: 3, 4, 5 and 6, speakers and school resources.', eyebrow:'MYSTERION INTERNATIONAL · ONLINE SCHOOL', head:'Online school.', lead:'Four past cohorts: 3, 4, 5 and 6 — separate student intakes. Select a cohort to explore its speakers and resources.', archive:'SCHOOL ARCHIVE', cohorts:'Past cohorts', completed:'Completed', open:'Explore cohort', back:'All cohorts', speakers:'Cohort speakers', empty:'Speaker information is coming soon', emptyText:'Speaker names, photographs and information will be added after confirmation by the school team.', photo:'Photograph coming soon', lessons:'Cohort lessons', pending:'Cohort resources will be added later.', nojs:'Enable JavaScript to explore the cohort sections.'},
     de: {title:'Online-Schule | MYSTERION INTERNATIONAL', description:'Die Online-Schule von MYSTERION INTERNATIONAL. Vier abgeschlossene Jahrgänge: 3, 4, 5 und 6, Sprecher und Schulmaterialien.', eyebrow:'MYSTERION INTERNATIONAL · ONLINE-SCHULE', head:'Online-Schule.', lead:'Vier abgeschlossene Jahrgänge: 3, 4, 5 und 6 — separate Gruppen von Teilnehmenden. Wählen Sie einen Jahrgang, um seine Sprecher und Materialien zu entdecken.', archive:'SCHULARCHIV', cohorts:'Abgeschlossene Jahrgänge', completed:'Abgeschlossen', open:'Jahrgang ansehen', back:'Alle Jahrgänge', speakers:'Sprecher des Jahrgangs', empty:'Informationen zu den Sprechern folgen', emptyText:'Namen, Fotos und Informationen zu den Sprechern werden nach Bestätigung durch das Schulteam ergänzt.', photo:'Foto folgt', lessons:'Lektionen des Jahrgangs', pending:'Materialien zu diesem Jahrgang werden später ergänzt.', nojs:'Aktivieren Sie JavaScript, um die Jahrgänge anzusehen.'}
   };
+  Object.assign(copy.ru, {description:'Онлайн-школа MYSTERION INTERNATIONAL. Юбилейный поток 6 — 2027. Разделы потоков 3, 4 и 5.', lead:'Предстоящий юбилейный поток 6 — в 2027 году. Здесь также собраны разделы потоков 3, 4 и 5.', archive:'ОНЛАЙН-ШКОЛА', cohorts:'Потоки школы', upcoming:'Впереди · 2027'});
+  Object.assign(copy.en, {description:'MYSTERION INTERNATIONAL Online School. Anniversary cohort 6 — 2027. Cohorts 3, 4 and 5.', lead:'The upcoming anniversary cohort 6 begins in 2027. Explore the sections for cohorts 3, 4 and 5 below.', archive:'ONLINE SCHOOL', cohorts:'School cohorts', upcoming:'Upcoming · 2027'});
+  Object.assign(copy.de, {description:'MYSTERION INTERNATIONAL Online-Schule. Jubiläumsjahrgang 6 — 2027. Jahrgänge 3, 4 und 5.', lead:'Der kommende Jubiläumsjahrgang 6 findet 2027 statt. Hier finden Sie auch die Bereiche der Jahrgänge 3, 4 und 5.', archive:'ONLINE-SCHULE', cohorts:'Jahrgänge der Schule', upcoming:'Demnächst · 2027'});
   const data = window.MYSTERION_SCHOOL;
   const grid = document.getElementById('school-cohorts');
   const detail = document.getElementById('school-detail');
@@ -37,8 +40,9 @@
     grid.replaceChildren();
     data.cohorts.forEach(cohort => {
       const card = element('a', 'school-cohort'); card.href = `#${cohort.id}`;
+      if (cohort.status === 'upcoming') card.classList.add('school-cohort-upcoming');
       const top = element('div', 'school-card-top');
-      top.append(element('span', 'school-cohort-number', String(cohort.number).padStart(2, '0')), element('span', 'school-status', t.completed));
+      top.append(element('span', 'school-cohort-number', String(cohort.number).padStart(2, '0')), element('span', 'school-status', cohort.status === 'upcoming' ? t.upcoming : t.completed));
       card.append(top);
       if (cohort.cover) card.append(photo(cohort.cover, localized(cohort.title), 'school-cover'));
       card.append(element('h3', '', localized(cohort.title)), element('span', 'school-card-link', `${t.open} ↗`));
@@ -52,7 +56,10 @@
     if (!selected) return;
     const back = element('a', 'text-arrow dark-arrow', `← ${t.back}`); back.href = '#cohorts';
     const heading = element('h2', '', localized(selected.title)); heading.id = 'cohort-heading'; heading.tabIndex = -1;
-    detail.append(back, element('p', 'eyebrow', t.completed), heading);
+    detail.append(back, element('p', 'eyebrow', selected.status === 'upcoming' ? t.upcoming : t.completed), heading);
+    if (selected.status === 'upcoming') {
+      const announcement = element('a', 'btn btn-gold', t.open + ' · 2027 ↗'); announcement.href = '#jubilee-2027'; detail.append(announcement);
+    }
     if (localized(selected.description)) detail.append(element('p', 'library-lead', localized(selected.description)));
     if (selected.dates.start) {
       const format = value => new Intl.DateTimeFormat(lang(), {dateStyle:'long', timeZone:'UTC'}).format(new Date(`${value}T00:00:00Z`));
