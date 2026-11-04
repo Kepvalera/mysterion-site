@@ -1,0 +1,10 @@
+/* Photo index: conference links without an empty image catalog below. */
+.photos-index .library-content { padding-bottom:56px; }
+.conference-archive-links { display:flex; flex-wrap:wrap; align-items:stretch; gap:20px; }
+.conference-archive-links .btn { flex:1 1 360px; min-width:0; padding:20px 26px; border-radius:22px; }
+@media (max-width:640px) {
+  .photos-index .library-intro { padding-bottom:32px; }
+  .photos-index .library-content { padding-bottom:40px; }
+  .conference-archive-links { flex-direction:column; gap:16px; }
+  .conference-archive-links .btn { flex:auto; width:100%; padding:18px 22px; }
+}

@@ -11,9 +11,9 @@
   <title>Фотографии | MYSTERION</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="photos.css">
   <script defer src="script.js"></script>
-  <script defer src="photos-data.js"></script>
-  <script defer src="photos-page.js"></script>
+  <script defer src="photos-page.js?v=20261104-archives"></script>
   <script defer src="conference-gallery.js"></script>
 </head>
 <body data-page="photos">
@@ -53,7 +53,7 @@
     <a href="index.html#contacts" data-i18n="navContacts">Контакты</a>
   </nav>
 </header>
-<main id="main" class="library-page">
+<main id="main" class="library-page photos-index">
   <section class="library-intro container">
     <p class="eyebrow"><span class="eyebrow-line"></span><span data-i18n="galleryEyebrow">МГНОВЕНИЯ НАШИХ ВСТРЕЧ</span></p>
     <h1><span data-i18n="galleryHead">Фотографии</span><br><em data-i18n="galleryHeadEm">«Мистерион».</em></h1>
@@ -62,8 +62,10 @@
   </section>
   <section class="container library-content" aria-label="Фотогалерея">
     <div class="section-number"><span>01 / PHOTO</span><span data-i18n="galleryCollection">ФОТОГАЛЕРЕЯ</span></div>
-    <a class="btn btn-dark" href="conference-2025.html" data-archive-link="2025" style="margin-bottom:30px">Конференция 2025 · «Величие Царя в славе и изобилии» · Фотографии ↗</a>
-    <a class="btn btn-dark" href="conference-2024.html" data-archive-link="2024" style="margin-bottom:30px">Конференция 2024 · Фотографии ↗</a><div id="photo-grid" class="photo-grid"></div>
+    <div class="conference-archive-links">
+      <a class="btn btn-dark" href="conference-2025.html" data-archive-link="2025">Конференция 2025 · «Величие Царя в славе и изобилии» · Фотографии ↗</a>
+      <a class="btn btn-dark" href="conference-2024.html" data-archive-link="2024">Конференция 2024 · Фотографии ↗</a>
+    </div>
   </section>
 </main>
 <footer class="footer">
