@@ -10,10 +10,6 @@
 .jubilee-year { margin:20px 0; color:#e8cc95; font:500 clamp(44px,6vw,76px)/1 var(--font-display); letter-spacing:.12em; }
 .jubilee-subtitle { max-width:560px; margin:28px 0; color:#e1e3f6; font-size:clamp(17px,1.8vw,21px); line-height:1.7; }
 .jubilee-button { margin-top:8px; background:linear-gradient(125deg,#f4e4bd,#d9b779); color:#302844; border-color:#f8e8c5; box-shadow:0 8px 32px #d6b77122; }
-.jubilee-sky { position:absolute; z-index:-1; inset:0; pointer-events:none; background:radial-gradient(2px 2px at 80% 15%,#fff6e4 50%,transparent),radial-gradient(2px 2px at 65% 72%,#e6cf9c 50%,transparent),radial-gradient(1px 1px at 92% 80%,#fff 50%,transparent),radial-gradient(2px 2px at 52% 20%,#e1d6ff 50%,transparent),radial-gradient(1px 1px at 20% 90%,#fff 50%,transparent),radial-gradient(ellipse at 85% 52%,#e6c68128,transparent 36%); }
-.jubilee-sky::before,.jubilee-sky::after { content:''; position:absolute; width:410px; height:410px; right:-30px; top:80px; border:1px solid #d5b67c40; border-radius:50%; box-shadow:0 0 65px #b799d32b,inset 0 0 60px #b799d31a; }
-.jubilee-sky::after { inset:110px 0 auto auto; width:350px; height:350px; border-color:#d5b67c24; }
-.jubilee-sky>span { position:absolute; right:45px; top:34px; font:500 450px/1.2 var(--font-display); color:#f4deaa19; text-shadow:0 0 70px #e5c98f22; }
 .jubilee-details { padding:clamp(28px,5vw,64px); border:1px solid var(--line); border-top:0; border-radius:0 0 30px 30px; background:linear-gradient(135deg,#fffdf8,#eeeef9); }
 .jubilee-wrap:has(.jubilee-details) .jubilee-banner { border-radius:32px 32px 0 0; }
 .jubilee-quote { max-width:940px; margin-bottom:28px; color:#625039; font:500 clamp(25px,3vw,37px)/1.4 var(--font-display); }
@@ -35,8 +31,6 @@
   .jubilee-with-speaker { grid-template-columns:1fr; }
   .jubilee-speaker { width:min(100%,580px); margin-inline:auto; padding:0 32px 40px; }
   .jubilee-copy { max-width:740px; }
-  .jubilee-sky { opacity:.6; }
-  .jubilee-sky>span { right:0; }
 }
 @media(max-width:640px) {
   .jubilee-wrap { margin-block:24px 48px; }
@@ -45,9 +39,6 @@
   .jubilee-copy h2 { font-size:clamp(35px,9vw,55px); }
   .jubilee-copy h2>strong { font-size:15px; letter-spacing:.1em; }
   .jubilee-eyebrow { font-size:9px; letter-spacing:.09em; }
-  .jubilee-sky>span { top:70px; right:-35px; font-size:360px; }
-  .jubilee-sky::before { right:-220px; }
-  .jubilee-sky::after { right:-190px; }
   .jubilee-button { width:100%; padding-inline:16px; }
   .jubilee-themes { grid-template-columns:1fr; }
   .jubilee-details { padding:28px 24px; }
@@ -58,52 +49,15 @@
 }
 @media(prefers-reduced-motion:no-preference) {
   .jubilee-copy { animation:jubilee-enter .9s both; }
-  .jubilee-banner::before { animation:jubilee-light 18s ease-in-out infinite alternate; }
-  .jubilee-sky { animation:jubilee-glow 9s ease-in-out infinite alternate; }
+  .jubilee-banner::before { animation:jubilee-light 18s ease-in-out infinite alternate; animation-play-state:paused; }
+  .jubilee-banner[data-sky-active="true"]::before { animation-play-state:running; }
   .jubilee-speaker { animation:jubilee-enter 1s .15s both; }
-  .jubilee-speaker-photo { animation:jubilee-portrait-glow 7s ease-in-out infinite alternate; }
-  @keyframes jubilee-portrait-glow { from { box-shadow:0 0 30px #e6c68120,0 18px 45px #080d2c66; } to { box-shadow:0 0 48px #e6c68142,0 18px 45px #080d2c66; } }
   @keyframes jubilee-enter { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
   @keyframes jubilee-light { from { transform:rotate(-5deg); } to { transform:rotate(6deg); } }
-  @keyframes jubilee-glow { from { opacity:.65; } to { opacity:1; } }
 }
 @media(hover:hover) { .jubilee-button:hover { background:#f6e7c9; box-shadow:0 8px 40px #e5cc923b; } }
 
-/* Lightweight live portrait atmosphere: the photo always paints above effects. */
-.portrait-stage { position:relative; isolation:isolate; }
-.portrait-stage .jubilee-speaker-photo { position:relative; z-index:1; animation:none; }
-.portrait-fx { position:absolute; z-index:0; inset:-16px; pointer-events:none; transform:translate(var(--px,0px),var(--py,0px)); transition:transform .9s cubic-bezier(.2,.7,.2,1); }
-.portrait-nebula,.portrait-aura { position:absolute; display:block; inset:-16px; border-radius:40%; opacity:.6; }
-.portrait-nebula { background:radial-gradient(ellipse at 5% 40%,#4b79d587,transparent 55%),radial-gradient(ellipse at 94% 28%,#af77cc80,transparent 58%),radial-gradient(ellipse at 45% 95%,#d9ac5c55,transparent 60%); filter:blur(18px); }
-.portrait-aura { inset:-9px; background:radial-gradient(ellipse,#f5d38740 30%,#d5a85630 65%,transparent 76%); filter:blur(12px); }
-.portrait-star,.portrait-particle,.portrait-flare { position:absolute; left:var(--x); top:var(--y); display:block; }
-.portrait-star { width:var(--size); height:var(--size); border-radius:50%; background:#fff9e9; box-shadow:0 0 8px #efcf87b3; opacity:.5; }
-.portrait-star:nth-child(2n) { background:#e8c779; }
-.portrait-particle { width:3px; height:3px; border-radius:50%; background:#ffe4a6; box-shadow:0 0 6px #efd699; opacity:0; }
-.portrait-flare { width:22px; height:22px; opacity:0; background:radial-gradient(circle,#fffbed 0 5%,#f6d99e66 12%,transparent 60%); }
-.portrait-flare::before,.portrait-flare::after { content:''; position:absolute; inset:48% 0; background:linear-gradient(90deg,transparent,#fff3d5,transparent); border-radius:50%; }
-.portrait-flare::after { transform:rotate(90deg); }
-@media(prefers-reduced-motion:no-preference) {
-  .portrait-nebula { animation:portrait-nebula 22s ease-in-out infinite alternate; }
-  .portrait-aura { animation:portrait-aura 8s ease-in-out infinite alternate; }
-  .portrait-star { animation:portrait-twinkle var(--duration) var(--delay) ease-in-out infinite; }
-  .portrait-particle { animation:portrait-rise var(--duration) var(--delay) linear infinite; }
-  .portrait-flare { animation:portrait-flare var(--duration) var(--delay) ease-in-out infinite; }
-  .portrait-fx>* { animation-play-state:paused; }
-  .portrait-stage[data-active="true"] .portrait-fx>* { animation-play-state:running; }
-  @keyframes portrait-nebula { from { transform:translate(-6px,4px) scale(.97) rotate(-3deg); } to { transform:translate(7px,-5px) scale(1.04) rotate(3deg); } }
-  @keyframes portrait-aura { from { opacity:.3; transform:scale(.98); } to { opacity:.72; transform:scale(1.04); } }
-  @keyframes portrait-twinkle { 0%,100% { opacity:.2; transform:scale(.65); } 50% { opacity:.9; transform:scale(1.15); } }
-  @keyframes portrait-rise { 0% { opacity:0; transform:translate(0,15px); } 25% { opacity:.65; } 75% { opacity:.4; } 100% { opacity:0; transform:translate(6px,-75px); } }
-  @keyframes portrait-flare { 0%,65%,100% { opacity:0; transform:scale(.3); } 78% { opacity:.85; transform:scale(1); } 90% { opacity:0; transform:scale(1.2); } }
-}
-@media(max-width:640px) {
-  .portrait-fx { inset:-10px; }
-  .portrait-nebula { filter:blur(12px); }
-  .portrait-star:nth-of-type(n+9),.portrait-particle:nth-of-type(2n),.portrait-flare:last-child { display:none; }
-}
-@media(prefers-reduced-motion:reduce) {
-  .portrait-fx { transform:none; transition:none; }
-  .portrait-fx>* { animation:none!important; }
-  .portrait-particle,.portrait-flare { display:none; }
-}
+
+/* Single full-scene starfield. Foreground content keeps its existing z-index:1. */
+.jubilee-sky { position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; background:radial-gradient(ellipse at 50% 90%,#b8935920,transparent 65%); }
+.jubilee-sky canvas { display:block; width:100%; height:100%; }

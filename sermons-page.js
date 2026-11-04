@@ -1,7 +1,7 @@
 // The catalog is driven by sermons-data.js. No server or CMS is required for basic publishing.
 const catalog = window.MYSTERION_MEDIA || {youtubePlaylistId:"", videos:[]};
 const labels={ru:{empty:"Видео скоро появятся",emptyText:"Здесь будут проповеди, записи школ и конференций. Мы добавим их после публикации на официальном видеоканале.",watch:"Смотреть",unknown:"Спикер",search:"Поиск по названию или спикеру",date:"",sermon:"Проповеди",conference:"Конференции",school:"Школы",testimony:"Свидетельства"},en:{empty:"Videos coming soon",emptyText:"Sermons, school sessions, and conference recordings will appear here after they are published on the official video channel.",watch:"Watch",unknown:"Speaker",search:"Search by title or speaker",date:"",sermon:"Sermons",conference:"Conferences",school:"Schools",testimony:"Testimonies"}};
-let category='all';
+let category=location.hash==='#testimonies'?'testimony':'all';
 let query='';
 function cleanId(id){return typeof id==='string'&&/^[A-Za-z0-9_-]{11}$/.test(id)?id:null}
 function renderVideos(){
@@ -44,5 +44,8 @@ document.querySelector('.dialog-close').addEventListener('click',closeVideo);
 document.getElementById('video-dialog').addEventListener('close',()=>document.getElementById('video-player').replaceChildren());
 document.querySelectorAll('.filter').forEach(b=>b.addEventListener('click',()=>{category=b.dataset.category;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));renderVideos()}));
 document.getElementById('video-search').addEventListener('input',e=>{query=e.target.value;renderVideos()});
+function syncTestimonyLink(){category=location.hash==='#testimonies'?'testimony':'all';document.querySelectorAll('.filter').forEach(button=>button.classList.toggle('active',button.dataset.category===category));renderVideos()}
+window.addEventListener('hashchange',syncTestimonyLink);
+document.querySelectorAll('.filter').forEach(button=>button.classList.toggle('active',button.dataset.category===category));
 window.addEventListener('mysterion:language',renderVideos);
 renderVideos();

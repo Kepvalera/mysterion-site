@@ -34,52 +34,101 @@
   window.addEventListener('mysterion:language', translate);
   translate();
 
-  // Decorative layers stay behind the unchanged, opaque portrait.
-  const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const mouse = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 971px)');
-  document.querySelectorAll('.jubilee-speaker-photo').forEach(photo => {
-    const stage = document.createElement('div');
-    stage.className = 'portrait-stage';
-    photo.before(stage);
-    const fx = document.createElement('div');
-    fx.className = 'portrait-fx'; fx.setAttribute('aria-hidden', 'true');
-    for (const name of ['nebula','aura']) {
-      const layer = document.createElement('span'); layer.className = `portrait-${name}`; fx.append(layer);
+  // One full-banner canvas, shared by the home page and the online school.
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  document.querySelectorAll('.jubilee-banner').forEach(banner => {
+    const sky = banner.querySelector('.jubilee-sky');
+    if (!sky) return;
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    sky.replaceChildren(canvas);
+    const ctx = canvas.getContext('2d', {alpha:true});
+    if (!ctx) return;
+    const colors = ['242,246,255','196,208,229','167,203,245','231,202,144'];
+    let width = 0, height = 0, stars = [], visible = false;
+    let frame = 0, last = 0, time = 0, pixelRatio = 1, mobile = false;
+    const haze = document.createElement('canvas');
+    const hazeContext = haze.getContext('2d');
+    function prepareHaze() {
+      haze.width = 300; haze.height = 200;
+      if (!hazeContext) return;
+      [[.12,.4,'60,94,166'],[.8,.25,'122,74,160'],[.55,.88,'169,131,66']].forEach(([x,y,color]) => {
+        const gradient = hazeContext.createRadialGradient(x*300,y*200,0,x*300,y*200,155);
+        gradient.addColorStop(0,`rgba(${color},.22)`); gradient.addColorStop(1,`rgba(${color},0)`);
+        hazeContext.fillStyle = gradient; hazeContext.fillRect(0,0,300,200);
+      });
     }
-    const positions = [[2,15],[97,23],[6,45],[95,60],[3,80],[98,89],[18,2],[76,1],[26,99],[82,98],[0,65],[99,42]];
-    positions.forEach(([x,y],index) => {
-      const star = document.createElement('span'); star.className = 'portrait-star';
-      star.style.cssText = `--x:${x}%;--y:${y}%;--size:${3 + index % 4 * 2}px;--delay:${-index * 1.7}s;--duration:${4 + index % 4}s`;
-      fx.append(star);
-    });
-    for (let index = 0; index < 6; index++) {
-      const particle = document.createElement('span'); particle.className = 'portrait-particle';
-      particle.style.cssText = `--x:${index % 2 ? 97 : 2}%;--y:${40 + index * 10}%;--delay:${-index * 2.3}s;--duration:${9 + index % 3}s`;
-      fx.append(particle);
+    function draw() {
+      ctx.setTransform(pixelRatio,0,0,pixelRatio,0,0);
+      ctx.clearRect(0,0,width,height);
+      if (hazeContext) {
+        ctx.globalAlpha = .85;
+        ctx.drawImage(haze,-width*.1+Math.sin(time*.025)*width*.035,-height*.1+Math.cos(time*.02)*height*.025,width*1.2,height*1.2);
+      }
+      stars.forEach(star => {
+        const wave = (1+Math.sin(time*star.speed+star.phase))/2;
+        const opacity = star.fade ? Math.pow(wave,2)*.7 : .14+wave*.56;
+        const x = ((star.x+time*star.depth*.0008)%1)*width;
+        const y = (star.y+Math.sin(time*.04+star.phase)*.003)*height;
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = `rgb(${star.color})`;
+        ctx.beginPath(); ctx.arc(x,y,star.radius,0,Math.PI*2); ctx.fill();
+        if (star.flare) {
+          const pulse = Math.pow(Math.max(0,Math.sin(time*.35+star.phase)),16);
+          const size = 3+pulse*8;
+          ctx.globalAlpha = pulse*.5;
+          const glow = ctx.createRadialGradient(x,y,0,x,y,size*2);
+          glow.addColorStop(0,`rgba(${star.color},.65)`); glow.addColorStop(1,`rgba(${star.color},0)`);
+          ctx.fillStyle = glow; ctx.fillRect(x-size*2,y-size*2,size*4,size*4);
+          ctx.fillStyle = `rgb(${star.color})`;
+          ctx.beginPath(); ctx.moveTo(x,y-size); ctx.lineTo(x+.65,y-.65); ctx.lineTo(x+size,y); ctx.lineTo(x+.65,y+.65); ctx.lineTo(x,y+size); ctx.lineTo(x-.65,y+.65); ctx.lineTo(x-size,y); ctx.lineTo(x-.65,y-.65); ctx.closePath(); ctx.fill();
+        }
+      });
+      ctx.globalAlpha = 1;
     }
-    [[7,25],[95,73],[74,1]].forEach(([x,y],index) => {
-      const flare = document.createElement('span'); flare.className = 'portrait-flare';
-      flare.style.cssText = `--x:${x}%;--y:${y}%;--delay:${-index * 4.7}s;--duration:${13 + index * 2}s`;
-      fx.append(flare);
-    });
-    stage.append(fx,photo);
-    let visible = false;
-    const update = () => { stage.dataset.active = String(visible && !document.hidden && !motion.matches); };
+    function tick(now) {
+      frame = 0;
+      if (!visible || document.hidden || reduced.matches) return;
+      const interval = mobile ? 1000/20 : 1000/30;
+      if (now-last >= interval) {
+        time += Math.min((now-last)/1000,.1); last = now; draw();
+      }
+      frame = requestAnimationFrame(tick);
+    }
+    function sync() {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0; last = performance.now();
+      banner.dataset.skyActive = String(visible && !document.hidden && !reduced.matches);
+      if (visible && !document.hidden && !reduced.matches) frame = requestAnimationFrame(tick);
+      else if (reduced.matches && width) draw();
+    }
+    function resize() {
+      width = banner.clientWidth; height = banner.clientHeight;
+      if (!width || !height) return;
+      mobile = width <= 640;
+      pixelRatio = Math.min(devicePixelRatio || 1,mobile ? 1.25 : 1.5);
+      canvas.width = Math.round(width*pixelRatio); canvas.height = Math.round(height*pixelRatio);
+      const count = mobile ? 70 : Math.min(190,Math.max(110,Math.round(width*height/4200)));
+      stars = Array.from({length:count},(_,index) => ({
+        x:((index+.5)*.61803398875)%1, y:((index+.5)*.754877666)%1,
+        depth:1+index%3, radius:.35+(index%3)*.32+(index%37===0?.4:0),
+        phase:index*2.39996, speed:.28+(index%7)*.13,
+        color:colors[index%4], fade:index%5===0, flare:index%47===0
+      }));
+      draw(); sync();
+    }
+    prepareHaze(); resize();
+    if ('ResizeObserver' in window) new ResizeObserver(resize).observe(banner);
+    else window.addEventListener('resize',resize,{passive:true});
     if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; update(); }, {rootMargin:'60px'});
-      observer.observe(stage);
-    } else { visible = true; update(); }
-    document.addEventListener('visibilitychange',update);
-    const reset = () => { fx.style.removeProperty('--px'); fx.style.removeProperty('--py'); };
-    motion.addEventListener('change',() => { reset(); update(); });
-    mouse.addEventListener('change',reset);
-    stage.addEventListener('pointermove',event => {
-      if (!mouse.matches || motion.matches || !visible || event.pointerType !== 'mouse') return;
-      const bounds = stage.getBoundingClientRect();
-      const clamp = value => Math.max(-1,Math.min(1,value));
-      fx.style.setProperty('--px',`${clamp((event.clientX - bounds.left) / bounds.width * 2 - 1) * 5}px`);
-      fx.style.setProperty('--py',`${clamp((event.clientY - bounds.top) / bounds.height * 2 - 1) * 4}px`);
-    }, {passive:true});
-    stage.addEventListener('pointerleave',reset);
+      new IntersectionObserver(entries => { visible = entries[0].isIntersecting; sync(); },{threshold:0}).observe(banner);
+    } else {
+      const check = () => { const rect = banner.getBoundingClientRect(); const next = rect.bottom>0 && rect.top<innerHeight; if (next!==visible) { visible=next; sync(); } };
+      window.addEventListener('scroll',check,{passive:true}); window.addEventListener('resize',check,{passive:true}); check();
+    }
+    document.addEventListener('visibilitychange',sync);
+    reduced.addEventListener('change',sync);
+    window.addEventListener('pagehide',() => { visible=false; sync(); });
+    window.addEventListener('pageshow',() => { const rect=banner.getBoundingClientRect(); visible=rect.bottom>0&&rect.top<innerHeight; sync(); });
   });
 })();
