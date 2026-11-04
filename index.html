@@ -13,9 +13,11 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="jubilee.css">
   <link rel="stylesheet" href="home.css">
+  <link rel="stylesheet" href="heavenly.css">
   <script defer src="script.js"></script>
   <script defer src="jubilee.js"></script>
   <script defer src="home.js"></script>
+  <script defer src="heavenly.js"></script>
 </head>
 <body class="editorial-home">
 <div class="reading-progress" aria-hidden="true"></div>
@@ -64,24 +66,20 @@
 </header>
 
 <main id="main" class="editorial-main">
-  <section class="e-hero cosmic-hero" id="home" aria-labelledby="hero-heading">
-    <div class="container e-hero-grid">
-      <div class="e-hero-copy">
-        <p class="eyebrow"><span class="eyebrow-line"></span><span data-i18n="heroEyebrow">МЕЖДУНАРОДНОЕ ХРИСТИАНСКОЕ СЛУЖЕНИЕ</span></p>
-        <h1 id="hero-heading" class="e-wordmark">MYSTERION <span>INTERNATIONAL</span></h1><h2 class="e-statement"><span data-i18n="heroHead1">Пространство,</span><br><span data-i18n="heroHead2">где вера</span><br><em data-i18n="heroHead3">становится жизнью.</em></h2>
+  <section class="heavenly-hero" id="home" aria-labelledby="hero-heading">
+    <div class="heavenly-art" aria-hidden="true"><canvas class="heavenly-canvas"></canvas><div class="heavenly-rays"></div></div>
+    <div class="container heavenly-content">
+        <div class="heavenly-emblem"><img src="assets/photos/mysterion-crown-480.webp" srcset="assets/photos/mysterion-crown-480.webp 480w, assets/photos/mysterion-crown-960.webp 960w" sizes="(max-width: 640px) 220px, (max-width: 1400px) 24vw, 340px" width="960" height="540" alt="" fetchpriority="high" decoding="async"></div>
+        <h1 id="hero-heading" class="heavenly-wordmark">MYSTERION <span>INTERNATIONAL</span></h1>
+        <p class="heavenly-label" data-i18n="heroEyebrow">МЕЖДУНАРОДНОЕ ХРИСТИАНСКОЕ СЛУЖЕНИЕ</p>
+        <h2 class="heavenly-statement"><span data-i18n="heroHead1">Пространство,</span> <span data-i18n="heroHead2">где вера</span> <em data-i18n="heroHead3">становится жизнью.</em></h2>
         <p class="e-hero-lead" data-i18n="heroLead">Объединяем людей из разных стран, чтобы вместе глубже познавать Бога, возрастать в вере и открывать своё призвание.</p>
         <div class="e-hero-buttons">
           <a class="btn btn-dark" href="#about"><span data-i18n="heroPrimary">Узнать о служении</span><span aria-hidden="true">↗</span></a>
           <a class="text-arrow" href="#events"><span data-i18n="heroSecondary">Школы и конференции</span><span aria-hidden="true">↗</span></a>
         </div>
         <div class="e-hero-footnote"><span>01 / MYSTERION</span><span data-i18n="heroFoot">ВЕРА • ЕДИНСТВО • ПРИЗВАНИЕ</span></div>
-      </div>
-      <div class="e-hero-art" aria-hidden="true">
-        <img class="e-hero-image" src="mysterion-crown.webp" alt="" width="640" height="640" fetchpriority="high"><span class="e-orbit" aria-hidden="true"></span>
-
-      </div>
     </div>
-    <div class="hero-bottom-line" aria-hidden="true"></div>
   </section>
 
 

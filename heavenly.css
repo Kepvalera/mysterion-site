@@ -1,0 +1,49 @@
+/* One continuous opening scene. Decorative canvases never intercept interaction. */
+.heavenly-hero { position:relative; isolation:isolate; min-height:min(850px,calc(100svh - var(--header-height))); overflow:clip; background:radial-gradient(ellipse at 68% 20%,#bcd8edb3,transparent 55%),radial-gradient(ellipse at 20% 48%,#e5deefb3,transparent 60%),radial-gradient(ellipse at 50% 65%,#f1dfb740,transparent 55%),#f3f5f9; }
+.heavenly-art { position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:var(--heavenly-fade,1); }
+.heavenly-canvas { display:block; width:100%; height:100%; }
+.heavenly-rays { position:absolute; inset:-15% -20%; background:conic-gradient(from 160deg at 64% 4%,transparent 0deg,#fff6d450 9deg,transparent 18deg,#ffffff66 27deg,transparent 38deg,#e8d7ac33 48deg,transparent 59deg); mask-image:linear-gradient(#000,transparent 90%); opacity:.48; }
+.heavenly-hero::after { content:''; position:absolute; z-index:-1; inset:65% 0 0; pointer-events:none; background:linear-gradient(transparent,#f3f5f9); }
+.heavenly-content { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:inherit; padding:44px 0 54px; text-align:center; }
+.heavenly-wordmark { max-width:100%; color:#273f5c; font-size:clamp(48px,8vw,116px); line-height:.95; letter-spacing:-.045em; overflow-wrap:normal; text-shadow:0 1px 22px #ffffffbd; }
+.heavenly-wordmark>span { display:block; margin-top:18px; font:500 clamp(12px,1.5vw,20px)/1.4 var(--font-body); color:#75623d; letter-spacing:.42em; }
+.heavenly-label { max-width:100%; margin:24px 0 0; font-size:10px; letter-spacing:.14em; color:#5a6579; }
+.editorial-main .heavenly-statement { max-width:760px; margin:28px 0 0; font-size:clamp(29px,3vw,44px); line-height:1.18; text-wrap:balance; }
+.heavenly-hero .e-hero-lead { max-width:650px; margin:22px 0 0; font-size:15px; color:#46566c; text-shadow:0 1px 12px #fff; }
+.heavenly-hero .e-hero-buttons { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:22px; margin-top:26px; }
+.heavenly-hero .e-hero-footnote { display:flex; justify-content:center; flex-wrap:wrap; gap:18px; margin-top:26px; font-size:9px; letter-spacing:.12em; color:#657287; }
+.heavenly-emblem { position:relative; isolation:isolate; width:clamp(210px,24vw,340px); margin-bottom:26px; }
+.heavenly-emblem::before { content:''; position:absolute; z-index:-1; inset:-35%; background:radial-gradient(ellipse,#e5bc6545,transparent 65%); opacity:.5; pointer-events:none; }
+.heavenly-emblem::after { content:''; position:absolute; left:49%; top:24%; width:15px; height:15px; background:#fff6d2; opacity:0; clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%); pointer-events:none; }
+.heavenly-emblem img { display:block; width:100%; height:auto; max-height:190px; object-fit:contain; filter:drop-shadow(0 0 16px #d9b56c66); }
+/* The scene fades into this exact color, without a boundary or spacer. */
+.heavenly-hero + #about { position:relative; background:linear-gradient(#f3f5f9,#f3f5f900); padding-top:24px; }
+.heavenly-hero + #about .section-number { border:0; margin-bottom:24px; padding:0; }
+@media(max-width:640px) {
+  .heavenly-content { padding:36px 0 40px; }
+  .heavenly-wordmark { font-size:clamp(41px,11.5vw,64px); }
+  .heavenly-wordmark>span { font-size:12px; letter-spacing:.28em; margin-top:14px; }
+  .heavenly-label { font-size:8px; letter-spacing:.08em; margin-top:20px; }
+  .editorial-main .heavenly-statement { margin-top:24px; font-size:32px; }
+  .heavenly-hero .e-hero-lead { font-size:14px; margin-top:20px; }
+  .heavenly-hero .e-hero-buttons { gap:20px; margin-top:24px; }
+  .heavenly-hero .e-hero-footnote { font-size:8px; gap:10px; margin-top:24px; }
+  .heavenly-emblem { width:220px; margin-bottom:20px; }
+}
+@media(prefers-reduced-motion:no-preference) {
+  .heavenly-rays { animation:heavenly-rays 18s ease-in-out infinite alternate; animation-play-state:paused; }
+  .heavenly-hero[data-active="true"] .heavenly-rays { animation-play-state:running; }
+  .heavenly-wordmark { animation:heavenly-title 2.7s both; }
+  .heavenly-emblem { animation:heavenly-crown-enter 2.2s both; }
+  .heavenly-emblem img { animation:heavenly-crown-float 7s ease-in-out infinite alternate; animation-play-state:paused; }
+  .heavenly-hero[data-active="true"] .heavenly-emblem img { animation-play-state:running; }
+  .heavenly-emblem::after { animation:heavenly-crown-glint 14s 2s ease-in-out infinite; animation-play-state:paused; }
+  .heavenly-hero[data-active="true"] .heavenly-emblem::after { animation-play-state:running; }
+  .heavenly-about-revealed { animation:heavenly-about .8s both; }
+  @keyframes heavenly-title { from { opacity:.55; translate:0 10px; } to { opacity:1; translate:0 0; } }
+  @keyframes heavenly-crown-enter { from { opacity:.15; translate:0 14px; } to { opacity:1; translate:0 0; } }
+  @keyframes heavenly-crown-float { to { transform:translateY(-6px); } }
+  @keyframes heavenly-crown-glint { 0%,12%,100% { opacity:0; transform:scale(.5); } 5% { opacity:.85; transform:scale(1); } }
+  @keyframes heavenly-rays { to { transform:rotate(5deg); opacity:.65; } }
+  @keyframes heavenly-about { from { opacity:.65; translate:0 12px; } to { opacity:1; translate:0 0; } }
+}
