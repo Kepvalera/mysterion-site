@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#c8e1f1">
+  <meta name="description" content="Мистерион — международное христианское служение. Школы, конференции, духовное наставничество и пространство для познания Бога.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Мистерион | Международное христианское служение">
+  <meta property="og:description" content="Пространство познания Бога, духовного возрастания и раскрытия призвания.">
+  <title>Онлайн-школа | MYSTERION INTERNATIONAL</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="school.css">
+  <script defer src="script.js"></script>
+  <script defer src="school-data.js"></script>
+  <script defer src="school-page.js"></script>
+</head>
+<body data-page="school">
+<a class="skip-link" href="#main" data-i18n="skip">Перейти к содержимому</a>
+<header class="site-header" id="top">
+  <div class="header-inner container">
+    <a href="index.html#home" class="brand" aria-label="Mysterion">
+      <span class="brand-symbol crown-mark" aria-hidden="true">♛</span>
+      <span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span>
+    </a>
+    <nav class="desktop-nav" aria-label="Main navigation">
+      <a href="index.html#about" data-i18n="navAbout">О нас</a>
+      <a href="index.html#founders" data-i18n="navFounders">Основатели</a>
+      <a href="index.html#ministry" data-i18n="navMinistry">Направления</a>
+      <a href="index.html#events" data-i18n="navEvents">События</a>
+      <a href="online-school.html" aria-current="page" data-i18n="navSchool">Онлайн-школа</a>
+      <a href="sermons.html" data-i18n="navSermons">Проповеди</a>
+      <a href="photos.html" data-i18n="navPhotos">Фото</a>
+      <a href="index.html#media" data-i18n="navMedia">Медиа</a>
+      <a href="index.html#contacts" data-i18n="navContacts">Контакты</a>
+    </nav>
+    <div class="header-actions">
+      <button class="lang-toggle" type="button" aria-label="Switch language to English"><span class="lang-strong">RU</span><span class="lang-muted"> / EN</span></button>
+      <a class="header-cta" href="index.html#contacts"><span data-i18n="headerCta">Связаться</span><span aria-hidden="true">↗</span></a>
+      <button class="menu-toggle" type="button" aria-controls="mobile-nav" aria-expanded="false" aria-label="Open menu"><span></span><span></span></button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation" hidden>
+    <a href="index.html#about" data-i18n="navAbout">О нас</a>
+    <a href="index.html#founders" data-i18n="navFounders">Основатели</a>
+    <a href="index.html#ministry" data-i18n="navMinistry">Направления</a>
+    <a href="index.html#events" data-i18n="navEvents">События</a>
+      <a href="online-school.html" aria-current="page" data-i18n="navSchool">Онлайн-школа</a>
+    <a href="sermons.html" data-i18n="navSermons">Проповеди</a>
+      <a href="photos.html" data-i18n="navPhotos">Фото</a>
+      <a href="index.html#media" data-i18n="navMedia">Медиа</a>
+    <a href="index.html#contacts" data-i18n="navContacts">Контакты</a>
+  </nav>
+</header>
+<main id="main" class="library-page school-page">
+  <section class="library-intro school-intro container" aria-labelledby="school-heading">
+    <p class="eyebrow" data-school-text="eyebrow">MYSTERION INTERNATIONAL · ОНЛАЙН-ШКОЛА</p>
+    <h1 id="school-heading" data-school-text="head">Онлайн-школа.</h1>
+    <p class="library-lead" data-school-text="lead">Четыре прошедших потока: 3, 4, 5 и 6 — отдельные наборы учеников. Выберите поток, чтобы перейти к его спикерам и материалам.</p>
+    <div class="library-actions"><a class="btn btn-dark" href="index.html#media"><span data-i18n="backMedia">На главную</span><span aria-hidden="true">↗</span></a></div>
+  </section>
+  <section id="cohorts" class="container school-content" aria-labelledby="cohorts-heading">
+    <div class="section-number"><span>01 / SCHOOL</span><span data-school-text="archive">АРХИВ ШКОЛЫ</span></div>
+    <h2 id="cohorts-heading" class="school-section-title" data-school-text="cohorts">Прошедшие потоки</h2>
+    <div id="school-cohorts" class="school-cohorts"></div>
+    <noscript><p>Для просмотра разделов потоков включите JavaScript. / Enable JavaScript. / Aktivieren Sie JavaScript.</p></noscript>
+    <section id="school-detail" class="school-detail" aria-labelledby="cohort-heading" hidden></section>
+  </section>
+</main>
+<footer class="footer">
+  <div class="container footer-grid">
+    <a href="index.html#home" class="brand footer-brand"><span class="brand-symbol crown-mark" aria-hidden="true">♛</span><span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span></a>
+    <p data-i18n="footerDescription">Пространство познания Бога, духовного возрастания и раскрытия призвания.</p>
+    <p>© <span id="copyright-year">2026</span> MYSTERION <span data-i18n="footerRights">Все права защищены</span></p>
+  </div>
+</footer>
+</body></html>

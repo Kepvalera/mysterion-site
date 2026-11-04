@@ -1112,6 +1112,19 @@ html {scroll-padding-top:94px}
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap');
 
 
+/* Leave room for the school link and longer German navigation labels. */
+.desktop-nav{gap:14px}
+.desktop-nav a{letter-spacing:.08em;white-space:nowrap}
+.mobile-nav{max-height:calc(100dvh - 82px);overflow-y:auto;overscroll-behavior:contain}
+@media(max-width:1380px){
+  .desktop-nav{display:none}
+  .menu-toggle{display:block}
+  .header-cta{display:none}
+  .mobile-nav{top:82px}
+  .mobile-nav:not([hidden]){display:flex;flex-direction:column;align-items:stretch}
+}
+@media(max-width:970px){.mobile-nav{top:76px;max-height:calc(100dvh - 76px)}}
+
 .founders-text h2,
 .founders-text h2 em {
   font-family: 'Cormorant Garamond', Georgia, serif;

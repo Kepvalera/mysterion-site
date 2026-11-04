@@ -6,6 +6,7 @@ const translations = {
     "navFounders": "Основатели",
     "navMinistry": "Направления",
     "navEvents": "События",
+    "navSchool": "Онлайн-школа",
     "navMedia": "Медиа",
     "navSermons": "Проповеди",
     "libEyebrow": "СЛОВО · ВЕРА · ГЛУБИНА",
@@ -136,6 +137,7 @@ const translations = {
     "navFounders": "Founders",
     "navMinistry": "What We Do",
     "navEvents": "Events",
+    "navSchool": "Online school",
     "navMedia": "Media",
     "navSermons": "Sermons",
     "libEyebrow": "WORD · FAITH · DEPTH",
@@ -266,6 +268,7 @@ const translations = {
     "navFounders": "Gründer",
     "navMinistry": "Unser Dienst",
     "navEvents": "Veranstaltungen",
+    "navSchool": "Online-Schule",
     "navMedia": "Medien",
     "navSermons": "Predigten",
     "navPhotos": "Fotos",
@@ -456,9 +459,7 @@ mobileNav.querySelectorAll("a").forEach(link => link.addEventListener("click", c
 window.addEventListener("keydown", e => { if (e.key === "Escape") { closeMenu(); closeLanguageMenu(); } });
 const copyrightYear = document.getElementById("copyright-year");
 if (copyrightYear) copyrightYear.textContent = new Date().getFullYear();
-const heroPhoto = new Image();
-heroPhoto.onload = () => { const art = document.querySelector(".hero-art"); if (art) art.classList.add("has-photo"); };
-heroPhoto.src = "assets/hero.jpg";
+// Hero artwork is provided by the existing CSS crown background.
 
 
 // Progressive enhancement: subtle section reveals and scroll feedback.
