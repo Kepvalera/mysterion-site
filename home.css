@@ -271,8 +271,8 @@
 .founders-brand { display:flex; align-items:center; gap:14px; color:#876b36; font-size:10px; letter-spacing:.18em; margin-bottom:22px; }
 .founders-brand::before { content:''; flex:0 0 36px; height:1px; background:#b99a59; transform-origin:left; }
 .e-founders-text { min-width:0; }
-.editorial-main .e-founders-text h2 { font-size:clamp(38px,4.3vw,64px); line-height:1.06; text-transform:none; margin:0 0 24px; color:#233b53; }
-.e-founders-text h2 em { color:#8a6a34; font-weight:400; }
+.editorial-main .e-founders-text h2 { font-size:clamp(38px,4.3vw,64px); line-height:1.06; text-transform:none; margin:0 0 24px; color:#A47C39; }
+.e-founders-text h2 em { color:inherit; font-weight:400; }
 .e-founders-text .intro-text { font-size:17px; line-height:1.75; color:#4b5a6f; }
 .e-biography summary { padding-block:8px; min-height:44px; }
 .e-biography summary:focus-visible { outline:2px solid #94713a; outline-offset:5px; }
