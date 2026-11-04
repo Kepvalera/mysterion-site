@@ -1,36 +1,59 @@
-/* School styles are isolated from the existing media and gallery grids. */
-.school-intro{padding-bottom:55px}
-.school-intro h1{max-width:900px;font-family:Georgia,serif;font-weight:400;letter-spacing:-.045em}
-.school-intro .library-lead{max-width:740px}
-.school-content{padding-bottom:110px}
-.school-section-title{font-size:clamp(28px,4vw,44px);margin:28px 0;color:var(--ink)}
-.school-cohorts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
-.school-cohort{position:relative;display:flex;flex-direction:column;min-width:0;min-height:250px;padding:28px;border:1px solid #fff;border-radius:26px;background:radial-gradient(ellipse at 100% 0,#f1dfb85c,transparent 65%),linear-gradient(145deg,#ffffffed,#dfedf9d9);box-shadow:0 18px 42px #4e8eb01f;color:var(--ink);text-decoration:none;overflow:hidden;transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease}
-.school-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.school-cohort-number{font-family:Georgia,serif;font-size:44px;color:#a77b3e;line-height:1}
-.school-status{font-size:11px;padding:5px 10px;border:1px solid #b88c4959;border-radius:30px;color:#805c2d;background:#fff9ec80}
-.school-cohort h3{font-size:28px;margin:32px 0 20px;overflow-wrap:anywhere}
-.school-card-link{margin-top:auto;color:#896231;font-size:13px;font-weight:700}
-.school-cohort[aria-current]{border-color:#aa7f40;box-shadow:0 15px 40px #9e79312b}
-.school-detail{margin-top:65px;padding:clamp(22px,4vw,48px);border-radius:30px;border:1px solid #fff;background:linear-gradient(145deg,#f6fbfff2,#dfedf9eb);scroll-margin-top:110px}
-.school-detail>.eyebrow{margin-top:32px}
-.school-detail h2{font-family:Georgia,serif;font-weight:400;font-size:clamp(38px,6vw,64px);margin:8px 0 24px}
-.school-detail h2:focus{outline:none}
-.school-detail h2:focus-visible{outline:2px solid var(--gold);outline-offset:8px}
-.school-subheading{font-size:24px;color:var(--ink);margin:32px 0 20px}
-.school-empty{padding:32px 22px;text-align:center;border:1px dashed #9dbbd0;border-radius:20px;background:#ffffff70}
-.school-empty-star{font-size:38px;color:#a77b3e}
-.school-empty h4{font-size:20px;margin:8px 0}
-.school-empty p{max-width:560px;margin:10px auto;color:var(--ink2)}
-.school-pending,.school-dates{color:var(--ink2)}
-.school-speakers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
-.school-speaker{min-width:0}.school-speaker h4{font-size:23px;margin:16px 0 8px;overflow-wrap:anywhere}.school-speaker p{color:var(--ink2)}
-.school-speaker-photo,.school-cover{position:relative;overflow:hidden;border-radius:18px;background:linear-gradient(130deg,#d4e7f5,#f7edda);aspect-ratio:4/5;display:grid;place-items:center}
-.school-cover{aspect-ratio:16/9;margin-top:24px}
-.school-speaker-photo img,.school-cover img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
-.school-photo-placeholder{padding:20px;text-align:center;color:#58758a;font-size:14px}
-.school-lessons{padding-left:24px}.school-lessons li{padding:14px 10px;border-bottom:1px solid var(--line)}.school-lessons h4{font-size:19px;margin:0}.school-lessons p{color:var(--ink2)}
-@media(hover:hover) and (prefers-reduced-motion:no-preference){.school-cohort:hover{transform:translateY(-5px);box-shadow:0 24px 48px #32648326}}
-@media(prefers-reduced-motion:no-preference){.school-intro{animation:school-enter .7s both}.school-cohort{animation:school-enter .65s both}.school-cohort:nth-child(2n){animation-delay:.08s}.school-detail{animation:school-enter .4s both}@keyframes school-enter{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}}
-@media(max-width:970px){.school-cohorts,.school-speakers{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:600px){.school-cohorts,.school-speakers{grid-template-columns:1fr}.school-cohort{min-height:210px;padding:24px}.school-intro h1{font-size:clamp(38px,10vw,60px)}.school-detail{margin-top:40px;padding:24px 18px;border-radius:22px}.school-status{white-space:normal}.school-content{padding-bottom:65px}}
+/* School components share the identity tokens in styles.css. */
+.school-intro { padding-bottom:52px; }
+.school-intro h1 { max-width:900px; }
+.school-intro .library-lead { max-width:740px; }
+.school-content { padding-bottom:110px; }
+.school-section-title { margin:28px 0; font-size:clamp(30px,4vw,46px); }
+.school-cohorts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:22px; }
+.school-cohort { position:relative; display:flex; flex-direction:column; min-width:0; min-height:270px; padding:28px; border:1px solid var(--line); border-radius:var(--radius); background:radial-gradient(ellipse at 100% 0,#f2e5ce70,transparent 65%),linear-gradient(145deg,#ffffffed,#edf2fbd9); box-shadow:var(--shadow); overflow:hidden; }
+.school-card-top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.school-cohort-number { font:500 48px/1 var(--font-display); color:var(--gold); }
+.school-status { padding:5px 10px; border:1px solid #d5bd91; border-radius:30px; color:#77592c; background:#faf3e6; font-size:11px; }
+.school-cohort h3 { margin:32px 0 24px; font-size:26px; }
+.school-card-link { margin-top:auto; color:var(--gold); font-size:13px; font-weight:700; }
+.school-cohort[aria-current] { border-color:var(--gold); box-shadow:0 14px 36px #94703b1f; }
+.school-detail { margin-top:64px; padding:clamp(24px,4vw,48px); border:1px solid var(--line); border-radius:30px; background:linear-gradient(145deg,#ffffffed,#f0eef8d9); box-shadow:var(--shadow); scroll-margin-top:calc(var(--header-height) + 24px); }
+.school-detail>.eyebrow { margin-top:32px; }
+.school-detail h2 { margin:8px 0 24px; font-size:clamp(38px,6vw,64px); }
+.school-detail h2:focus { outline:none; }
+.school-detail h2:focus-visible { outline:3px solid var(--gold); outline-offset:8px; }
+.school-subheading { margin:36px 0 22px; font-size:24px; }
+.school-empty { padding:36px 24px; border:1px dashed #bcc5d5; border-radius:20px; background:#ffffff80; text-align:center; }
+.school-empty-star { color:var(--gold); font-size:38px; }
+.school-empty h4 { margin:8px 0; font-size:20px; font-weight:600; }
+.school-empty p { max-width:560px; margin:12px auto 0; color:var(--ink2); }
+.school-pending,.school-dates { color:var(--ink2); }
+.school-speakers { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+.school-speaker { min-width:0; }
+.school-speaker h4 { margin:18px 0 10px; font-size:22px; }
+.school-speaker p { color:var(--ink2); }
+.school-speaker-photo,.school-cover { position:relative; display:grid; place-items:center; aspect-ratio:4/5; overflow:hidden; border:1px solid var(--line); border-radius:18px; background:linear-gradient(130deg,var(--bg2),var(--bg3),#f5eddf); }
+.school-cover { aspect-ratio:16/9; margin-top:24px; }
+.school-speaker-photo img,.school-cover img { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:cover; }
+.school-photo-placeholder { padding:20px; text-align:center; color:var(--muted); font-size:14px; }
+.school-lessons { padding-left:24px; }
+.school-lessons li { padding:18px 10px; border-bottom:1px solid var(--line); }
+.school-lessons h4 { font-size:19px; }
+.school-lessons p { margin-top:8px; color:var(--ink2); }
+
+@media (max-width:1100px) {
+  .school-cohorts { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:970px) {
+  .school-speakers { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:600px) {
+  .school-cohorts,.school-speakers { grid-template-columns:1fr; }
+  .school-cohort { min-height:220px; padding:24px; }
+  .school-detail { margin-top:40px; padding:26px 20px; border-radius:22px; }
+  .school-content { padding-bottom:72px; }
+}
+@media (prefers-reduced-motion:no-preference) {
+  .school-intro,.school-cohort,.school-detail { animation:school-enter .65s both; }
+  .school-cohort:nth-child(2n) { animation-delay:.08s; }
+  @keyframes school-enter { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+}
+@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference) {
+  .school-cohort { transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease; }
+  .school-cohort:hover { transform:translateY(-4px); border-color:#bba67f; box-shadow:var(--shadow-hover); }
+}
