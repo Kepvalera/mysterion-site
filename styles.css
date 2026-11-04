@@ -1109,12 +1109,16 @@ html {scroll-padding-top:94px}
 @media(max-width:720px){.motion-ready .motion-reveal{transition-duration:.55s;transition-delay:0ms!important}.hero-art-image{animation:none!important}}
 
 
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap');
 
-/* Единый шрифт для имён основателей */
 .founders-text h2,
 .founders-text h2 em {
-  font-family: 'Manrope', sans-serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-style: normal;
   font-weight: 600;
-  letter-spacing: -0.055em;
+  font-size: clamp(48px, 5.5vw, 78px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  color: #35313e;
 }
+
