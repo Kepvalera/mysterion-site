@@ -163,7 +163,10 @@
       <div class="section-number"><span>02</span><span data-i18n="foundersLabel">ЛЮДИ И ВИДЕНИЕ</span></div>
       <div class="e-founders-grid">
         <div class="e-founders-visual">
-          <img class="founders-cutout" src="assets/photos/founders-transparent-1082.webp" srcset="assets/photos/founders-transparent-540.webp 540w, assets/photos/founders-transparent-1082.webp 1082w" sizes="(max-width:640px) calc(100vw - 40px), 52vw" width="1082" height="1454" alt="Эдуард и Наталья Хестановы" loading="lazy" decoding="async">
+          <picture>
+            <source type="image/webp" srcset="assets/photos/founders-transparent-540.webp 540w, assets/photos/founders-transparent-1082.webp 1082w" sizes="(max-width:640px) calc(100vw - 40px), 52vw">
+            <img class="founders-cutout" src="assets/photos/founders-transparent.png" width="1082" height="1454" alt="Эдуард и Наталья Хестановы" loading="eager" decoding="async" onerror="if(this.parentElement.querySelector('source')){this.parentElement.querySelector('source').remove();this.src='assets/photos/founders-transparent.png';}">
+          </picture>
         </div>
         <div class="e-founders-text">
           <p class="founders-brand">MYSTERION INTERNATIONAL</p>
