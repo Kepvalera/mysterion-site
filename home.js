@@ -41,8 +41,27 @@
     foundersObserver.observe(founders);
   }
   if (matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('e-revealed'); observer.unobserve(entry.target); } });
-  },{threshold:.12});
-  document.querySelectorAll('.e-archive').forEach(node => observer.observe(node));
+  const events = document.getElementById('events');
+  if (events) {
+    let eventsVisible = false;
+    const syncEvents = () => { events.dataset.active = String(eventsVisible && !document.hidden); };
+    document.addEventListener('visibilitychange', syncEvents);
+    const sceneObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        eventsVisible = entry.isIntersecting;
+        syncEvents();
+        if (entry.isIntersecting) events.classList.add('events-entered');
+      });
+    }, {threshold:.04});
+    sceneObserver.observe(events);
+    const entranceObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('events-revealed');
+          entranceObserver.unobserve(entry.target);
+        }
+      });
+    }, {threshold:.12});
+    events.querySelectorAll('.section-topline,.e-archive,.e-event').forEach(node => entranceObserver.observe(node));
+  }
 })();
