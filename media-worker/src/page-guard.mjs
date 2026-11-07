@@ -12,7 +12,7 @@ const messages = {
   en: ['Management and sign-in are protected', 'Access is closed. A configured domain, Cloudflare Access and a server-authorized identity are required.', 'Return to the library'],
   de: ['Verwaltung und Anmeldung sind geschützt', 'Der Zugang ist gesperrt. Eine konfigurierte Domain, Cloudflare Access und eine serverseitig erlaubte Identität sind erforderlich.', 'Zur Mediathek']
 };
-export async function protectMediaPage(context) {
+export async function protectMediaPage(context, templates) {
   let pathname;
   try { pathname = decodeURIComponent(new URL(context.request.url).pathname); }
   catch { return new Response('Invalid URL', {status:400, headers:securityHeaders}); }
@@ -33,7 +33,8 @@ export async function protectMediaPage(context) {
       if (!context.env.MEDIA_VIEWER_ACCESS_AUD || context.env.MEDIA_VIEWER_ACCESS_AUD === context.env.MEDIA_ACCESS_AUD) throw new HttpError(503, 'viewer_identity_not_configured');
       await verifyAccess(context.request.headers.get('Cf-Access-Jwt-Assertion'), {...context.env, MEDIA_ACCESS_AUD:context.env.MEDIA_VIEWER_ACCESS_AUD});
     }
-    const original = await context.next();
+    // Full UI is returned only after authentication. Static aliases never contain the form.
+    const original = templates ? new Response(admin ? templates.admin : templates.login, {headers:{'Content-Type':'text/html; charset=utf-8'}}) : await context.next();
     const response = new Response(original.body, original);
     for (const [key, value] of Object.entries(securityHeaders)) response.headers.set(key, value);
     return response;
