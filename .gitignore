@@ -1,0 +1,8 @@
+# Local credentials and Cloudflare runtime state must never be committed.
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+.wrangler/
+node_modules/
+output/

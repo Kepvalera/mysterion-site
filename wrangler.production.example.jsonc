@@ -1,0 +1,31 @@
+// TEMPLATE ONLY. Copy to wrangler.jsonc at the repository root AFTER staging validation.
+// Never put API keys here. Copying this file changes Pages' configuration source.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mysterion-international",
+  "pages_build_output_dir": ".",
+  "compatibility_date": "2026-11-08",
+  "d1_databases": [{
+    "binding": "MEDIA_DB",
+    "database_name": "REPLACE_WITH_APPROVED_PRODUCTION_DATABASE_NAME",
+    "database_id": "REPLACE_WITH_APPROVED_D1_UUID",
+    "migrations_dir": "media-worker/migrations"
+  }],
+  "vars": {
+    "MEDIA_ENABLED": "false",
+    "MEDIA_PAID_ENABLED": "false",
+    "MEDIA_PUBLIC_ORIGIN": "https://mysterion-international.pages.dev",
+    "MEDIA_ACCESS_ISSUER": "https://REPLACE_TEAM.cloudflareaccess.com",
+    "MEDIA_ACCESS_AUD": "REPLACE_ADMIN_AUDIENCE",
+    "MEDIA_VIEWER_ACCESS_AUD": "REPLACE_VIEWER_AUDIENCE",
+    "BUNNY_ENABLED": "false",
+    "BUNNY_SECURITY_CONFIRMED": "false",
+    "BUNNY_LIBRARY_ID": "REPLACE_LIBRARY_ID",
+    "BUNNY_CDN_HOST": "REPLACE_HOST.b-cdn.net"
+  }
+  // Optional legacy R2 binding, only if existing free files/custom covers need it:
+  // ,"r2_buckets": [{"binding":"MEDIA_BUCKET","bucket_name":"REPLACE_EXISTING_PRIVATE_BUCKET"}]
+  // Set BUNNY_API_KEY, BUNNY_TOKEN_KEY, BUNNY_CDN_TOKEN_KEY as Pages encrypted secrets.
+  // Configure preview independently with separate D1, Access AUD and Bunny Library;
+  // do not copy production bindings/secrets into preview.
+}
