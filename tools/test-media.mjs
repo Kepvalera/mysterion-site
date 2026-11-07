@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {handle} from '../media-worker/src/worker.mjs';
 import {protectMediaPage} from '../media-worker/src/page-guard.mjs';
+import {validateMediaRoutes} from './check-media-routes.mjs';
 const sql=new DatabaseSync(':memory:');sql.exec(await fs.readFile(new URL('../media-worker/migrations/0001_media.sql',import.meta.url),'utf8'));
 // Migration must preserve existing foreign-key relationships, not just an empty schema.
 sql.exec(`INSERT INTO users VALUES ('migration-user','migration-sub','viewer',1);
@@ -152,6 +153,6 @@ try{
  await page('https://preview.mysterion-international.pages.dev','/media-login.html',viewer,421);
  for(const lang of ['ru','en','de']){const response=await protectMediaPage({request:domainRequest(canonical,'/admin-media',null,{'Accept-Language':lang}),env:domainEnv,next:()=>{throw Error('Must not serve protected page')}});assert.ok((await response.text()).includes('lang="'+lang+'"'));tests++}
  const redirected=await protectMediaPage({request:domainRequest(canonical,'/admin-media.html',admin),env:domainEnv,next:()=>new Response(null,{status:308,headers:{Location:'/admin-media'}})});assert.equal(redirected.status,308);assert.equal(redirected.headers.get('Location'),'/admin-media');tests++;
- const routes=JSON.parse(await fs.readFile(new URL('../_routes.json',import.meta.url),'utf8'));for(const path of ['/admin-media','/admin-media.html','/admin-media/','/media-login','/media-login.html','/api/media'])assert.ok(routes.include.includes(path));assert.ok(!routes.include.includes('/*'));
+ const routes=JSON.parse(await fs.readFile(new URL('../_routes.json',import.meta.url),'utf8'));validateMediaRoutes(routes);assert.throws(()=>validateMediaRoutes({...routes,include:[...routes.include,'/admin-media/']}),/Overlapping Pages route/);tests++;
  console.log(JSON.stringify({passed:tests,sqlite:'in-memory only; populated migration preserves relations',bunny:'mock API only; SHA256 and HMAC signatures independently checked',paidPlayback:'JWT + active user + paid purchase + current entitlement',domain:'canonical URL pinned; pages.dev and preview rejected',protectedHTML:'JWT checked before serving template',productionMigrations:0,realBunnyResources:0}));
 }finally{globalThis.fetch=fetchOriginal;sql.close()}
