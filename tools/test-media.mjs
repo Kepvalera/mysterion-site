@@ -3,6 +3,7 @@ import {DatabaseSync} from 'node:sqlite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {handle} from '../media-worker/src/worker.mjs';
+import {protectMediaPage} from '../media-worker/src/page-guard.mjs';
 const sql=new DatabaseSync(':memory:');sql.exec(await fs.readFile(new URL('../media-worker/migrations/0001_media.sql',import.meta.url),'utf8'));
 // Migration must preserve existing foreign-key relationships, not just an empty schema.
 sql.exec(`INSERT INTO users VALUES ('migration-user','migration-sub','viewer',1);
@@ -120,5 +121,37 @@ try{
  deleteFails=true;await expect(202,'admin/videos/'+created.id,'DELETE',undefined,admin,{'If-Match':String(row().revision)});assert.equal(row().bunny_delete_pending,1);await expect(404,'view/play/'+created.id,'POST',undefined,viewer);
  deleteFails=false;await expect(200,op+'delete','POST');assert.equal(provider.size,0);assert.equal(row().bunny_delete_pending,0);assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM purchases').get().n,1);assert.deepEqual(sql.prepare('PRAGMA foreign_key_check').all(),[]);
  const bucket=env.MEDIA_BUCKET;delete env.MEDIA_BUCKET;await expect(200,'videos');await expect(503,'admin/videos/'+paid.id+'/cover','PUT','TEST');env.MEDIA_BUCKET=bucket;
- console.log(JSON.stringify({passed:tests,sqlite:'in-memory only; populated migration preserves relations',bunny:'mock API only; SHA256 and HMAC signatures independently checked',paidPlayback:'JWT + active user + paid purchase + current entitlement',productionMigrations:0,realBunnyResources:0}));
+ const canonical='https://mysterion-international.com',domainEnv={...env,MEDIA_PUBLIC_ORIGIN:canonical};
+ const domainRequest=(origin,path='/api/media/admin/me',identity=admin,extra={})=>new Request(origin+path,{headers:{...(identity?{'Cf-Access-Jwt-Assertion':identity}:{}),...extra}});
+ assert.equal((await handle(domainRequest(canonical),domainEnv)).status,200);tests++;
+ for(const alternate of ['https://mysterion-international.pages.dev','https://preview.mysterion-international.pages.dev','https://www.mysterion-international.com','http://mysterion-international.com','https://mysterion-international.com:8443']){
+  const response=await handle(domainRequest(alternate,undefined,admin,{Origin:canonical,Host:'mysterion-international.com','X-Forwarded-Host':'mysterion-international.com'}),domainEnv);assert.equal(response.status,421);tests++;
+ }
+ for(const badOrigin of ['',canonical+'/',canonical+'/path',canonical+'?x=1','https://user:password@mysterion-international.com','http://external.invalid']){assert.equal((await handle(domainRequest(canonical),{...domainEnv,MEDIA_PUBLIC_ORIGIN:badOrigin})).status,503);tests++}
+ // Guard the HTML itself, even if external Access rules are missing on a hostname.
+ let served=0;
+ async function page(origin,path,identity,expected,pageEnv=domainEnv,headers={}){
+  const before=served;
+  const response=await protectMediaPage({request:domainRequest(origin,path,identity,headers),env:pageEnv,next:()=>{served++;return new Response('PRIVATE ADMIN TEMPLATE',{headers:{'Content-Type':'text/html'}})}});
+  assert.equal(response.status,expected,origin+path);assert.equal(response.headers.get('Cache-Control'),'private, no-store');
+  assert.equal(served-before,expected===200?1:0);const text=await response.text();assert.equal(text.includes('PRIVATE ADMIN TEMPLATE'),expected===200);tests++;
+ }
+ for(const path of ['/admin-media','/admin-media.html','/admin-media/','/%61dmin-media']){
+  await page(canonical,path,null,401);await page(canonical,path,await token('viewer-sub'),403);await page(canonical,path,admin,200);
+  await page('https://mysterion-international.pages.dev',path,admin,421);
+  await page('https://preview.mysterion-international.pages.dev',path,admin,421);
+ }
+ await page(canonical,'/admin-media',admin.slice(0,-8)+'invalid',401);
+ await page(canonical,'/admin-media',await token('disabled-sub'),403);
+ await page(canonical,'/admin-media',admin,503,{...domainEnv,MEDIA_ENABLED:'false'});
+ await page(canonical,'/admin-media',admin,503,{...domainEnv,MEDIA_PUBLIC_ORIGIN:undefined});
+ await page(canonical,'/admin-media/private',admin,404);
+ await page(canonical,'/media-login',null,401);
+ await page(canonical,'/media-login',admin,401);
+ await page(canonical,'/media-login',viewer,200);
+ await page('https://preview.mysterion-international.pages.dev','/media-login.html',viewer,421);
+ for(const lang of ['ru','en','de']){const response=await protectMediaPage({request:domainRequest(canonical,'/admin-media',null,{'Accept-Language':lang}),env:domainEnv,next:()=>{throw Error('Must not serve protected page')}});assert.ok((await response.text()).includes('lang="'+lang+'"'));tests++}
+ const redirected=await protectMediaPage({request:domainRequest(canonical,'/admin-media.html',admin),env:domainEnv,next:()=>new Response(null,{status:308,headers:{Location:'/admin-media'}})});assert.equal(redirected.status,308);assert.equal(redirected.headers.get('Location'),'/admin-media');tests++;
+ const routes=JSON.parse(await fs.readFile(new URL('../_routes.json',import.meta.url),'utf8'));for(const path of ['/admin-media','/admin-media.html','/admin-media/','/media-login','/media-login.html','/api/media'])assert.ok(routes.include.includes(path));assert.ok(!routes.include.includes('/*'));
+ console.log(JSON.stringify({passed:tests,sqlite:'in-memory only; populated migration preserves relations',bunny:'mock API only; SHA256 and HMAC signatures independently checked',paidPlayback:'JWT + active user + paid purchase + current entitlement',domain:'canonical URL pinned; pages.dev and preview rejected',protectedHTML:'JWT checked before serving template',productionMigrations:0,realBunnyResources:0}));
 }finally{globalThis.fetch=fetchOriginal;sql.close()}

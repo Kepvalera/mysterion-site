@@ -1,1 +1,1 @@
-{"version":1,"include":["/api/media","/api/media/*"],"exclude":[]}
+{"version":1,"include":["/api/media","/api/media/*","/admin-media","/admin-media.html","/admin-media/","/admin-media/*","/media-login","/media-login.html","/media-login/","/media-login/*"],"exclude":[]}

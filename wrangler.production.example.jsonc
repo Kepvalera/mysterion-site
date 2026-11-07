@@ -14,7 +14,9 @@
   "vars": {
     "MEDIA_ENABLED": "false",
     "MEDIA_PAID_ENABLED": "false",
-    "MEDIA_PUBLIC_ORIGIN": "https://mysterion-international.pages.dev",
+    // Future origin; this inactive template does NOT switch the live site.
+    // Set this only after Pages Custom domains and TLS are ready.
+    "MEDIA_PUBLIC_ORIGIN": "https://mysterion-international.com",
     "MEDIA_ACCESS_ISSUER": "https://REPLACE_TEAM.cloudflareaccess.com",
     "MEDIA_ACCESS_AUD": "REPLACE_ADMIN_AUDIENCE",
     "MEDIA_VIEWER_ACCESS_AUD": "REPLACE_VIEWER_AUDIENCE",

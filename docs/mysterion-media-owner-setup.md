@@ -4,6 +4,8 @@
 
 ## 1. Staging и домен
 
+Для будущего **mysterion-international.com** подготовлен отдельный [порядок переключения](mysterion-media-production-cutover.md). Неактивный шаблон не меняет текущий production. Сервер допускает API и защищённый HTML только на точном MEDIA_PUBLIC_ORIGIN: после переключения домена pages.dev и preview с production-настройками получают отказ даже с JWT. Middleware не отдаёт панель без проверки Access/роли. В Cache Rules исключите кэширование /api/media/*, /admin-media* и /media-login*.
+
 Cloudflare → **Workers & Pages → mysterion-international**: сохраните текущие Production-настройки. Для staging нужны отдельные D1, Bunny Library и Access audiences. Preview не должен наследовать production-ключи. Пока всё не проверено: MEDIA_ENABLED=false, BUNNY_ENABLED=false, MEDIA_PAID_ENABLED=false.
 
 Для production рекомендуется собственный домен в активной Cloudflare zone, подключённый через **Pages → Custom domains**. Тогда Access защищает точные пути панели/API, оставляя сайт публичным. Защита preview *.pages.dev не является автоматической защитой production. Для текущего mysterion-international.pages.dev проверьте возможность нужных правил в аккаунте; при отсутствии используйте собственный домен. Проверьте также альтернативный pages.dev и preview.
