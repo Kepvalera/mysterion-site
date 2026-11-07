@@ -11,52 +11,11 @@
   const translate = () => {
     const t = copy[document.documentElement.lang] || copy.ru;
     document.querySelectorAll('[data-editorial]').forEach(node => { node.textContent = t[node.dataset.editorial]; });
-    document.querySelectorAll('#founders img').forEach(node => { node.alt = t.foundersNames; });
+    document.querySelectorAll('#founders .founders-cutout').forEach(node => { node.alt = t.foundersNames; });
   };
   window.addEventListener('mysterion:language',translate); translate();
   const founders = document.getElementById('founders');
-  // Bake volumetric cloud sprites once; only their transform/opacity animate afterwards.
-  // Noise is the same lightweight value-noise approach used by heavenly.js.
-  function paintFoundersClouds() {
-    const smooth = n => n * n * (3 - 2 * n);
-    const hash = (x,y) => { const n = Math.sin(x*127.1+y*311.7)*43758.5453; return n-Math.floor(n); };
-    const noise = (x,y) => {
-      const ix=Math.floor(x),iy=Math.floor(y),fx=smooth(x-ix),fy=smooth(y-iy);
-      return (hash(ix,iy)*(1-fx)+hash(ix+1,iy)*fx)*(1-fy)+(hash(ix,iy+1)*(1-fx)+hash(ix+1,iy+1)*fx)*fy;
-    };
-    const fbm=(x,y)=>noise(x,y)*.55+noise(x*2,y*2)*.27+noise(x*4,y*4)*.13+noise(x*8,y*8)*.05;
-    founders.querySelectorAll('.founders-cloud-depth canvas,.founders-cloud-front').forEach((canvas,seed)=>{
-      const ctx=canvas.getContext('2d'); if(!ctx) return;
-      const w=canvas.width,h=canvas.height,pixels=ctx.createImageData(w,h);
-      const lobes=[[.13,.62,.14,.18],[.26,.48,.15,.25],[.42,.38,.18,.31],[.58,.47,.17,.26],[.73,.56,.17,.22],[.86,.64,.13,.15],[.46,.66,.34,.19]];
-      for(let y=0;y<h;y++) for(let x=0;x<w;x++) {
-        const nx=x/w,ny=y/h,n=fbm(x/52+seed*11,y/48+seed*7);
-        let field=-10,crest=0,weight=0;
-        for(const [cx,cy,rx,ry] of lobes) {
-          const dx=(nx-cx)/rx,dy=(ny-cy)/ry;
-          const distance=dx*dx+dy*dy,value=1-distance;
-          field=Math.max(field,value);
-          const contribution=Math.exp(-distance*2.5);
-          crest+=(cy-ny)/ry*contribution; weight+=contribution;
-        }
-        crest/=Math.max(.0001,weight);
-        const density=field+(n-.5)*.85;
-        const edge=Math.sin(Math.PI*nx)**.7*Math.sin(Math.PI*ny)**.5;
-        const alpha=smooth(Math.max(0,Math.min(1,density*2.8)))*edge;
-        const detail=fbm(x/23+seed*4,y/20);
-        const light=Math.max(0,Math.min(1,.48+crest*.38+(n-.5)*.65+(detail-.5)*.25));
-        const i=(y*w+x)*4;
-        pixels.data[i]=180+75*light;
-        pixels.data[i+1]=193+62*light;
-        pixels.data[i+2]=222+33*light;
-        pixels.data[i+3]=alpha*245;
-      }
-      ctx.putImageData(pixels,0,0);
-      canvas.dataset.ready='true';
-    });
-  }
   if (founders) {
-    paintFoundersClouds();
     const stars = founders.querySelector('.founders-stars');
     if (stars && !stars.childElementCount) {
       const positions = [[8,18],[91,13],[15,37],[85,32],[5,58],[94,52],[18,76],[82,73],[11,91],[91,87],[33,7],[73,5],[4,45],[97,65],[28,93],[75,95]];
