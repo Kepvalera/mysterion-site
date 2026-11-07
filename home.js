@@ -27,33 +27,29 @@
       });
     }
   }
-  if (founders && 'IntersectionObserver' in window) {
-    let inView = false;
-    const syncFounders = () => { founders.dataset.visible = String(inView && !document.hidden); };
-    document.addEventListener('visibilitychange', syncFounders);
-    const foundersObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        inView = entry.isIntersecting;
-        syncFounders();
-        if (entry.isIntersecting) founders.classList.add('founders-revealed');
-      });
-    }, {threshold:.08});
-    foundersObserver.observe(founders);
-  }
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
   const events = document.getElementById('events');
+  const scenes = [
+    {node:founders,attribute:'visible',entered:'founders-revealed'},
+    {node:document.getElementById('about'),attribute:'active'},
+    {node:events,attribute:'active',entered:'events-entered'}
+  ].filter(scene => scene.node);
+  if (!('IntersectionObserver' in window)) return;
+  // One observer and one visibility listener; reduced motion is handled by CSS,
+  // so switching that preference later does not leave a section uninitialised.
+  const syncScenes = () => scenes.forEach(scene => {
+    scene.node.dataset[scene.attribute] = String(Boolean(scene.visible) && !document.hidden);
+  });
+  document.addEventListener('visibilitychange', syncScenes);
+  const sceneObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      const scene = scenes.find(item => item.node === entry.target);
+      scene.visible = entry.isIntersecting;
+      if (entry.isIntersecting && scene.entered) scene.node.classList.add(scene.entered);
+    });
+    syncScenes();
+  }, {threshold:.04});
+  scenes.forEach(scene => sceneObserver.observe(scene.node));
   if (events) {
-    let eventsVisible = false;
-    const syncEvents = () => { events.dataset.active = String(eventsVisible && !document.hidden); };
-    document.addEventListener('visibilitychange', syncEvents);
-    const sceneObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        eventsVisible = entry.isIntersecting;
-        syncEvents();
-        if (entry.isIntersecting) events.classList.add('events-entered');
-      });
-    }, {threshold:.04});
-    sceneObserver.observe(events);
     const entranceObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {

@@ -16,99 +16,13 @@
     crown.addEventListener('error', () => { emblem.hidden = true; });
   }
 
-  const smooth = n => n * n * (3 - 2 * n);
-  const hash = (x, y) => {
-    const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
-    return n - Math.floor(n);
-  };
-  function noise(x, y) {
-    const ix = Math.floor(x), iy = Math.floor(y), fx = smooth(x - ix), fy = smooth(y - iy);
-    return (hash(ix, iy) * (1 - fx) + hash(ix + 1, iy) * fx) * (1 - fy) +
-           (hash(ix, iy + 1) * (1 - fx) + hash(ix + 1, iy + 1) * fx) * fy;
-  }
-  function fbm(x, y) {
-    return noise(x, y) * 0.53 + noise(x * 2, y * 2) * 0.28 + noise(x * 4, y * 4) * 0.19;
-  }
-  function texture(w, h, pixel) {
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const painter = c.getContext('2d'), image = painter.createImageData(w, h);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const rgba = pixel(x, y), i = (y * w + x) * 4;
-        image.data[i] = rgba[0];
-        image.data[i + 1] = rgba[1];
-        image.data[i + 2] = rgba[2];
-        image.data[i + 3] = rgba[3];
-      }
-    }
-    painter.putImageData(image, 0, 0);
-    return c;
-  }
-
-  // Texture 1: Billowy Pearl & Azure Cumulus with Sunlit Golden Linings
-  const cloudCumulus = texture(480, 240, (x, y) => {
-    const nx = x / 480, ny = y / 240;
-    const n = fbm(x / 46, y / 34);
-    const edge = Math.sin(Math.PI * nx) ** 0.45 * Math.sin(Math.PI * ny) ** 1.35;
-    const alpha = Math.max(0, Math.min(1, (n - 0.24) * 3.0)) * edge;
-    const sunRim = Math.max(0, Math.min(1, (1 - ny) * 1.8 * (n + 0.2)));
-    // Sunlit pearl crest (warm gold/white), azure body, lavender under-depths
-    const r = Math.min(255, 195 + n * 35 + sunRim * 45);
-    const g = Math.min(255, 215 + n * 28 + sunRim * 35);
-    const b = Math.min(255, 242 + n * 12 + (1 - sunRim) * 12);
-    return [r, g, b, alpha * 240];
+  // Exact existing procedural sprites, exported once at build time.
+  // Visitors decode small WebP files instead of blocking the main thread with noise loops.
+  const skySprites = ['cumulus','cirrus','mist','sphere'].map(name => {
+    const image = new Image(); image.src = 'assets/sky/' + name + '.webp'; return image;
   });
-
-  // Texture 2: High Wispy Pearl-Lavender Cirrus Veil
-  const cloudCirrus = texture(480, 200, (x, y) => {
-    const nx = x / 480, ny = y / 200;
-    const n = fbm(x / 88, y / 28);
-    const edge = Math.sin(Math.PI * nx) ** 0.35 * Math.sin(Math.PI * ny) ** 1.5;
-    const alpha = Math.max(0, Math.min(1, (n - 0.28) * 2.8)) * edge;
-    // Delicate ethereal lavender-white wisps
-    return [236 + n * 18, 232 + n * 20, 252, alpha * 210];
-  });
-
-  // Texture 3: Soft Horizon Mist bridging gently into section 01 (#about)
-  const cloudMist = texture(480, 220, (x, y) => {
-    const nx = x / 480, ny = y / 220;
-    const n = fbm(x / 62, y / 40);
-    const edge = Math.sin(Math.PI * nx) ** 0.3 * Math.sin(Math.PI * ny) ** 1.1;
-    const alpha = Math.max(0, Math.min(1, (n - 0.22) * 2.6)) * edge;
-    // Pearlescent azure-gold mist
-    return [240 + n * 14, 244 + n * 10, 252, alpha * 225];
-  });
-
-  // Atmospheric Celestial Sphere with 3D Depth, Swirling Bands and Soft Limb
-  const celestialSphere = texture(420, 420, (x, y) => {
-    const nx = (x - 210) / 195, ny = (y - 210) / 195, r = nx * nx + ny * ny;
-    if (r >= 1) return [0, 0, 0, 0];
-    const z = Math.sqrt(1 - r);
-    // Dynamic spherical cloud swirls
-    const swirls = fbm(nx * 8 + z * 3.5 + 14, ny * 9 + z * 2 + 10);
-    const bandNoise = fbm(nx * 15 + swirls * 4 + 7, ny * 14 + swirls * 3 + 12);
-    const cloudCover = Math.max(0, Math.min(1, (bandNoise - 0.42) * 3.8));
-    // Soft directional celestial light from upper-right
-    const light = 0.38 + 0.62 * Math.max(0, Math.min(1, -nx * 0.42 - ny * 0.38 + z * 0.82));
-    // Luminous atmospheric rim (Fresnel glow)
-    const rim = (1 - z) ** 4.2;
-    // Soft outer boundary dissolve so there is NEVER a harsh circular edge
-    const softEdge = smooth(Math.max(0, Math.min(1, (1 - r) * 14)));
-    const dissolveBottom = 1 - smooth(Math.max(0, Math.min(1, (ny - 0.05) / 0.95)));
-
-    const red = (95 + swirls * 38 + cloudCover * 115) * light + rim * 85;
-    const green = (145 + swirls * 30 + cloudCover * 75) * light + rim * 72;
-    const blue = (195 + swirls * 28 + cloudCover * 45) * light + rim * 52;
-    const alpha = softEdge * dissolveBottom * 245;
-
-    return [
-      Math.min(255, red),
-      Math.min(255, green),
-      Math.min(255, blue),
-      alpha
-    ];
-  });
+  const [cloudCumulus,cloudCirrus,cloudMist,celestialSphere] = skySprites;
+  let texturesReady = false;
 
   // Multi-stop Corona Glow for the Celestial Sphere
   const sphereCorona = (() => {
@@ -183,6 +97,7 @@
   let scrollScheduled = false;
 
   function draw() {
+    if (!texturesReady) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
@@ -410,6 +325,11 @@
     about.classList.add('about-revealed');
   }
 
+  Promise.all(skySprites.map(image => image.decode())).then(() => {
+    texturesReady = true;
+    draw();
+    sync();
+  }).catch(() => { /* The CSS sky and all content remain visible if a sprite is unavailable. */ });
   resize();
   updateScrollState();
 })();

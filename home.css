@@ -1,8 +1,9 @@
 /* Heavenly Editorial. Homepage components have their own names, not stacked themes. */
-.editorial-home { background:radial-gradient(ellipse at 90% 10%,#e8e2f3,transparent 30%),linear-gradient(160deg,#f3f8fc,#f9f8f4 45%,#e8eff8); --shadow:0 8px 28px #26355208; }
+.editorial-home { background:radial-gradient(ellipse at 90% 10%,#e8e2f3,transparent 30%),linear-gradient(160deg,#f3f8fc,#f9f8f4 45%,#e8eff8); --shadow:0 8px 28px #26355208; --gold:#89662f; --gold-display:#A47C39; }
 .editorial-main { --scene:80px; --space:28px; }
 .editorial-main>* { min-width:0; }
 .editorial-main h2 { font-size:clamp(40px,5vw,72px); letter-spacing:-.035em; text-wrap:balance; }
+.editorial-main h2 em { color:var(--gold-display); }
 .editorial-main h3 { text-wrap:balance; }
 .editorial-main .section-number { margin-bottom:30px; padding-bottom:12px; border-bottom:1px solid #a68a542b; font-size:10px; }
 .editorial-main .section-topline { grid-template-columns:1.2fr 1fr; gap:48px; margin-bottom:36px; }
@@ -14,6 +15,8 @@
 .editorial-home .brand-text { min-width:0; }
 .editorial-home .brand-text small { overflow-wrap:anywhere; }
 .editorial-home .lang-toggle { min-width:64px; }
+.editorial-home .footer { --muted:#596477; }
+.editorial-home .footer .brand-text small { font-size:8px; line-height:1.5; letter-spacing:.1em; }
 /* ========================================================
    ABOUT SECTION ? Celestial Luxury / Premium Editorial
    ======================================================== */
@@ -35,9 +38,7 @@
   z-index: -1;
   pointer-events: none;
   background: radial-gradient(circle at 65% 20%, rgba(246, 224, 160, 0.18), transparent 60%);
-  filter: blur(24px);
-  will-change: transform, opacity;
-  transform: translateZ(0);
+
 }
 
 .about-header-bar {
@@ -83,7 +84,7 @@
   height: 1px;
   background: linear-gradient(90deg, #c49d48 0%, rgba(196, 157, 72, 0.3) 70%, transparent 100%);
   transform-origin: left;
-  transform: scaleX(0);
+  transform: scaleX(1);
   transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }
@@ -137,10 +138,7 @@
   font-family: var(--font-display);
   font-style: italic;
   font-weight: 400;
-  color: #9b783e;
-  background: linear-gradient(135deg, #7c5820 0%, #b88d3e 55%, #8e6822 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--gold-display);
 }
 
 .about-copy-block {
@@ -277,7 +275,7 @@
 .founders-brand { display:flex; align-items:center; gap:14px; color:#876b36; font-size:10px; letter-spacing:.18em; margin-bottom:22px; }
 .founders-brand::before { content:''; flex:0 0 36px; height:1px; background:#b99a59; transform-origin:left; }
 .e-founders-text { min-width:0; }
-.editorial-main .e-founders-text h2 { font-size:clamp(38px,4.3vw,64px); line-height:1.06; text-transform:none; margin:0 0 24px; color:#A47C39; }
+.editorial-main .e-founders-text h2 { font-size:clamp(38px,4.3vw,64px); line-height:1.06; text-transform:none; margin:0 0 24px; color:var(--gold-display); }
 .e-founders-text h2 em { color:inherit; font-weight:400; }
 .e-founders-text .intro-text { font-size:17px; line-height:1.75; color:#4b5a6f; }
 .e-biography summary { padding-block:8px; min-height:44px; }
@@ -537,14 +535,14 @@
 @media(prefers-reduced-motion:no-preference) {
   .about-ambient {
     animation: about-ambient-breathe 18s ease-in-out infinite alternate;
+    animation-play-state: paused;
   }
 
-  .about:not(.about-revealed) .about-heading-block,
-  .about:not(.about-revealed) .about-copy-block,
-  .about:not(.about-revealed) .about-pillar {
-    opacity: 0;
-    transform: translate3d(0, 18px, 0);
-  }
+
+
+  .about[data-active="true"] .about-ambient { animation-play-state:running; }
+  .about.about-revealed .about-gold-line { animation:about-line-open 1.2s ease both; }
+  @keyframes about-line-open { from { transform:scaleX(0); } to { transform:scaleX(1); } }
 
   .about.about-revealed .about-heading-block {
     animation: about-block-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;

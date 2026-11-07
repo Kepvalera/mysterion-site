@@ -103,7 +103,7 @@
     rgba(180, 205, 245, 0.08) 68%,
     transparent 78%
   );
-  filter: blur(10px);
+  filter: blur(12px);
   will-change: transform, opacity;
   transform: translateZ(0);
 }
@@ -194,6 +194,7 @@
   margin: -7px 0 0 -7px;
   border-radius: 50%;
   background: radial-gradient(circle, #ffffff 15%, #fef3c7 45%, rgba(224, 231, 255, 0.5) 70%, transparent 80%);
+  box-shadow: 0 0 7px #fffbe6;
   pointer-events: none;
   z-index: 3;
   opacity: 0.2;
@@ -311,7 +312,6 @@
 /* Seamless bridge into #about section */
 .heavenly-hero + #about {
   position: relative;
-  background: transparent;
   padding-top: 0;
   margin-top: 0;
 }
@@ -424,8 +424,8 @@
   }
 
   @keyframes heavenly-title-enter {
-    from { opacity: 0.3; transform: translate3d(0, 18px, 0); letter-spacing: -0.06em; }
-    to { opacity: 1; transform: translate3d(0, 0, 0); letter-spacing: -0.045em; }
+    from { opacity: 0.3; transform: translate3d(0, 18px, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
   }
 
   @keyframes heavenly-fade-up {
@@ -453,7 +453,7 @@
 
   @keyframes crown-halo-breathe {
     0% { transform: scale(0.92); opacity: 0.55; }
-    50% { transform: scale(1.08); opacity: 0.85; filter: blur(14px); }
+    50% { transform: scale(1.08); opacity: 0.85; }
     100% { transform: scale(0.92); opacity: 0.55; }
   }
 
@@ -470,19 +470,19 @@
 
   @keyframes sapphire-flash {
     0%, 12%, 100% { opacity: 0; transform: scale(0.55); }
-    4%, 7% { opacity: 0.95; transform: scale(1.2); filter: drop-shadow(0 0 10px #93c5fd); }
+    4%, 7% { opacity: 0.95; transform: scale(1.2); }
     9% { opacity: 0.25; transform: scale(0.8); }
   }
 
   @keyframes pearl-shimmer {
     0% { opacity: 0.15; transform: scale(0.75); }
-    50% { opacity: 0.85; transform: scale(1.15); filter: drop-shadow(0 0 7px #fffbe6); }
+    50% { opacity: 0.85; transform: scale(1.15); }
     100% { opacity: 0.2; transform: scale(0.85); }
   }
 
   @keyframes crown-sparkle {
     0%, 14%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
-    5% { opacity: 1; transform: scale(1.25) rotate(45deg); filter: drop-shadow(0 0 10px #fff7d6); }
+    5% { opacity: 1; transform: scale(1.25) rotate(45deg); }
     9% { opacity: 0; transform: scale(0.35) rotate(90deg); }
   }
 

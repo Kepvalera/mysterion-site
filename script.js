@@ -414,10 +414,10 @@ function setLanguage(lang) {
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-i18n]").forEach(element => {
     const key = element.getAttribute("data-i18n");
-    if (Object.prototype.hasOwnProperty.call(translations[lang], key)) element.textContent = translations[lang][key];
+    if (Object.prototype.hasOwnProperty.call(translations[lang], key) && element.textContent !== translations[lang][key]) element.textContent = translations[lang][key];
   });
   languageButton.querySelector(".lang-strong").textContent = languageCodes[lang];
-  languageButton.setAttribute("aria-label", `Language: ${languageNames[lang]}`);
+  languageButton.setAttribute("aria-label", `Language: ${lang.toUpperCase()} — ${languageNames[lang]}`);
   document.querySelectorAll("[data-lang]").forEach(option => {
     const active = option.dataset.lang === lang;
     option.setAttribute("aria-selected", String(active));
@@ -473,6 +473,11 @@ if (copyrightYear) copyrightYear.textContent = new Date().getFullYear();
     maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
   };
   measureScroll();
+  // Translations, expanded biographies/FAQ and decoded photos can change the
+  // document height without a window resize. Keep the progress denominator fresh.
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(() => { measureScroll(); updateScroll(); }).observe(document.body);
+  }
   let wasScrolled = false;
   const updateScroll = () => {
     const y = window.scrollY || window.pageYOffset || 0;

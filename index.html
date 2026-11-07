@@ -10,21 +10,17 @@
   <meta property="og:description" content="Пространство познания Бога, духовного возрастания и раскрытия призвания.">
   <title>Мистерион — международное христианское служение</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="jubilee.css">
-  <link rel="stylesheet" href="home.css">
-  <link rel="stylesheet" href="heavenly.css">
-  <script defer src="script.js"></script>
-  <script defer src="jubilee.js"></script>
-  <script defer src="home.js"></script>
-  <script defer src="heavenly.js"></script>
+  <link rel="preload" href="assets/fonts/cormorant-garamond-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/cormorant-garamond-normal-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="homepage.min.css">
+  <script defer src="homepage.min.js"></script>
 </head>
 <body class="editorial-home">
 <div class="reading-progress" aria-hidden="true"></div>
 <a class="skip-link" href="#main" data-i18n="skip">Перейти к содержимому</a>
 <header class="site-header" id="top">
   <div class="header-inner container">
-    <a href="#home" class="brand" aria-label="Mysterion">
+    <a href="#home" class="brand">
       <span class="brand-symbol crown-mark" aria-hidden="true">M</span>
       <span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span>
     </a>
@@ -217,7 +213,7 @@
         <a class="btn jubilee-button" href="online-school.html#jubilee-2027"><span data-jubilee="cta">Узнать о шестом потоке</span><span aria-hidden="true">↗</span></a>
       </div>
       <figure class="jubilee-speaker">
-        <div class="jubilee-speaker-photo"><img src="assets/photos/nancy-couwen.png" width="1312" height="1199" alt="Нэнси Коун" data-jubilee-alt="nancyName" loading="lazy" decoding="async"></div>
+        <div class="jubilee-speaker-photo"><picture><source type="image/webp" srcset="assets/photos/nancy-couwen-480.webp 480w, assets/photos/nancy-couwen-960.webp 960w" sizes="(max-width:640px) calc(100vw - 88px), (max-width:970px) 516px, 44vw"><img src="assets/photos/nancy-couwen.png" width="1312" height="1199" alt="Нэнси Коун" data-jubilee-alt="nancyName" loading="lazy" decoding="async"></picture></div>
         <figcaption data-jubilee="nancyCaption">Нэнси Коун — впервые в Мистерион!</figcaption>
       </figure>
     </div>
