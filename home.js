@@ -12,6 +12,15 @@
     const t = copy[document.documentElement.lang] || copy.ru;
     document.querySelectorAll('[data-editorial]').forEach(node => { node.textContent = t[node.dataset.editorial]; });
     document.querySelectorAll('#founders .founders-cutout').forEach(node => { node.alt = t.foundersNames; });
+    const labels = {
+      ru:['Корона служения Mysterion','Основная навигация','Мобильная навигация','Основные ценности'],
+      en:['Mysterion ministry crown','Main navigation','Mobile navigation','Core values'],
+      de:['Krone des Dienstes Mysterion','Hauptnavigation','Mobile Navigation','Grundwerte']
+    }[document.documentElement.lang] || ['Корона служения Mysterion','Основная навигация','Мобильная навигация','Основные ценности'];
+    document.querySelector('.heavenly-emblem img')?.setAttribute('alt',labels[0]);
+    document.querySelector('.desktop-nav')?.setAttribute('aria-label',labels[1]);
+    document.querySelector('.mobile-nav')?.setAttribute('aria-label',labels[2]);
+    document.querySelector('.about-pillars')?.setAttribute('aria-label',labels[3]);
   };
   window.addEventListener('mysterion:language',translate); translate();
   const founders = document.getElementById('founders');
@@ -31,7 +40,9 @@
   const scenes = [
     {node:founders,attribute:'visible',entered:'founders-revealed'},
     {node:document.getElementById('about'),attribute:'active'},
-    {node:events,attribute:'active',entered:'events-entered'}
+    {node:events,attribute:'active',entered:'events-entered'},
+    {node:document.querySelector('.e-vision'),attribute:'active'},
+    {node:document.getElementById('contacts'),attribute:'active'}
   ].filter(scene => scene.node);
   if (!('IntersectionObserver' in window)) return;
   // One observer and one visibility listener; reduced motion is handled by CSS,
@@ -49,15 +60,22 @@
     syncScenes();
   }, {threshold:.04});
   scenes.forEach(scene => sceneObserver.observe(scene.node));
-  if (events) {
-    const entranceObserver = new IntersectionObserver(entries => {
+  // Reuse one entrance observer for the editorial components. Nothing is hidden
+  // before observation, and each entrance runs once rather than on every scroll.
+  const entranceObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          entry.target.classList.add('events-revealed');
+          entry.target.classList.add(entry.target.closest('#events') ? 'events-revealed' : 'e-revealed');
           entranceObserver.unobserve(entry.target);
         }
       });
     }, {threshold:.12});
-    events.querySelectorAll('.section-topline,.e-archive,.e-event').forEach(node => entranceObserver.observe(node));
-  }
+  events?.querySelectorAll('.section-topline,.e-archive,.e-event').forEach(node => entranceObserver.observe(node));
+  document.querySelectorAll('.e-direction,.e-media-row,.e-vision-content,.e-faq-items details,.e-contact-grid>div').forEach(node => {
+    if (node.matches('.e-direction,.e-media-row,.e-faq-items details')) {
+      const index = Array.from(node.parentElement.children).indexOf(node);
+      node.style.setProperty('--entrance-delay', `${Math.min(index % 3,2) * 75}ms`);
+    }
+    entranceObserver.observe(node);
+  });
 })();

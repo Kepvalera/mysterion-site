@@ -207,8 +207,10 @@
       hero.dataset.active = 'false';
       return;
     }
-    // Regulate to ~60 FPS max so high-refresh displays (90Hz/120Hz/144Hz) don't waste battery/GPU
-    if (last && (now - last) < 14) {
+    // Slow atmospheric layers need 30 draws/s on phones. The crown and its
+    // jewellery remain compositor-driven CSS animations at the display cadence.
+    const interval = 1000 / (width < 641 ? 30 : 60);
+    if (last && (now - last) < interval - 0.5) {
       frame = requestAnimationFrame(tick);
       return;
     }
@@ -242,10 +244,15 @@
   }
 
   function resize() {
-    width = hero.clientWidth;
-    height = hero.clientHeight;
+    const nextWidth = hero.clientWidth, nextHeight = hero.clientHeight;
+    const nextDpr = Math.min(window.devicePixelRatio || 1, nextWidth < 641 ? 1.25 : 1.5);
+    // The initial ResizeObserver notification often repeats the explicit resize.
+    // Reassigning canvas dimensions needlessly clears/reallocates its surface.
+    if (nextWidth === width && nextHeight === height && nextDpr === dpr) return;
+    width = nextWidth;
+    height = nextHeight;
     heroHeight = height;
-    dpr = Math.min(window.devicePixelRatio || 1, width < 641 ? 1.25 : 1.5);
+    dpr = nextDpr;
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
     draw();
