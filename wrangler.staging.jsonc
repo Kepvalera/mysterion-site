@@ -1,0 +1,21 @@
+// D1 MIGRATIONS ONLY. Not a Pages deployment configuration.
+// Always select explicitly with --config wrangler.staging.jsonc.
+// Existing staging Database ID confirmed by the project owner (not a secret).
+// Never substitute a production Database ID or copy this binding to production.
+{
+  "name": "mysterion-media-staging-migrations",
+  "compatibility_date": "2026-11-08",
+  "d1_databases": [{
+    "binding": "MEDIA_DB",
+    "database_name": "mysterion-media-staging",
+    "database_id": "d4966184-ae55-46cf-bf74-4dff1e7debdd",
+    "migrations_dir": "media-worker/migrations",
+    "migrations_table": "d1_migrations"
+  }],
+  "vars": {
+    "MEDIA_ENABLED": "false",
+    "MEDIA_PAID_ENABLED": "false",
+    "BUNNY_ENABLED": "false",
+    "BUNNY_SECURITY_CONFIRMED": "false"
+  }
+}
