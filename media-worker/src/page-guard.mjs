@@ -1,4 +1,4 @@
-import {administrator, verifyAccess, HttpError} from './auth.mjs';
+import {administrator, verifyRequestAccess, HttpError} from './auth.mjs';
 import {requireMediaOrigin} from './origin.mjs';
 
 const securityHeaders = {
@@ -36,7 +36,7 @@ export async function protectMediaPage(context, templates) {
     if (admin) await administrator(context.request, context.env);
     else {
       if (!context.env.MEDIA_VIEWER_ACCESS_AUD || context.env.MEDIA_VIEWER_ACCESS_AUD === context.env.MEDIA_ACCESS_AUD) throw new HttpError(503, 'viewer_identity_not_configured');
-      await verifyAccess(context.request.headers.get('Cf-Access-Jwt-Assertion'), {...context.env, MEDIA_ACCESS_AUD:context.env.MEDIA_VIEWER_ACCESS_AUD});
+      await verifyRequestAccess(context.request, {...context.env, MEDIA_ACCESS_AUD:context.env.MEDIA_VIEWER_ACCESS_AUD});
     }
     // Full UI is returned only after authentication. Static aliases never contain the form.
     phase='template';

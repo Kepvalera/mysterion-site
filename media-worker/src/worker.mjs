@@ -188,6 +188,13 @@ export async function handle(request,env) {
    return json({ok:true});
   }
   fail(404,'not_found');
- } catch(error) {return json({error:error instanceof HttpError?error.message:'service_unavailable'},error instanceof HttpError?error.status:503)}
+ } catch(error) {
+  const response=json({error:error instanceof HttpError?error.message:'service_unavailable'},error instanceof HttpError?error.status:503);
+  if(response.status===401){
+   response.headers.set('X-Mysterion-Media-Error',error.message==='authentication_required'?'authentication_required':'invalid_identity');
+   response.headers.set('X-Mysterion-Auth-Transport',request.headers.has('Cf-Access-Jwt-Assertion')?'assertion':/(?:^|;)\s*CF_Authorization=/.test(request.headers.get('Cookie')||'')?'cookie':'missing');
+  }
+  return response;
+ }
 }
 export default {fetch:handle};

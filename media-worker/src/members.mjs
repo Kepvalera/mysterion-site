@@ -1,10 +1,10 @@
-import {HttpError, verifyAccess} from './auth.mjs';
+import {HttpError, verifyRequestAccess} from './auth.mjs';
 const deny=(status,code)=>{throw new HttpError(status,code)};
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const now=()=>new Date().toISOString();
 export async function viewerIdentity(request,env) {
  if(!env.MEDIA_VIEWER_ACCESS_AUD || env.MEDIA_VIEWER_ACCESS_AUD===env.MEDIA_ACCESS_AUD)deny(503,'viewer_identity_not_configured');
- return verifyAccess(request.headers.get('Cf-Access-Jwt-Assertion'),{...env,MEDIA_ACCESS_AUD:env.MEDIA_VIEWER_ACCESS_AUD});
+ return verifyRequestAccess(request,{...env,MEDIA_ACCESS_AUD:env.MEDIA_VIEWER_ACCESS_AUD});
 }
 function text(value,max=500){if(typeof value!=='string'||!value.trim()||value.length>max)deny(400,'invalid_fields');return value.trim()}
 function translations(value,max){if(!value||Array.isArray(value)||Object.keys(value).some(k=>!['ru','en','de'].includes(k)))deny(400,'invalid_translation');return JSON.stringify(Object.fromEntries(['ru','en','de'].map(k=>[k,text(value[k],max)])))}

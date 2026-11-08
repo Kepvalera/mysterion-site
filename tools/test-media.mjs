@@ -34,6 +34,13 @@ async function expect(status,path,method,data,identity,headers){const response=a
 try{
  assert.equal((await handle(new Request('http://localhost/api/media/videos'),{})).status,503);tests++;
  await expect(401,'admin/me','GET',undefined,null);
+ await expect(200,'admin/me','GET',undefined,null,{Cookie:'CF_Authorization='+admin});
+ await expect(401,'admin/me','GET',undefined,null,{Cookie:'CF_Authorization=forged'});
+ await expect(401,'admin/me','GET',undefined,'forged',{Cookie:'CF_Authorization='+admin});
+ await expect(401,'admin/me','GET',undefined,null,{Cookie:'CF_Authorization='+admin+'; CF_Authorization='+admin});
+ await expect(401,'admin/me','GET',undefined,null,{Cookie:'CF_Authorization='+await token('admin-sub',{exp:1})});
+ await expect(401,'admin/me','GET',undefined,null,{Cookie:'CF_Authorization='+await token('admin-sub',{aud:['other-app']})});
+ await expect(403,'admin/me','GET',undefined,null,{Cookie:'CF_Authorization='+await token('unknown-sub')});
  await expect(401,'admin/me','GET',undefined,null,{'Cf-Access-Authenticated-User-Email':'local-fixture@example.invalid'});
  for(const bad of [await token('admin-sub',{exp:1}),await token('admin-sub',{aud:['wrong']}),await token('admin-sub',{iss:'https://evil.invalid'}),await token('admin-sub',{}, {alg:'none',kid:jwk.kid}),admin.slice(0,-10)+'aaaaaaaaaa'])await expect(401,'admin/me','GET',undefined,bad);
  for(const sub of ['viewer-sub','disabled-sub','unknown-sub'])await expect(403,'admin/me','GET',undefined,await token(sub));

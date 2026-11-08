@@ -1,8 +1,20 @@
 const cache = new Map();
 export class HttpError extends Error { constructor(status, code) { super(code); this.status = status; } }
 const decode = value => Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')), c=>c.charCodeAt(0));
+export function accessToken(request) {
+  // An explicit assertion is authoritative: never retry a rejected header with
+  // another credential. Cookie fallback still requires full JWT verification.
+  if(request.headers.has('Cf-Access-Jwt-Assertion'))return request.headers.get('Cf-Access-Jwt-Assertion');
+  const cookie=request.headers.get('Cookie')||'';
+  if(cookie.length>32768)throw new HttpError(401,'invalid_identity');
+  const matches=cookie.split(';').map(part=>part.trim()).filter(part=>part.startsWith('CF_Authorization='));
+  if(matches.length>1)throw new HttpError(401,'invalid_identity');
+  return matches.length?matches[0].slice('CF_Authorization='.length):null;
+}
+export const verifyRequestAccess=(request,env)=>verifyAccess(accessToken(request),env);
 export async function verifyAccess(token, env) {
-  if (!token || token.length > 16000) throw new HttpError(401,'authentication_required');
+  if (!token) throw new HttpError(401,'authentication_required');
+  if (token.length > 16000) throw new HttpError(401,'invalid_identity');
   try {
     const parts = token.split('.');
     if(parts.length!==3) throw Error();
@@ -28,7 +40,7 @@ export async function verifyAccess(token, env) {
 }
 export async function entitledViewer(request, env, videoId) {
   if (!env.MEDIA_VIEWER_ACCESS_AUD || env.MEDIA_VIEWER_ACCESS_AUD === env.MEDIA_ACCESS_AUD) throw new HttpError(503, 'viewer_identity_not_configured');
-  const claims = await verifyAccess(request.headers.get('Cf-Access-Jwt-Assertion'), {...env, MEDIA_ACCESS_AUD: env.MEDIA_VIEWER_ACCESS_AUD});
+  const claims = await verifyRequestAccess(request, {...env, MEDIA_ACCESS_AUD: env.MEDIA_VIEWER_ACCESS_AUD});
   // A role, email, request parameter or localStorage value never grants paid viewing.
   const user = await env.MEDIA_DB.prepare('SELECT id FROM users WHERE access_sub=? AND active=1').bind(claims.sub).first();
   if (!user) throw new HttpError(403, 'viewing_right_required');
@@ -43,7 +55,7 @@ export async function entitledViewer(request, env, videoId) {
   return user;
 }
 export async function administrator(request,env) {
-  const claims=await verifyAccess(request.headers.get('Cf-Access-Jwt-Assertion'),env);
+  const claims=await verifyRequestAccess(request,env);
   let user;
   try {
     user=await env.MEDIA_DB.prepare('SELECT id,role FROM users WHERE access_sub=? AND active=1').bind(claims.sub).first();
