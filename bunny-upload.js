@@ -26,7 +26,9 @@ window.MysterionBunnyUpload = class {
       let headers=await this.credentials();if(this.paused)return false;
       if(!this.url){
         const encode=text=>btoa(String.fromCharCode(...new TextEncoder().encode(text)));
-        const response=await this.request('POST',{...headers,'Upload-Length':String(this.file.size),'Upload-Metadata':`filetype ${encode(this.file.type||'video/mp4')},title ${encode(this.file.name.slice(0,180))}`});
+        const extension=this.file.name.split('.').pop().toLowerCase();
+        const mime=this.file.type||({mov:'video/quicktime',webm:'video/webm',mp4:'video/mp4'}[extension])||'video/mp4';
+        const response=await this.request('POST',{...headers,'Upload-Length':String(this.file.size),'Upload-Metadata':`filetype ${encode(mime)},title ${encode(this.file.name.slice(0,180))}`});
         const location=response.headers.get('Location');if(!location)throw Error('missing_upload_location');this.url=this.location(location);
       }
       if(this.paused)return false;

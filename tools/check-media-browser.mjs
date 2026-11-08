@@ -17,29 +17,54 @@ const timing=await page.evaluate(()=>({navigation:performance.getEntriesByType('
 page.removeAllListeners('request');
 const testId='00000000-0000-4000-8000-000000000001',guid='00000000-0000-4000-8000-000000000002';
 const testRecord={id:testId,title:{ru:'TEST ONLY',en:'TEST ONLY',de:'TEST ONLY'},description:{ru:'TEST ONLY',en:'TEST ONLY',de:'TEST ONLY'},category:'school',year:2026,source_type:'bunny',source_ref:'',access:'paid',price_minor:100,currency:'EUR',state:'draft',publish_at:new Date().toISOString(),revision:1};
-let tusOffset=0,tusLength=0,patches=0;
+let tusOffset=0,tusLength=0,patches=0,savePosts=0,publishCalls=0,processingPolls=0,failPatch=false,failPublish=false,coverCalls=0;
+await page.evaluateOnNewDocument(()=>{const original=window.setTimeout;window.setTimeout=(fn,ms,...args)=>original(fn,ms===10000?60:ms,...args)});
 page.on('console',msg=>{if(/violates.*Content Security Policy|Refused to (connect|frame|load|execute)/i.test(msg.text()))errors.push(msg.text())});
 page.on('request',request=>{const url=new URL(request.url()),method=request.method();const reply=(data,status=200)=>request.respond({status,contentType:'application/json',body:JSON.stringify(data)});
- if(url.pathname==='/api/media/admin/me')return reply({role:'admin',bunny:true,paid:false,customCovers:false});
- if(url.pathname==='/api/media/admin/videos')return reply({items:[testRecord]});
+ if(url.pathname==='/api/media/admin/me')return reply({role:'admin',bunny:true,paid:false,customCovers:true});
+ if(url.pathname==='/api/media/admin/videos'){if(method==='POST'){savePosts++;Object.assign(testRecord,JSON.parse(request.postData()),{id:testId,revision:1});return reply({id:testId},201)}return reply({items:[testRecord]})}
+ if(url.pathname==='/api/media/admin/videos/'+testId&&method==='PUT'){Object.assign(testRecord,JSON.parse(request.postData()),{revision:testRecord.revision+1});return reply({id:testId})}
+ if(url.pathname.endsWith('/cover')&&method==='PUT'){coverCalls++;testRecord.revision++;return reply({ok:true})}
+ if(url.pathname.endsWith('/publish')){publishCalls++;if(failPublish){failPublish=false;return reply({error:'temporary_failure'},503)}if(testRecord.bunny_status!==4)throw Error('Published before processing');testRecord.state='published';testRecord.revision++;return reply({id:testId})}
  if(url.pathname.endsWith('/bunny/upload')){testRecord.source_ref=guid;testRecord.revision=2;return reply({endpoint:'https://video.bunnycdn.com/tusupload',expires:Math.floor(Date.now()/1000)+900,headers:{AuthorizationSignature:'LOCAL_TEST_ONLY',AuthorizationExpire:String(Math.floor(Date.now()/1000)+900),LibraryId:'123',VideoId:guid}})}
- if(url.pathname.endsWith('/bunny/sync')){testRecord.bunny_status=4;testRecord.bunny_progress=100;return reply({status:4,progress:100,ready:true})}
+ if(url.pathname.endsWith('/bunny/sync')){const ready=processingPolls--<=0;testRecord.bunny_status=ready?4:3;testRecord.bunny_progress=ready?100:50;return reply({status:testRecord.bunny_status,progress:testRecord.bunny_progress,ready})}
  if(url.pathname.endsWith('/bunny/preview'))return reply({type:'bunny',url:`https://player.mediadelivery.net/embed/123/${guid}?token=${'a'.repeat(64)}&expires=9999999999`});
  if(url.hostname==='player.mediadelivery.net')return request.respond({status:200,contentType:'text/html',body:'<!doctype html><title>LOCAL BUNNY TEST</title>'});
  if(url.hostname==='video.bunnycdn.com'){
   const headers={'access-control-allow-origin':origin,'access-control-allow-methods':'POST,HEAD,PATCH,OPTIONS','access-control-allow-headers':request.headers()['access-control-request-headers']||'*','access-control-expose-headers':'Location,Upload-Offset,Tus-Resumable','Tus-Resumable':'1.0.0'};
   if(method==='OPTIONS')return request.respond({status:204,headers});
   if(method==='POST'){tusLength=Number(request.headers()['upload-length']);return request.respond({status:201,headers:{...headers,Location:'https://video.bunnycdn.com/tusupload/test-upload'}})}
-  if(method==='PATCH'){patches++;tusOffset=Math.min(tusOffset+8*1024*1024,tusLength);return request.respond({status:204,headers:{...headers,'Upload-Offset':String(tusOffset)}})}
+  if(method==='PATCH'){patches++;if(failPatch){failPatch=false;return request.respond({status:503,headers})}tusOffset=Math.min(tusOffset+8*1024*1024,tusLength);return request.respond({status:204,headers:{...headers,'Upload-Offset':String(tusOffset)}})}
   if(method==='HEAD')return request.respond({status:200,headers:{...headers,'Upload-Offset':String(tusOffset)}});
  }
  return request.continue();
 });
 for(const width of [375,390,430,1440]){await page.setViewport({width,height:900,isMobile:width<500,deviceScaleFactor:1});await page.goto(origin+'/admin-media.html',{waitUntil:'networkidle0'});await page.waitForSelector('#admin-list button',{visible:true});await page.click('#admin-list button');for(const lang of ['ru','en','de']){await page.evaluate(lang=>window.setLanguage(lang),lang);if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Admin form overflow '+width+' '+lang);count++}if([390,1440].includes(width))await page.screenshot({path:path.join(out,'bunny-editor-'+width+'.png'),fullPage:true})}
 await page.setViewport({width:390,height:900,isMobile:true,deviceScaleFactor:1});
-await page.waitForSelector('#admin-list button',{visible:true});await page.click('#admin-list button');const fixturePath=path.join(out,'LOCAL_TEST_ONLY.mp4');await fs.writeFile(fixturePath,Buffer.alloc(9*1024*1024));await (await page.$('[name=video_file]')).uploadFile(fixturePath);await page.click('#bunny-start');await page.waitForFunction(()=>document.querySelector('#bunny-progress').value===100&&document.querySelector('[name=source_ref]').value&&document.querySelector('#bunny-preview').disabled===false,{timeout:30000});if(patches!==2||tusOffset!==tusLength)throw Error('TUS chunk transfer incomplete');count++;
+await page.waitForSelector('#admin-list button',{visible:true});await page.click('#admin-list button');await page.$eval('.media-advanced',n=>n.open=true);const fixturePath=path.join(out,'LOCAL_TEST_ONLY.mp4');await fs.writeFile(fixturePath,Buffer.alloc(9*1024*1024));await (await page.$('[name=video_file]')).uploadFile(fixturePath);await page.click('#bunny-start');await page.waitForFunction(()=>document.querySelector('#bunny-progress').value===100&&document.querySelector('[name=source_ref]').value&&document.querySelector('#bunny-preview').disabled===false,{timeout:30000});if(patches!==2||tusOffset!==tusLength)throw Error('TUS chunk transfer incomplete');count++;
 await page.click('#bunny-preview');await page.waitForSelector('#admin-player-slot iframe');await page.click('#admin-player-close');if(await page.$('#admin-player-slot iframe'))throw Error('Bunny preview not disposed');count++;
 await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await new Promise(resolve=>setTimeout(resolve,100));await page.screenshot({path:path.join(out,'bunny-upload-complete-390.png'),fullPage:true});
+
+// Real form + FileList + TUS requests, with isolated provider/API replies.
+async function fresh(file=true){
+ Object.assign(testRecord,{source_ref:'',bunny_status:0,bunny_progress:0,state:'draft',access:'free',price_minor:0,revision:1});tusOffset=0;patches=0;savePosts=0;publishCalls=0;
+ await page.goto(origin+'/admin-media.html',{waitUntil:'networkidle0'});await page.waitForSelector('#admin-new',{visible:true});await page.click('#admin-new');
+ await page.evaluate(()=>{const f=document.getElementById('media-editor');for(const l of ['ru','en','de']){f.elements['title_'+l].value='LOCAL ONE CLICK';f.elements['description_'+l].value='LOCAL ONLY'}f.elements.access.value='free';f.elements.price_minor.value='0'});
+ if(file)await (await page.$('[name=video_file]')).uploadFile(fixturePath);
+}
+await fresh();const coverFixture=path.join(out,'LOCAL_ONLY.png');await fs.writeFile(coverFixture,Buffer.from([137,80,78,71,13,10,26,10]));await (await page.$('[name=cover]')).uploadFile(coverFixture);processingPolls=1;await page.click('#admin-publish');await page.waitForFunction(()=>document.querySelector('[name=state]').value==='published'&&!document.querySelector('#admin-publish').disabled,{timeout:20000});
+if(savePosts!==1||publishCalls!==1||patches!==2||coverCalls!==1)throw Error('One-click sequence incomplete');
+if(!await page.$eval('[name=video_file]',n=>n.files.length===1))throw Error('Video file reset');count+=4;
+await page.screenshot({path:path.join(out,'one-click-published-390.png'),fullPage:true});
+await fresh();failPatch=true;await page.click('#admin-publish');await page.waitForFunction(()=>!document.getElementById('admin-publish').disabled&&document.getElementById('bunny-progress').value<100);
+if(publishCalls||!await page.$eval('[name=video_file]',n=>n.files.length===1))throw Error('Failure lost draft/file');
+await page.click('#admin-publish');await page.waitForFunction(()=>document.querySelector('[name=state]').value==='published',{timeout:20000});if(savePosts!==1||publishCalls!==1)throw Error('Retry created duplicate draft');count+=3;
+await fresh();await page.click('#admin-draft');await page.waitForFunction(()=>!document.getElementById('admin-publish').disabled);if(patches||publishCalls||!await page.$eval('[name=video_file]',n=>n.files.length===1))throw Error('Draft uploaded/reset file');count++;
+await page.select('[name=access]','paid');await page.$eval('[name=access]',n=>n.dispatchEvent(new Event('change')));if(!await page.$eval('#admin-publish',n=>n.disabled))throw Error('Paid publication enabled');count++;
+await fresh();failPublish=true;await page.click('#admin-publish');await page.waitForFunction(()=>!document.getElementById('admin-publish').disabled&&document.querySelector('#bunny-progress').value===100,{timeout:20000});const priorPatches=patches;
+await page.click('#admin-publish');await page.waitForFunction(()=>document.querySelector('[name=state]').value==='published',{timeout:20000});if(patches!==priorPatches)throw Error('Ready video uploaded twice');count++;
+await fresh();processingPolls=100;await page.click('#admin-publish');await page.waitForFunction(()=>document.querySelector('#bunny-progress').value===100&&document.querySelector('[name=state]').value==='draft');await page.click('#pipeline-cancel');await new Promise(r=>setTimeout(r,200));if(publishCalls||!await page.$eval('[name=video_file]',n=>n.files.length===1))throw Error('Cancelled processing published/lost file');count++;processingPolls=0;
+testRecord.access='paid';testRecord.price_minor=100;
 // The public paid player must use POST, show a real login route on denial, and accept only the signed Bunny origin.
 page.removeAllListeners('request');let permitted=false;
 page.on('request',request=>{const url=new URL(request.url());if(url.pathname==='/api/media/videos')return request.respond({status:200,contentType:'application/json',body:JSON.stringify({items:[{...testRecord,state:'published',has_cover:false}],hasMore:false})});if(url.pathname==='/api/media/view/play/'+testId){if(request.method()!=='POST')throw Error('Paid playback must use POST');return request.respond({status:permitted?200:403,contentType:'application/json',body:JSON.stringify(permitted?{type:'bunny',url:`https://player.mediadelivery.net/embed/123/${guid}?token=${'a'.repeat(64)}&expires=9999999999`}:{error:'viewing_right_required'})})}if(url.hostname==='player.mediadelivery.net')return request.respond({status:200,contentType:'text/html',body:'<!doctype html><title>LOCAL PAID PLAYER TEST</title>'});return request.continue()});

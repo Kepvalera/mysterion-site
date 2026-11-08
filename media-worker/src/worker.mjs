@@ -105,7 +105,26 @@ export async function handle(request,env) {
   if(/^admin\/(members|grants|collections)(\/|$)/.test(path))return json(await memberRoute(request,env,path,method,user,body));
   if(path==='admin/me' && method==='GET'){let available=false;try{bunny.configured(env);available=true}catch{}return json({role:user.role,bunny:available,paid:env.MEDIA_PAID_ENABLED==='true',members:env.MEDIA_MEMBERS_ENABLED==='true',customCovers:Boolean(env.MEDIA_BUCKET)||env.MEDIA_MEMBERS_ENABLED==='true'})}
   if(path==='admin/videos' && method==='GET'){const rows=await env.MEDIA_DB.prepare("SELECT * FROM videos WHERE state!='deleted' OR bunny_delete_pending=1 ORDER BY updated_at DESC LIMIT 200").all();return json({items:rows.results.map(decodeRow)})}
-  const operation=path.match(/^admin\/videos\/([a-f0-9-]{36})\/bunny\/(upload|sync|preview|delete|import)$/);
+  const publish=path.match(/^admin\/videos\/([a-f0-9-]{36})\/publish$/);
+  if(publish && method==='POST'){
+   if(user.role!=='admin')fail(403,'admin_required');
+   const input=await body(request);
+   if(!input||Object.keys(input).length!==1||!Number.isInteger(input.revision)||input.revision<1)fail(400,'revision_required');
+   const row=await env.MEDIA_DB.prepare("SELECT * FROM videos WHERE id=? AND state!='deleted'").bind(publish[1]).first();
+   if(!row)fail(404,'not_found');
+   if(row.access==='paid'&&env.MEDIA_PAID_ENABLED!=='true')fail(409,'paid_publication_disabled');
+   if(row.source_type!=='bunny')fail(400,'bunny_required');
+   bunny.boundVideo(env,row);
+   if(row.state==='published')return json({id:row.id});
+   if(row.revision!==input.revision)fail(409,'revision_conflict');
+   const video=await bunny.bunnyRequest(env,row.source_ref);
+   if(video.guid!==row.source_ref||String(video.videoLibraryId)!==env.BUNNY_LIBRARY_ID)fail(502,'bunny_response_invalid');
+   if(video.status!==4)fail(409,'video_not_ready');
+   const mutation=crypto.randomUUID();
+   await mutate(env,user,row.id,'publish',env.MEDIA_DB.prepare("UPDATE videos SET state='published',bunny_status=4,bunny_progress=100,publish_at=?,revision=revision+1,mutation_id=?,updated_at=? WHERE id=? AND revision=? AND state='draft'"+noLease).bind(new Date().toISOString(),mutation,new Date().toISOString(),row.id,input.revision),mutation);
+   return json({id:row.id});
+  }
+  const operation=path.match(/^admin\/videos\/([a-f0-9-]{36})\/bunny\/(upload|sync|preview|delete|import|retry)$/);
   if(operation && method==='POST') {
    if(user.role!=='admin')fail(403,'admin_required');
    bunny.configured(env);
@@ -115,6 +134,16 @@ export async function handle(request,env) {
     if(!row||row.source_type!=='bunny')fail(404,'not_found');
     if(action==='delete'){if(row.state!=='deleted')fail(409,'delete_record_first');await bunny.removeVideo(env,row);return json({ok:true})}
     if(row.state==='deleted')fail(404,'not_found');
+    if(action==='retry'){
+     if(row.state!=='draft')fail(409,'draft_required');bunny.boundVideo(env,row);
+     const failed=await bunny.bunnyRequest(env,row.source_ref);
+     if(failed.guid!==row.source_ref||String(failed.videoLibraryId)!==env.BUNNY_LIBRARY_ID)fail(502,'bunny_response_invalid');
+     if(![5,8].includes(failed.status))fail(409,'video_not_failed');
+     const replacement=await bunny.bunnyRequest(env,'','POST',{title:JSON.parse(row.title).ru});
+     if(!bunny.uuid.test(replacement.guid||''))fail(502,'bunny_response_invalid');const mutation=crypto.randomUUID();
+     try{await mutate(env,user,id,'bunny_retry_from:'+row.source_ref,env.MEDIA_DB.prepare("UPDATE videos SET source_ref=?,bunny_status=0,bunny_progress=0,bunny_thumbnail=NULL,revision=revision+1,mutation_id=?,updated_at=? WHERE id=? AND revision=? AND state='draft' AND source_ref=?").bind(replacement.guid,mutation,new Date().toISOString(),id,row.revision,row.source_ref),mutation)}catch(error){await bunny.bunnyRequest(env,replacement.guid,'DELETE').catch(()=>{});throw error}
+     return json({ok:true});
+    }
     if(action==='import'){
      if(row.state!=='draft'||row.source_ref)fail(409,'empty_draft_required');
      const input=await body(request);

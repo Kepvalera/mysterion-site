@@ -11,3 +11,8 @@
 .media-members button,#viewer-account button {padding:.7rem 1rem;margin:.3rem;border:1px solid #a47c39;color:#634820;background:#fff8e9;border-radius:.3rem;font:inherit;cursor:pointer;min-height:44px}
 .media-members button:focus-visible,#viewer-account button:focus-visible {outline:3px solid #547ca4;outline-offset:3px}
 .member-material h3 {font-size:clamp(1.5rem,4vw,2.2rem)}
+.media-advanced {margin:1.25rem 0;border-block:1px solid #c8ad7855;padding:1rem 0}
+.media-advanced summary {cursor:pointer;color:#705125;min-height:44px;padding:.6rem 0}
+.media-advanced section {padding-top:1rem}
+#admin-publish {background:#e4c78b;color:#26354b;border:1px solid #a47c39}
+#publish-policy {color:#705125;line-height:1.6}

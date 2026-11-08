@@ -180,6 +180,27 @@ try{
  assert.equal((await expect(200,'collections')).items.length,0);
  assert.ok(sql.prepare('SELECT COUNT(*) AS n FROM membership_audit').get().n>5);
 
+
+ const flow=await expect(201,'admin/videos','POST',{...bunnyRecord,access:'free',price_minor:0});
+ const flowPath='admin/videos/'+flow.id;
+ await expect(401,flowPath+'/publish','POST',{revision:1},null);
+ await expect(403,flowPath+'/publish','POST',{revision:1},editor);
+ await expect(403,flowPath+'/publish','POST',{revision:1},admin,{Origin:'https://evil.invalid'});
+ await expect(200,flowPath+'/bunny/upload','POST');
+ const flowRow=()=>sql.prepare('SELECT * FROM videos WHERE id=?').get(flow.id);
+ await expect(409,flowPath+'/publish','POST',{revision:flowRow().revision});
+ await expect(409,flowPath+'/bunny/retry','POST');
+ const failedGuid=flowRow().source_ref;provider.get(failedGuid).status=5;
+ await expect(403,flowPath+'/bunny/retry','POST',undefined,editor);
+ await expect(200,flowPath+'/bunny/retry','POST');assert.notEqual(flowRow().source_ref,failedGuid);provider.delete(failedGuid); // fixture cleanup; production retains failed source
+ provider.get(flowRow().source_ref).status=4;
+ await expect(409,flowPath+'/publish','POST',{revision:flowRow().revision-1});
+ await expect(400,flowPath+'/publish','POST',{revision:flowRow().revision,source_ref:'untrusted'});
+ await expect(200,flowPath+'/publish','POST',{revision:flowRow().revision});assert.equal(flowRow().state,'published');
+ await expect(200,'videos/'+flow.id+'/play','GET',undefined,null);
+ await expect(200,flowPath+'/publish','POST',{revision:flowRow().revision-1});
+ env.MEDIA_PAID_ENABLED='false';await expect(409,'admin/videos/'+created.id+'/publish','POST',{revision:row().revision});env.MEDIA_PAID_ENABLED='true';
+ await expect(200,flowPath,'DELETE',undefined,admin,{'If-Match':String(flowRow().revision)});
  const importDraft=await expect(201,'admin/videos','POST',bunnyRecord);
  const importGuid=crypto.randomUUID();provider.set(importGuid,{guid:importGuid,videoLibraryId:123,status:4,encodeProgress:100,thumbnailFileName:'thumbnail.jpg'});
  await expect(403,'admin/videos/'+importDraft.id+'/bunny/import','POST',{guid:importGuid},editor);
