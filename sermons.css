@@ -1,0 +1,15 @@
+/* Keep the existing library composition; add only D1 card/player states. */
+.library-page .video-info { display:flex; flex-direction:column; align-items:flex-start; gap:12px; overflow-wrap:anywhere; }
+.library-page .video-info h3 { margin:0; }
+.library-page .video-info .video-description { font-size:15px; line-height:1.65; white-space:pre-line; }
+.library-page .video-info .video-watch { margin-top:auto; }
+.library-page .video-type { color:var(--gold); font-size:12px; }
+.video-cover-placeholder { display:grid; place-items:center; width:100%; height:100%; background:linear-gradient(135deg,#e3eef8,#f0e8f3); color:#856126; font-family:Georgia,serif; letter-spacing:.12em; }
+.library-status { margin:16px 0; color:var(--ink2); }
+.library-pagination { display:flex; justify-content:center; gap:16px; margin-top:28px; }
+.library-pagination [hidden] { display:none; }
+#video-player video { display:block; width:100%; height:100%; }
+#video-player>p { padding:20px; color:#fff; }
+#video-player>a { display:inline-block; margin:0 20px 20px; color:#efcf8e; text-decoration:underline; }
+#video-player:has(>p) { min-height:180px; height:auto; aspect-ratio:auto; }
+@media(max-width:640px) { .library-page .video-info { padding:20px; } }

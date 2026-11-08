@@ -1,0 +1,57 @@
+// Actual public API + D1-compatible SQLite in memory. No production resources.
+import {DatabaseSync} from 'node:sqlite';
+import fs from 'node:fs/promises';import path from 'node:path';import http from 'node:http';import os from 'node:os';import assert from 'node:assert/strict';import {spawn} from 'node:child_process';import {createRequire} from 'node:module';
+import {handle} from '../media-worker/src/worker.mjs';
+const require=createRequire(import.meta.url),puppeteer=require(require.resolve('puppeteer-core',{paths:[path.resolve('output/audit-tools/lighthouse')]}));
+const db=new DatabaseSync(':memory:');for(const file of ['0001_media.sql','0002_bunny_stream.sql','0003_media_members.sql'])db.exec(await fs.readFile('media-worker/migrations/'+file,'utf8'));
+const prepare=sql=>({bind(...args){this.args=args;return this},first(){return db.prepare(sql).get(...(this.args||[]))||null},all(){return {results:db.prepare(sql).all(...(this.args||[]))}}});
+const env={MEDIA_ENABLED:'true',MEDIA_MEMBERS_ENABLED:'false',MEDIA_PAID_ENABLED:'false',MEDIA_ACCESS_ISSUER:'https://local.cloudflareaccess.com',MEDIA_ACCESS_AUD:'LOCAL_AUD',MEDIA_DB:{prepare},BUNNY_ENABLED:'true',BUNNY_SECURITY_CONFIRMED:'true',BUNNY_LIBRARY_ID:'803179',BUNNY_API_KEY:'LOCAL_API_ONLY',BUNNY_TOKEN_KEY:'LOCAL_TOKEN_ONLY'};
+let serial=0;const published=[];
+function seed(category,{access='free',state='published',future=false,source='youtube',title='LOCAL '+category,description='LOCAL ONLY'}={}){
+ const id='00000000-0000-4000-8000-'+String(++serial).padStart(12,'0');
+ db.prepare(`INSERT INTO videos(id,title,description,category,year,source_type,source_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id,bunny_library_id,bunny_status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(id,JSON.stringify({ru:title,en:title}),JSON.stringify({ru:description,en:description}),category,2027,source,source==='bunny'?id:'abcdefghijk',access,access==='paid'?100:0,'EUR',state,future?'2099-01-01T00:00:00Z':'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','LOCAL',source==='bunny'?'803179':null,source==='bunny'?4:null);
+ if(state==='published'&&!future)published.push(id);return id;
+}
+const bunnyId=seed('sermon',{source:'bunny',title:'LOCAL BUNNY <script>',description:'LOCAL SPEAKER'}),paidId=seed('sermon',{source:'bunny',access:'paid',title:'LOCAL PAID'});seed('conference');for(let n=0;n<26;n++)seed('school');const hiddenId=seed('sermon',{state:'draft'});seed('sermon',{future:true});seed('sermon',{state:'deleted'});
+db.prepare('UPDATE videos SET cover_key=?,cover_type=? WHERE id=?').run('LOCAL_COVER','image/png',bunnyId);
+env.MEDIA_BUCKET={get:async key=>key==='LOCAL_COVER'?{body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6p8AAAAASUVORK5CYII=','base64')}:null};
+const root=process.cwd(),out=path.resolve('output/sermons-catalog-check');await fs.mkdir(out,{recursive:true});const requests=[],errors=[];let failCatalog=false;
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css','.svg':'image/svg+xml','.webp':'image/webp','.woff2':'font/woff2'};
+const rules=(await fs.readFile('_headers','utf8')).split(/\r?\n(?=\/)/).map(section=>{const [route,...lines]=section.split(/\r?\n/);return {route,headers:Object.fromEntries(lines.filter(line=>line.trim()).map(line=>{const colon=line.indexOf(':');return [line.slice(0,colon).trim(),line.slice(colon+1).trim()]}))}});
+const server=http.createServer(async(req,res)=>{try{
+ const url=new URL(req.url,env.MEDIA_PUBLIC_ORIGIN);if(url.pathname.startsWith('/api/media/')){
+  requests.push({path:url.pathname,category:url.searchParams.get('category'),q:url.searchParams.get('q'),page:url.searchParams.get('page'),method:req.method});
+  if(failCatalog&&url.pathname==='/api/media/videos'){res.writeHead(503,{'Content-Type':'application/json'});res.end('{"error":"LOCAL_FAILURE"}');return}
+  const response=await handle(new Request(url,{method:req.method,headers:req.headers}),env);res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;
+ }
+ const target=path.resolve(root,'.'+decodeURIComponent(url.pathname));if(!target.startsWith(root+path.sep))throw Error();res.writeHead(200,{'Content-Type':types[path.extname(target)]||'application/octet-stream',...rules.find(r=>r.route===url.pathname)?.headers});res.end(await fs.readFile(target));
+}catch{res.writeHead(404);res.end()}});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));env.MEDIA_PUBLIC_ORIGIN='http://127.0.0.1:'+server.address().port;
+const profile=await fs.mkdtemp(path.join(os.tmpdir(),'mysterion-sermons-'));const child=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless','--no-first-run','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{windowsHide:true,stdio:'ignore'});
+let port;for(let n=0;n<100;n++){try{port=(await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0];break}catch{await new Promise(r=>setTimeout(r,100))}}if(!port)throw Error('Chrome did not start');const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:'+port});let checks=0;
+try{
+ const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(/violates.*Content Security Policy|Refused to (connect|frame|load|execute)/i.test(m.text()))errors.push(m.text())});await page.setRequestInterception(true);page.on('request',request=>{const host=new URL(request.url()).hostname;if(['player.mediadelivery.net','www.youtube-nocookie.com'].includes(host))return request.respond({status:200,contentType:'text/html',body:'<!doctype html><title>LOCAL PLAYER ONLY</title>'});return request.continue()});
+ const count=()=>page.$$eval('#video-grid .video-card',n=>n.length);
+ async function change(action){const wait=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/media/videos');await action();await wait;await page.waitForFunction(()=>document.getElementById('video-grid').getAttribute('aria-busy')==='false')}
+ async function search(value){await change(()=>page.$eval('#video-search',(n,v)=>{n.value=v;n.dispatchEvent(new Event('input'))},value))}
+ for(const width of [320,375,390,430,768,1440]){
+  await page.setViewport({width,height:900,isMobile:width<500,deviceScaleFactor:1});await page.goto(env.MEDIA_PUBLIC_ORIGIN+'/sermons.html',{waitUntil:'networkidle0'});
+  for(const lang of ['ru','en']){
+   await change(()=>page.evaluate(lang=>window.setLanguage(lang),lang));assert.equal(await count(),24);checks++;
+   for(const [category,expected] of [['sermon',2],['conference',1],['school',24],['testimony',0],['all',24]]){await change(()=>page.click('[data-category="'+category+'"]'));assert.equal(await count(),expected);assert.equal(await page.$eval('[data-category="'+category+'"]',n=>n.getAttribute('aria-pressed')),'true');if(!expected)assert.equal(await page.$eval('.library-empty h3',n=>n.textContent),lang==='ru'?'Видео скоро появятся':'Videos coming soon');checks++}
+   await change(()=>page.click('#video-more'));assert.equal(await count(),published.length);assert.equal(await page.$$eval('#video-grid h3',nodes=>nodes.some(n=>n.textContent.includes('LOCAL BUNNY <script>'))),true);assert.equal(await page.$('#video-grid script'),null);checks++;
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);checks++;
+  }
+  if([390,1440].includes(width)){await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await page.screenshot({path:path.join(out,'sermons-'+width+'.png')})}
+ }
+ await search('LOCAL SPEAKER');assert.equal(await count(),1);assert.ok(requests.some(r=>r.q==='LOCAL SPEAKER'));await page.waitForFunction(()=>document.querySelector('.video-thumb img')?.naturalWidth>0);assert.ok((await page.$eval('.video-thumb img',n=>n.src)).endsWith('/api/media/videos/'+bunnyId+'/cover'));checks++;
+ await page.click('.video-watch');await page.waitForSelector('#video-player iframe');assert.ok((await page.$eval('#video-player iframe',n=>n.src)).startsWith('https://player.mediadelivery.net/embed/803179/'));await page.click('.dialog-close');await page.waitForFunction(()=>!document.querySelector('#video-player iframe'));checks++;
+ await search('LOCAL PAID');await page.click('.video-watch');await page.waitForSelector('#video-player a[href="media-login.html"]');assert.equal(await page.$('#video-player iframe'),null);assert.ok(requests.some(r=>r.path==='/api/media/view/play/'+paidId&&r.method==='POST'));await page.click('.dialog-close');checks++;
+ await search('NO MATCH LOCAL');assert.equal(await count(),0);checks++;
+ await search('');failCatalog=true;await change(()=>page.click('[data-category="school"]'));assert.equal(await page.$eval('#video-retry',n=>n.hidden),false);failCatalog=false;await change(()=>page.click('#video-retry'));assert.equal(await count(),24);checks++;
+ const testimonyId=seed('testimony',{title:'LOCAL NEW TESTIMONY'});await page.goto(env.MEDIA_PUBLIC_ORIGIN+'/sermons.html#testimonies',{waitUntil:'networkidle0'});await page.waitForFunction(()=>document.querySelector('#video-grid .video-info h3')?.textContent==='LOCAL NEW TESTIMONY');assert.equal(await count(),1);checks++;
+ await page.click('.video-watch');await page.waitForSelector('#video-player iframe');assert.ok((await page.$eval('#video-player iframe',n=>n.src)).startsWith('https://www.youtube-nocookie.com/embed/'));await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('#video-player iframe'));checks++;
+ await page.goto(env.MEDIA_PUBLIC_ORIGIN+'/media.html',{waitUntil:'networkidle0'});const responseWait=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/media/videos');await page.select('#media-category','testimony');await responseWait;await page.waitForSelector('.media-item h2');assert.equal(await page.$eval('.media-item h2',n=>n.textContent),'LOCAL NEW TESTIMONY');await page.click('.media-item button');await page.waitForSelector('#player-slot iframe');await page.click('#player-close');await page.waitForFunction(()=>!document.querySelector('#player-slot iframe'));checks++;
+ const unpublished=await fetch(env.MEDIA_PUBLIC_ORIGIN+'/api/media/videos/'+hiddenId+'/play');assert.equal(unpublished.status,404);assert.equal(requests.some(r=>r.method!=='GET'&&!r.path.startsWith('/api/media/view/play/')),false);assert.deepEqual(errors,[]);checks++;
+ await fs.writeFile(path.join(out,'results.json'),JSON.stringify({checks,errors,widths:[320,375,390,430,768,1440],languages:['ru','en'],mode:'Chrome + actual API + in-memory D1-compatible SQLite; player hosts mocked',productionWrites:0,realBunnyCalls:0},null,2));console.log(JSON.stringify({checks,errors,screenshots:out,sharedCatalog:true,paidStillDisabled:true}));
+}finally{await browser.close();await new Promise(r=>server.close(r));db.close()}

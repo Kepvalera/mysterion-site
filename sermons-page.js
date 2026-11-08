@@ -1,51 +1,39 @@
-// The catalog is driven by sermons-data.js. No server or CMS is required for basic publishing.
-const catalog = window.MYSTERION_MEDIA || {youtubePlaylistId:"", videos:[]};
-const labels={ru:{empty:"Видео скоро появятся",emptyText:"Здесь будут проповеди, записи школ и конференций. Мы добавим их после публикации на официальном видеоканале.",watch:"Смотреть",unknown:"Спикер",search:"Поиск по названию или спикеру",date:"",sermon:"Проповеди",conference:"Конференции",school:"Школы",testimony:"Свидетельства"},en:{empty:"Videos coming soon",emptyText:"Sermons, school sessions, and conference recordings will appear here after they are published on the official video channel.",watch:"Watch",unknown:"Speaker",search:"Search by title or speaker",date:"",sermon:"Sermons",conference:"Conferences",school:"Schools",testimony:"Testimonies"}};
-let category=location.hash==='#testimonies'?'testimony':'all';
-let query='';
-function cleanId(id){return typeof id==='string'&&/^[A-Za-z0-9_-]{11}$/.test(id)?id:null}
-function renderVideos(){
- const lang=document.documentElement.lang==='en'?'en':'ru', t=labels[lang],grid=document.getElementById('video-grid');
- const data=(Array.isArray(catalog.videos)?catalog.videos:[]).filter(v=>cleanId(v.id));
- const matching=data.filter(v=>(category==='all'||v.category===category)&&((v.titleRu||'')+' '+(v.titleEn||'')+' '+(v.speakerRu||'')+' '+(v.speakerEn||'')).toLocaleLowerCase().includes(query.toLocaleLowerCase()));
- grid.replaceChildren();
- if(!matching.length && !(!data.length && typeof catalog.youtubePlaylistId==='string' && /^[A-Za-z0-9_-]{10,}$/.test(catalog.youtubePlaylistId))){
-  const e=document.createElement('div');e.className='library-empty';
-  const icon=document.createElement('div');icon.className='empty-icon';icon.textContent='✦';
-  const h=document.createElement('h3');h.textContent=data.length?(lang==='ru'?'Ничего не найдено':'No matching videos'):t.empty;
-  const p=document.createElement('p');p.textContent=data.length?(lang==='ru'?'Попробуйте другой запрос или категорию.':'Try another search or category.'):t.emptyText;
-  e.append(icon,h,p);grid.append(e);
- } else matching.forEach(v=>{
-  const card=document.createElement('article');card.className='video-card';
-  const thumb=document.createElement('button');thumb.type='button';thumb.className='video-thumb';thumb.setAttribute('aria-label',t.watch+': '+(lang==='ru'?(v.titleRu||v.titleEn):(v.titleEn||v.titleRu)));
-  const img=document.createElement('img');img.src='https://i.ytimg.com/vi/'+v.id+'/hqdefault.jpg';img.alt='';img.loading='lazy';
-  const play=document.createElement('span');play.className='play-symbol';play.textContent='▶';thumb.append(img,play);
-  const info=document.createElement('div');info.className='video-info';
-  const type=document.createElement('span');type.className='video-type';type.textContent=t[v.category]||t.sermon;
-  const title=document.createElement('h3');title.textContent=lang==='ru'?(v.titleRu||v.titleEn):(v.titleEn||v.titleRu);
-  const meta=document.createElement('p');meta.textContent=(lang==='ru'?(v.speakerRu||v.speakerEn):(v.speakerEn||v.speakerRu)||t.unknown)+(v.date?' · '+v.date:'');
-  info.append(type,title,meta);card.append(thumb,info);grid.append(card);
-  thumb.addEventListener('click',()=>openVideo(v,lang));
- });
- const pl=typeof catalog.youtubePlaylistId==='string'&&/^[A-Za-z0-9_-]{10,}$/.test(catalog.youtubePlaylistId)?catalog.youtubePlaylistId:null;
- const wrap=document.getElementById('playlist-wrap');wrap.hidden=!pl;
- if(pl){document.getElementById('playlist-frame').src='https://www.youtube-nocookie.com/embed/videoseries?list='+encodeURIComponent(pl)}
- document.getElementById('video-search').placeholder=t.search;
- document.title=lang==='ru'?'Проповеди | MYSTERION':'Sermons | MYSTERION';
-}
-function openVideo(v,lang){
- const dialog=document.getElementById('video-dialog'),player=document.getElementById('video-player');
- player.replaceChildren();const iframe=document.createElement('iframe');iframe.src='https://www.youtube-nocookie.com/embed/'+v.id+'?autoplay=1';iframe.title=lang==='ru'?(v.titleRu||v.titleEn):(v.titleEn||v.titleRu);iframe.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';iframe.referrerPolicy='strict-origin-when-cross-origin';iframe.allowFullscreen=true;
- player.append(iframe);document.getElementById('dialog-caption').textContent=iframe.title;
- if(typeof dialog.showModal==='function')dialog.showModal();else dialog.setAttribute('open','');
-}
-function closeVideo(){const dialog=document.getElementById('video-dialog');dialog.close();document.getElementById('video-player').replaceChildren()}
-document.querySelector('.dialog-close').addEventListener('click',closeVideo);
-document.getElementById('video-dialog').addEventListener('close',()=>document.getElementById('video-player').replaceChildren());
-document.querySelectorAll('.filter').forEach(b=>b.addEventListener('click',()=>{category=b.dataset.category;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));renderVideos()}));
-document.getElementById('video-search').addEventListener('input',e=>{query=e.target.value;renderVideos()});
-function syncTestimonyLink(){category=location.hash==='#testimonies'?'testimony':'all';document.querySelectorAll('.filter').forEach(button=>button.classList.toggle('active',button.dataset.category===category));renderVideos()}
-window.addEventListener('hashchange',syncTestimonyLink);
-document.querySelectorAll('.filter').forEach(button=>button.classList.toggle('active',button.dataset.category===category));
-window.addEventListener('mysterion:language',renderVideos);
-renderVideos();
+/* Read-only view of the same published D1 catalog used by media.html. */
+(() => {
+ 'use strict';
+ const $=id=>document.getElementById(id),grid=$('video-grid'),status=$('video-status'),search=$('video-search'),more=$('video-more'),retry=$('video-retry');
+ const labels={ru:{empty:'Видео скоро появятся',emptyText:'Опубликованные материалы выбранной категории появятся здесь автоматически.',watch:'Смотреть',search:'Поиск по названию или спикеру',loading:'Загрузка…',offline:'Не удалось загрузить медиатеку. Повторите попытку.',retry:'Повторить',more:'Показать ещё',close:'Закрыть видео',sermon:'Проповеди',conference:'Конференции',school:'Школы',testimony:'Свидетельства',free:'Бесплатно',paid:'Платный доступ',unavailable:'Просмотр недоступен. Проверьте вход и право доступа; платный просмотр может быть ещё не подключён.',login:'Войти для просмотра',noMatches:'Ничего не найдено',noMatchesText:'Попробуйте другой запрос.'},en:{empty:'Videos coming soon',emptyText:'Published materials in this category will appear here automatically.',watch:'Watch',search:'Search by title or speaker',loading:'Loading…',offline:'Unable to load the media library. Please retry.',retry:'Retry',more:'Load more',close:'Close video',sermon:'Sermons',conference:'Conferences',school:'Schools',testimony:'Testimonies',free:'Free',paid:'Paid access',unavailable:'Viewing is unavailable. Check your sign-in and entitlement; paid viewing may not be connected yet.',login:'Sign in to watch',noMatches:'No matching videos',noMatchesText:'Try another search.'}};
+ const t=key=>labels[document.documentElement.lang==='en'?'en':'ru'][key]||key;
+ const local=value=>typeof value==='string'?value:value?.[document.documentElement.lang]||value?.ru||'';
+ const node=(tag,text,className)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(className)el.className=className;return el};
+ const player=window.createMysterionMediaPlayer({dialog:$('video-dialog'),title:$('dialog-caption'),slot:$('video-player'),closeButton:document.querySelector('.dialog-close'),local,t});
+ let category=location.hash==='#testimonies'?'testimony':'all',page=1,items=[],controller,sequence=0,debounce;
+ function translate(){search.placeholder=t('search');search.setAttribute('aria-label',t('search'));more.textContent=t('more');retry.textContent=t('retry');document.querySelector('.dialog-close').setAttribute('aria-label',t('close'));document.title=document.documentElement.lang==='en'?'Sermons | MYSTERION':'Проповеди | MYSTERION';document.querySelector('.library-filters').setAttribute('aria-label',document.documentElement.lang==='en'?'Video categories':'Категории видео');for(const button of document.querySelectorAll('.library-filters .filter')){const active=button.dataset.category===category;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))}}
+ function render(){
+  grid.replaceChildren();
+  if(!items.length){const empty=node('div',undefined,'library-empty');empty.append(node('h3',search.value.trim()?t('noMatches'):t('empty')),node('p',search.value.trim()?t('noMatchesText'):t('emptyText')));grid.append(empty);return}
+  for(const item of items){
+   const card=node('article',undefined,'video-card'),thumb=node('button',undefined,'video-thumb');thumb.type='button';thumb.setAttribute('aria-label',t('watch')+': '+local(item.title));
+   if(item.has_cover){const img=node('img');img.src=`/api/media/videos/${item.id}/cover`;img.alt='';img.loading='lazy';img.decoding='async';img.width=640;img.height=360;img.addEventListener('error',()=>img.replaceWith(node('span','MYSTERION','video-cover-placeholder')),{once:true});thumb.append(img)}else thumb.append(node('span','MYSTERION','video-cover-placeholder'));
+   const play=node('span','▶','play-symbol');play.setAttribute('aria-hidden','true');thumb.append(play);thumb.addEventListener('click',()=>player.open(item));
+   const info=node('div',undefined,'video-info');info.append(node('span',`${t(item.category)} · ${item.year} · ${t(item.access)}`,'video-type'),node('h3',local(item.title)),node('p',local(item.description),'video-description'));
+   const speaker=local(item.speaker);if(speaker)info.append(node('p',speaker,'video-speaker'));
+   const watch=node('button',t('watch'),'btn btn-dark video-watch');watch.type='button';watch.addEventListener('click',()=>player.open(item));info.append(watch);card.append(thumb,info);grid.append(card);
+  }
+ }
+ async function load(reset=true){
+  clearTimeout(debounce);controller?.abort();controller=new AbortController();const current=++sequence,targetPage=reset?1:page+1;
+  if(reset){page=1;items=[];grid.replaceChildren()}more.disabled=true;retry.hidden=true;status.textContent=t('loading');grid.setAttribute('aria-busy','true');
+  const params=new URLSearchParams({page:String(targetPage)});if(category!=='all')params.set('category',category);if(search.value.trim())params.set('q',search.value.trim());
+  try{const response=await fetch('/api/media/videos?'+params,{credentials:'same-origin',cache:'no-store',signal:controller.signal});if(!response.ok)throw Error();const data=await response.json();if(current!==sequence)return;
+   items=reset?data.items:items.concat(data.items);page=targetPage;render();status.textContent='';more.hidden=!data.hasMore;
+  }catch(error){if(error.name==='AbortError'||current!==sequence)return;status.textContent=t('offline');retry.hidden=false;if(reset)more.hidden=true;retry.dataset.append=String(!reset)}
+  finally{if(current===sequence){grid.setAttribute('aria-busy','false');more.disabled=false}}
+ }
+ for(const button of document.querySelectorAll('.library-filters .filter'))button.addEventListener('click',()=>{category=button.dataset.category;translate();load()});
+ search.addEventListener('input',()=>{clearTimeout(debounce);controller?.abort();sequence++;more.disabled=true;debounce=setTimeout(()=>load(),300)});
+ more.addEventListener('click',()=>load(false));retry.addEventListener('click',()=>load(retry.dataset.append!=='true'));
+ window.addEventListener('hashchange',()=>{category=location.hash==='#testimonies'?'testimony':'all';translate();load()});
+ window.addEventListener('mysterion:language',()=>{translate();load()});
+ translate();load();
+})();

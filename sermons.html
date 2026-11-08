@@ -11,8 +11,9 @@
   <title>Проповеди | MYSTERION</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="sermons.css">
   <script defer src="script.js"></script><script defer src="/account.js"></script>
-  <script defer src="sermons-data.js"></script>
+  <script defer src="media-player.js"></script>
   <script defer src="sermons-page.js"></script>
 <link rel="stylesheet" href="/account.css"></head>
 <body data-page="sermons">
@@ -67,19 +68,20 @@
     <div class="library-actions"><a class="btn btn-dark" href="index.html#media"><span data-i18n="backMedia">На главную</span><span aria-hidden="true">↗</span></a></div>
   </section>
   <section class="container library-content" aria-labelledby="catalog-heading">
-    <div class="section-number"><span>01 / VIDEO</span><span data-i18n="libCollection">ВИДЕОТЕКА</span></div>
+    <div class="section-number"><span>01 / VIDEO</span><span id="catalog-heading" data-i18n="libCollection">ВИДЕОТЕКА</span></div>
     <div class="library-tools"><div class="library-filters" role="group" aria-label="Категории видео">
       <button type="button" class="filter active" data-category="all" data-i18n="catAll">Все</button>
       <button type="button" class="filter" data-category="sermon" data-i18n="catSermon">Проповеди</button>
       <button type="button" class="filter" data-category="conference" data-i18n="catConference">Конференции</button>
       <button type="button" class="filter" data-category="school" data-i18n="catSchool">Школы</button>
       <button type="button" class="filter" id="testimonies" data-category="testimony" data-i18n="catTestimony">Свидетельства</button>
-    </div><label class="search-field"><span class="sr-only" data-i18n="searchLabel">Поиск</span><input id="video-search" type="search" placeholder="Поиск по названию или спикеру" aria-label="Поиск видео"></label></div>
+    </div><label class="search-field"><span class="sr-only" data-i18n="searchLabel">Поиск</span><input id="video-search" type="search" maxlength="120" placeholder="Поиск по названию или спикеру" aria-label="Поиск видео"></label></div>
+    <p id="video-status" class="library-status" role="status" aria-live="polite"></p>
     <div id="video-grid" class="video-grid" aria-live="polite"></div>
-    <div id="playlist-wrap" class="playlist-wrap" hidden><h2 data-i18n="playlistTitle">Все видео из плейлиста</h2><div class="playlist-frame"><iframe id="playlist-frame" title="Mysterion YouTube playlist" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>
+    <div class="library-pagination"><button id="video-retry" type="button" class="btn btn-dark" hidden>Повторить</button><button id="video-more" type="button" class="btn btn-dark" hidden>Показать ещё</button></div>
   </section>
 </main>
-<dialog id="video-dialog" class="video-dialog"><button type="button" class="dialog-close" aria-label="Закрыть видео">✕</button><div class="video-player" id="video-player"></div><div class="dialog-caption" id="dialog-caption"></div></dialog>
+<dialog id="video-dialog" class="video-dialog" aria-labelledby="dialog-caption"><button type="button" class="dialog-close" aria-label="Закрыть видео">✕</button><div class="video-player" id="video-player"></div><div class="dialog-caption" id="dialog-caption"></div></dialog>
 <footer class="footer">
   <div class="container footer-grid">
     <a href="index.html#home" class="brand footer-brand"><span class="brand-symbol crown-mark" aria-hidden="true">♛</span><span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span></a>
