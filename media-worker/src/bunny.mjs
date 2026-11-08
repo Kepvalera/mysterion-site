@@ -28,10 +28,13 @@ export async function bunnyRequest(env, videoId = '', method = 'GET', data) {
   if (videoId && !uuid.test(videoId)) throw new HttpError(400, 'invalid_bunny_id');
   let response;
   try {response = await fetch(`https://video.bunnycdn.com/library/${env.BUNNY_LIBRARY_ID}/videos${videoId ? '/' + videoId : ''}`, {
-    method, redirect: 'error', signal: AbortSignal.timeout(12000),
+    // Workers rejects redirect:"error" before sending the request. Never follow
+    // redirects with AccessKey: handle 3xx explicitly without forwarding it.
+    method, redirect: 'manual', signal: AbortSignal.timeout(12000),
     headers: {AccessKey: env.BUNNY_API_KEY, Accept: 'application/json', ...(data ? {'Content-Type': 'application/json'} : {})},
     ...(data ? {body: JSON.stringify(data)} : {})
-  });} catch(error) {throw new HttpError(502,['TimeoutError','AbortError'].includes(error?.name)?'bunny_timeout':'bunny_network_error')}
+  });} catch(cause) {const error=new HttpError(502,['TimeoutError','AbortError'].includes(cause?.name)?'bunny_timeout':'bunny_network_error');error.errorKind=['TypeError','TimeoutError','AbortError'].includes(cause?.name)?cause.name:'Error';throw error}
+  if(response.status>=300&&response.status<400){const error=new HttpError(502,'bunny_redirect_blocked');error.upstreamStatus=response.status;throw error}
   if (method === 'DELETE' && response.status === 404) return {success: true};
   if (!response.ok) {
     const code=({401:'bunny_auth_failed',403:'bunny_forbidden',404:'bunny_library_or_video_not_found',429:'bunny_rate_limited'})[response.status]||(response.status>=500?'bunny_unavailable':'bunny_request_rejected');
@@ -103,8 +106,9 @@ export async function thumbnail(env, row) {
   const signature = new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(pathname + expires)));
   const token = 'HS256-' + btoa(String.fromCharCode(...signature)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const response = await fetch(`https://${env.BUNNY_CDN_HOST}${pathname}?token=${token}&expires=${expires}`, {
-    redirect: 'error', signal: AbortSignal.timeout(8000), headers: {Referer: env.MEDIA_PUBLIC_ORIGIN + '/'}
+    redirect: 'manual', signal: AbortSignal.timeout(8000), headers: {Referer: env.MEDIA_PUBLIC_ORIGIN + '/'}
   });
+  if(response.status>=300&&response.status<400)throw new HttpError(502,'bunny_redirect_blocked');
   if (!response.ok || !/^image\/(jpeg|png|webp)(;|$)/.test(response.headers.get('Content-Type') || '')) throw new HttpError(502, 'thumbnail_unavailable');
   // Bound the response before passing through untrusted bytes.
   const reader = response.body.getReader(); let size = 0; const chunks = [];

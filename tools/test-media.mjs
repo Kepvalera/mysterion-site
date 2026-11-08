@@ -77,10 +77,10 @@ try{
  globalThis.fetch=async (address,options={})=>{
   const url=new URL(address);if(url.hostname==='test-team.cloudflareaccess.com')return Response.json({keys:[jwk]});
   if(url.hostname==='vz-test.b-cdn.net'){
-   assert.equal(options.redirect,'error');const expected=createHmac('sha256',env.BUNNY_CDN_TOKEN_KEY).update(url.pathname+url.searchParams.get('expires')).digest('base64url');assert.equal(url.searchParams.get('token'),'HS256-'+expected);
+   assert.equal(options.redirect,'manual');const expected=createHmac('sha256',env.BUNNY_CDN_TOKEN_KEY).update(url.pathname+url.searchParams.get('expires')).digest('base64url');assert.equal(url.searchParams.get('token'),'HS256-'+expected);
    return new Response(new Uint8Array([255,216,255]),{headers:{'Content-Type':'image/jpeg'}});
   }
-  assert.equal(url.origin,'https://video.bunnycdn.com');assert.equal(options.headers.AccessKey,env.BUNNY_API_KEY);assert.ok(url.pathname.startsWith('/library/123/videos'));providerCalls++;
+  assert.equal(url.origin,'https://video.bunnycdn.com');assert.equal(options.redirect,'manual');assert.equal(options.headers.AccessKey,env.BUNNY_API_KEY);assert.ok(url.pathname.startsWith('/library/123/videos'));providerCalls++;
   if(providerFailure){if(providerFailure==='network')throw Error('PRIVATE_PROVIDER_SECRET');if(providerFailure==='timeout')throw new DOMException('PRIVATE_PROVIDER_SECRET','TimeoutError');if(providerFailure==='json')return new Response('PRIVATE_PROVIDER_SECRET',{status:200});return new Response('PRIVATE_PROVIDER_SECRET',{status:providerFailure})}
   const id=url.pathname.split('/')[4],method=options.method||'GET';
   if(method==='POST'&&!id){const guid=crypto.randomUUID();provider.set(guid,{guid,videoLibraryId:123,status:0,encodeProgress:0,thumbnailFileName:'thumbnail.jpg'});return Response.json(provider.get(guid))}
@@ -99,7 +99,7 @@ try{
  await expect(403,'admin/videos','POST',{...bunnyRecord,source_ref:crypto.randomUUID()});
  const diagnosticLogs=[],originalWarn=console.warn;console.warn=entry=>diagnosticLogs.push(entry);
  try{
-  for(const [upstream,code] of [[401,'bunny_auth_failed'],[403,'bunny_forbidden'],[404,'bunny_library_or_video_not_found'],[429,'bunny_rate_limited'],[500,'bunny_unavailable'],[400,'bunny_request_rejected'],['network','bunny_network_error'],['timeout','bunny_timeout'],['json','bunny_response_invalid']]){
+  for(const [upstream,code] of [[301,'bunny_redirect_blocked'],[302,'bunny_redirect_blocked'],[307,'bunny_redirect_blocked'],[308,'bunny_redirect_blocked'],[401,'bunny_auth_failed'],[403,'bunny_forbidden'],[404,'bunny_library_or_video_not_found'],[429,'bunny_rate_limited'],[500,'bunny_unavailable'],[400,'bunny_request_rejected'],['network','bunny_network_error'],['timeout','bunny_timeout'],['json','bunny_response_invalid']]){
    providerFailure=upstream;const response=await call(op+'upload','POST'),result=await response.json();assert.equal(response.status,502);assert.equal(result.error,code);assert.match(result.requestId,/^[a-f0-9-]{36}$/);assert.equal(response.headers.get('X-Mysterion-Request-ID'),result.requestId);assert.equal(result.upstreamStatus,typeof upstream==='number'?upstream:undefined);
    assert.ok(!JSON.stringify(result).includes('PRIVATE_PROVIDER_SECRET'));assert.equal(provider.size,0);assert.equal(sql.prepare('SELECT source_ref FROM videos WHERE id=?').get(created.id).source_ref,'');assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM bunny_leases').get().n,0);tests++;
   }
