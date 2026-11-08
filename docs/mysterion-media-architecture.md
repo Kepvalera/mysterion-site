@@ -66,3 +66,6 @@ D1 и Bunny не образуют общей транзакции. После н
 - [Advanced CDN tokens](https://bunny.net/docs/cdn/security/token-authentication/advanced)
 - [D1 foreign keys](https://developers.cloudflare.com/d1/sql-api/foreign-keys/)
 - [Pages configuration](https://developers.cloudflare.com/pages/functions/wrangler-configuration/)
+# Дополнение: управляемые кабинеты и коллекции
+
+Текущий модуль `members.mjs` и миграция `0003_media_members.sql` добавляют ручные разрешения без записей в purchases, аудит управления зрителями, коллекции и небольшие обложки D1. Вход делегирован Cloudflare Access. Модуль выключен до явного `MEDIA_MEMBERS_ENABLED=true` после миграции. Подробности и границы production-готовности: [настройка кабинетов](mysterion-media-members-setup.md). Предыдущая архитектура покупок сохранена; актуальный сервер допускает также действующий ручной grant. Платный playback остаётся отдельно выключенным.

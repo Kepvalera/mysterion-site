@@ -1,6 +1,7 @@
 import {HttpError,administrator,entitledViewer} from './auth.mjs';
 import * as bunny from './bunny.mjs';
 import {requireMediaOrigin} from './origin.mjs';
+import {memberRoute} from './members.mjs';
 const categories=['sermon','testimony','conference','school'];
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 const fail=(status,code)=>{throw new HttpError(status,code)};
@@ -48,6 +49,12 @@ export async function handle(request,env) {
   requireMediaOrigin(request,env);
   const url=new URL(request.url), path=url.pathname.replace(/^\/api\/media\/?/,'').replace(/\/$/,''), method=request.method;
   if(!url.pathname.startsWith('/api/media')) fail(404,'not_found');
+  if(path==='view/account')return json(await memberRoute(request,env,path,method,null,body));
+  if(path==='collections' && method==='GET'){
+   if(env.MEDIA_MEMBERS_ENABLED!=='true')return json({items:[]});
+   const rows=await env.MEDIA_DB.prepare("SELECT id,title,description FROM collections WHERE state='published' ORDER BY created_at DESC LIMIT 200").all();
+   return json({items:rows.results.map(decodeRow)});
+  }
   const paidPlay=path.match(/^view\/play\/([a-f0-9-]{36})$/);
   if(paidPlay && method==='POST') {
    sameOrigin(request,env);
@@ -63,6 +70,8 @@ export async function handle(request,env) {
    if(q.length>120 || (category && !categories.includes(category)) || (year && !/^\d{4}$/.test(year)) || (access && !['free','paid'].includes(access))) fail(400,'invalid_filter');
    const page=Math.min(10000,Math.max(1,Number(url.searchParams.get('page'))||1));
    const where=["state='published'",'publish_at<=?'],values=[new Date().toISOString()];
+   const collection=url.searchParams.get('collection');
+   if(collection){if(env.MEDIA_MEMBERS_ENABLED!=='true'||!bunny.uuid.test(collection))fail(400,'invalid_collection');where.push("EXISTS(SELECT 1 FROM collection_videos cv JOIN collections c ON c.id=cv.collection_id WHERE cv.video_id=videos.id AND c.id=? AND c.state='published')");values.push(collection)}
    for(const [column,value] of [['category',category],['year',year],['access',access]]) if(value){where.push(column+'=?');values.push(value)}
    if(q){where.push('(title LIKE ? ESCAPE \'\\\' OR description LIKE ? ESCAPE \'\\\')');const search='%'+q.replace(/[\\%_]/g,'\\$&')+'%';values.push(search,search)}
    const rows=await env.MEDIA_DB.prepare(`SELECT ${publicColumns} FROM videos WHERE ${where.join(' AND ')} ORDER BY publish_at DESC,id LIMIT 25 OFFSET ?`).bind(...values,(Math.floor(page)-1)*24).all();
@@ -71,7 +80,14 @@ export async function handle(request,env) {
   const match=path.match(/^videos\/([a-f0-9-]{36})\/(play|stream|cover)$/);
   if(match && method==='GET') {
    const row=await published(env,match[1]),kind=match[2];
-   if(kind==='cover') {if(!row.cover_key && row.source_type==='bunny')return await bunny.thumbnail(env,row);if(!row.cover_key || !env.MEDIA_BUCKET) fail(404,'not_found');const object=await env.MEDIA_BUCKET.get(row.cover_key);if(!object)fail(404,'not_found');return new Response(object.body,{headers:{'Content-Type':row.cover_type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
+   if(kind==='cover') {
+    if(row.cover_key==='d1' && env.MEDIA_MEMBERS_ENABLED==='true'){
+     const cover=await env.MEDIA_DB.prepare('SELECT mime,bytes FROM media_covers WHERE video_id=?').bind(row.id).first();
+     if(!cover)fail(404,'not_found');
+     return new Response(new Uint8Array(cover.bytes),{headers:{'Content-Type':cover.mime,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
+    }
+    if(!row.cover_key && row.source_type==='bunny')return await bunny.thumbnail(env,row);if(!row.cover_key || !env.MEDIA_BUCKET) fail(404,'not_found');const object=await env.MEDIA_BUCKET.get(row.cover_key);if(!object)fail(404,'not_found');return new Response(object.body,{headers:{'Content-Type':row.cover_type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
+   }
    // Paid R2/YouTube and the legacy GET route can never issue a viewing grant.
    if(row.access!=='free') fail(402,'paid_playback_disabled');
    if(kind==='play' && row.source_type==='bunny') {if(row.bunny_status!==4)fail(409,'video_not_ready');return json(await bunny.playback(env,row))}
@@ -86,9 +102,10 @@ export async function handle(request,env) {
   if(!path.startsWith('admin/')) fail(404,'not_found');
   const user=await administrator(request,env);
   if(method!=='GET')sameOrigin(request,env);
-  if(path==='admin/me' && method==='GET'){let available=false;try{bunny.configured(env);available=true}catch{}return json({role:user.role,bunny:available,paid:env.MEDIA_PAID_ENABLED==='true',customCovers:Boolean(env.MEDIA_BUCKET)})}
+  if(/^admin\/(members|grants|collections)(\/|$)/.test(path))return json(await memberRoute(request,env,path,method,user,body));
+  if(path==='admin/me' && method==='GET'){let available=false;try{bunny.configured(env);available=true}catch{}return json({role:user.role,bunny:available,paid:env.MEDIA_PAID_ENABLED==='true',members:env.MEDIA_MEMBERS_ENABLED==='true',customCovers:Boolean(env.MEDIA_BUCKET)||env.MEDIA_MEMBERS_ENABLED==='true'})}
   if(path==='admin/videos' && method==='GET'){const rows=await env.MEDIA_DB.prepare("SELECT * FROM videos WHERE state!='deleted' OR bunny_delete_pending=1 ORDER BY updated_at DESC LIMIT 200").all();return json({items:rows.results.map(decodeRow)})}
-  const operation=path.match(/^admin\/videos\/([a-f0-9-]{36})\/bunny\/(upload|sync|preview|delete)$/);
+  const operation=path.match(/^admin\/videos\/([a-f0-9-]{36})\/bunny\/(upload|sync|preview|delete|import)$/);
   if(operation && method==='POST') {
    if(user.role!=='admin')fail(403,'admin_required');
    bunny.configured(env);
@@ -98,6 +115,18 @@ export async function handle(request,env) {
     if(!row||row.source_type!=='bunny')fail(404,'not_found');
     if(action==='delete'){if(row.state!=='deleted')fail(409,'delete_record_first');await bunny.removeVideo(env,row);return json({ok:true})}
     if(row.state==='deleted')fail(404,'not_found');
+    if(action==='import'){
+     if(row.state!=='draft'||row.source_ref)fail(409,'empty_draft_required');
+     const input=await body(request);
+     if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length!==1||!bunny.uuid.test(input.guid||''))fail(400,'invalid_bunny_id');
+     const video=await bunny.bunnyRequest(env,input.guid);
+     if(video.guid!==input.guid||String(video.videoLibraryId)!==env.BUNNY_LIBRARY_ID)fail(502,'bunny_response_invalid');
+     if(await env.MEDIA_DB.prepare("SELECT id FROM videos WHERE source_type='bunny' AND source_ref=? AND bunny_library_id=?").bind(input.guid,env.BUNNY_LIBRARY_ID).first())fail(409,'bunny_video_already_bound');
+     const mutation=crypto.randomUUID();
+     await mutate(env,user,id,'bunny_import',env.MEDIA_DB.prepare("UPDATE videos SET source_ref=?,bunny_library_id=?,revision=revision+1,mutation_id=?,updated_at=? WHERE id=? AND revision=? AND state='draft' AND source_ref=''").bind(input.guid,env.BUNNY_LIBRARY_ID,mutation,new Date().toISOString(),id,row.revision),mutation);
+     row=await env.MEDIA_DB.prepare('SELECT * FROM videos WHERE id=?').bind(id).first();
+     return json(await bunny.syncVideo(env,row));
+    }
     if(action==='preview'){if(row.bunny_status!==4)fail(409,'video_not_ready');return json(await bunny.playback(env,row))}
     if(action==='sync'){const data=await bunny.syncVideo(env,row);return json(data)}
     if(row.state!=='draft')fail(409,'draft_required');
@@ -129,7 +158,7 @@ export async function handle(request,env) {
   }
   if(edit && edit[2] && method==='PUT') {
    if(user.role!=='admin')fail(403,'admin_required');
-   if(!env.MEDIA_BUCKET)fail(503,'custom_covers_not_configured');
+   if(!env.MEDIA_BUCKET && env.MEDIA_MEMBERS_ENABLED!=='true')fail(503,'custom_covers_not_configured');
    const row=await env.MEDIA_DB.prepare("SELECT * FROM videos WHERE id=? AND state!='deleted'").bind(edit[1]).first();if(!row)fail(404,'not_found');
    // Streaming size limit prevents a large request from being buffered in Worker memory.
    const reader=request.body?.getReader();if(!reader)fail(400,'image_required');let size=0,chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>2097152){await reader.cancel();fail(413,'image_too_large')}chunks.push(value)}
@@ -137,6 +166,16 @@ export async function handle(request,env) {
    const text=new TextDecoder('latin1').decode(bytes.slice(0,12));
    const mime=bytes[0]===137&&text.slice(1,4)==='PNG'?'image/png':bytes[0]===255&&bytes[1]===216&&bytes[2]===255?'image/jpeg':text.startsWith('RIFF')&&text.slice(8,12)==='WEBP'?'image/webp':null;
    if(!mime)fail(415,'unsupported_image');
+   if(!env.MEDIA_BUCKET){
+    if(size>524288)fail(413,'cover_limit_512_kib');
+    const mutation=crypto.randomUUID();
+    const results=await env.MEDIA_DB.batch([
+     env.MEDIA_DB.prepare('UPDATE videos SET cover_key=\'d1\',cover_type=?,mutation_id=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?'+noLease).bind(mime,mutation,new Date().toISOString(),row.id,row.revision),
+     env.MEDIA_DB.prepare('INSERT INTO media_covers(video_id,mime,bytes) SELECT id,?,? FROM videos WHERE id=? AND mutation_id=? ON CONFLICT(video_id) DO UPDATE SET mime=excluded.mime,bytes=excluded.bytes').bind(mime,bytes,row.id,mutation),
+     env.MEDIA_DB.prepare('INSERT INTO audit_log SELECT ?,?,?,?,? FROM videos WHERE id=? AND mutation_id=?').bind(crypto.randomUUID(),user.id,row.id,'cover',new Date().toISOString(),row.id,mutation)
+    ]);
+    if(!results[0].meta.changes)fail(409,'revision_conflict');return json({ok:true});
+   }
    const key='covers/'+crypto.randomUUID(),mutation=crypto.randomUUID();await env.MEDIA_BUCKET.put(key,bytes,{httpMetadata:{contentType:mime}});
    try{await mutate(env,user,row.id,'cover',env.MEDIA_DB.prepare('UPDATE videos SET cover_key=?,cover_type=?,mutation_id=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?'+noLease).bind(key,mime,mutation,new Date().toISOString(),row.id,row.revision),mutation)}catch(error){await env.MEDIA_BUCKET.delete(key);throw error}
    return json({ok:true});

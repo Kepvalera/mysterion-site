@@ -5,7 +5,7 @@ const securityHeaders = {
   'Cache-Control': 'private, no-store',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self' https://video.bunnycdn.com; frame-src https://player.mediadelivery.net; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self' https://video.bunnycdn.com; frame-src https://player.mediadelivery.net https://www.youtube-nocookie.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 };
 const messages = {
   ru: ['Управление и вход защищены', 'Доступ пока закрыт. Нужны настроенный домен, Cloudflare Access и разрешённая сервером учётная запись.', 'Вернуться в медиатеку'],

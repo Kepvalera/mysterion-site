@@ -11,6 +11,7 @@
     const isBunny=form.elements.source_type.value==='bunny';form.elements.source_ref.readOnly=isBunny;form.elements.source_ref.required=!isBunny;
     $('bunny-controls').hidden=!isBunny;
     $('bunny-start').disabled=!current||current.source_type!=='bunny'||role!=='admin'||!capabilities.bunny||current.state!=='draft'||current.bunny_status===4;
+    $('bunny-import').disabled=!current||role!=='admin'||!capabilities.bunny||Boolean(current.source_ref)||current.state!=='draft';
     $('bunny-sync').disabled=!current?.source_ref||role!=='admin'||!capabilities.bunny;
     $('bunny-preview').disabled=current?.bunny_status!==4||role!=='admin'||!capabilities.bunny;
     $('bunny-cleanup').hidden=!current?.bunny_delete_pending;
@@ -59,6 +60,7 @@
     const file=form.elements.video_file.files[0];if(!current||!file||!['video/mp4','video/webm','video/quicktime'].includes(file.type)||file.size<1||file.size>20*1024**3){$('bunny-status').textContent=t('invalidVideo');return}
     const id=current.id;clearTimeout(poll);upload=new window.MysterionBunnyUpload(file,()=>api(`videos/${id}/bunny/upload`,{method:'POST'}),(sent,total)=>{$('bunny-progress').value=Math.round(sent/total*100);$('bunny-status').textContent=`${t('uploading')} ${Math.round(sent/total*100)}%`});await transfer();
   });
+  $('bunny-import').addEventListener('click',async()=>{if(!current)return;const id=current.id;try{await api('videos/'+id+'/bunny/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({guid:form.elements.bunny_guid.value.trim()})});await refresh();edit(rows.find(r=>r.id===id));status.textContent=t('saved')}catch{status.textContent=t('failed')}});
   $('bunny-pause').addEventListener('click',()=>upload?.pause());$('bunny-resume').addEventListener('click',()=>transfer());$('bunny-sync').addEventListener('click',()=>sync(true));
   $('bunny-preview').addEventListener('click',async()=>{try{const data=await operation('preview'),url=new URL(data.url);if(url.origin!=='https://player.mediadelivery.net'||!/^\/embed\/\d+\/[a-f0-9-]{36}$/.test(url.pathname))throw Error();const player=document.createElement('iframe');player.src=url.href;player.title=t('preview');player.allow='fullscreen; picture-in-picture';player.allowFullscreen=true;$('admin-player-slot').replaceChildren(player);$('admin-player').showModal()}catch{$('bunny-status').textContent=t('syncFailed')}});
   $('admin-player-close').addEventListener('click',()=>$('admin-player').close());$('admin-player').addEventListener('close',()=>$('admin-player-slot').replaceChildren());

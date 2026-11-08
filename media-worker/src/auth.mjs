@@ -32,6 +32,10 @@ export async function entitledViewer(request, env, videoId) {
   // A role, email, request parameter or localStorage value never grants paid viewing.
   const user = await env.MEDIA_DB.prepare('SELECT id FROM users WHERE access_sub=? AND active=1').bind(claims.sub).first();
   if (!user) throw new HttpError(403, 'viewing_right_required');
+  if(env.MEDIA_MEMBERS_ENABLED==='true') {
+    const manual=await env.MEDIA_DB.prepare('SELECT id FROM manual_grants WHERE user_id=? AND video_id=? AND revoked_at IS NULL AND julianday(expires_at)>julianday(?)').bind(user.id,videoId,new Date().toISOString()).first();
+    if(manual)return user;
+  }
   const grant = await env.MEDIA_DB.prepare(`SELECT e.id FROM entitlements e JOIN purchases p ON p.id=e.purchase_id
     WHERE e.user_id=? AND e.video_id=? AND e.revoked_at IS NULL AND (e.expires_at IS NULL OR julianday(e.expires_at)>julianday(?))
     AND p.user_id=e.user_id AND p.video_id=e.video_id AND p.status='paid'`).bind(user.id, videoId, new Date().toISOString()).first();

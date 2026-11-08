@@ -81,3 +81,6 @@ PRAGMA quick_check;
 Повторный migrations apply учитывает d1_migrations и не повторяет выполненные файлы. Не вставляйте SQL-файлы вручную повторно и не удаляйте историю. Применение схемы не создаёт администратора, не даёт прав на видео и не подключает базу к production. Не включайте платные flags.
 
 Официальные источники: [D1 migrations и выбор базы по имени](https://developers.cloudflare.com/d1/reference/migrations/), [внешние ключи](https://developers.cloudflare.com/d1/sql-api/foreign-keys/), [поддерживаемые SQL/PRAGMA](https://developers.cloudflare.com/d1/sql-api/sql-statements/).
+# Обновление миграций
+
+После этапа 1c821ca добавлена **0003_media_members.sql**. Перед новым удалённым применением проверьте, что 0001/0002 уже отражены в `d1_migrations`. Актуальная инструкция — [кабинеты и коллекции](mysterion-media-members-setup.md). Проверочный SQL теперь рассчитан на все три миграции; до применения 0003 новые таблицы отсутствуют. Автоматического удалённого применения нет.

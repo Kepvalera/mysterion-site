@@ -13,6 +13,7 @@
   }],
   "vars": {
     "MEDIA_ENABLED": "false",
+    "MEDIA_MEMBERS_ENABLED": "false",
     "MEDIA_PAID_ENABLED": "false",
     // Future origin; this inactive template does NOT switch the live site.
     // Set this only after Pages Custom domains and TLS are ready.
