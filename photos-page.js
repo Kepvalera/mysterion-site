@@ -2,8 +2,7 @@
 (() => {
   const titles = {
     ru: 'Фотографии | MYSTERION',
-    en: 'Photos | MYSTERION',
-    de: 'Fotos | MYSTERION'
+    en: 'Photos | MYSTERION'
   };
   function updateTitle() {
     document.title = titles[document.documentElement.lang] || titles.ru;

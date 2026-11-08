@@ -2,20 +2,18 @@
 (() => {
   const copy = {
     ru:{foundersTitle:'Основатели служения',foundersNames:'Эдуард и Наталья Хестановы',biography:'История и видение служения',archive2024:'Конференция 2024',archive2025:'Конференция 2025'},
-    en:{foundersTitle:'Ministry founders',foundersNames:'Eduard & Natalia Khestanov',biography:'Our story and vision',archive2024:'Conference 2024',archive2025:'Conference 2025'},
-    de:{foundersTitle:'Gründer des Dienstes',foundersNames:'Eduard & Natalia Khestanov',biography:'Geschichte und Vision',archive2024:'Konferenz 2024',archive2025:'Konferenz 2025'}
+    en:{foundersTitle:'Ministry founders',foundersNames:'Eduard & Natalia Khestanov',biography:'Our story and vision',archive2024:'Conference 2024',archive2025:'Conference 2025'}
   };
   Object.assign(copy.ru, {storyTitle:'Истории Божьих перемен',storyDescription:'Реальные свидетельства людей о том, как Бог действует в их жизни.',teachingDescription:'Проповеди, духовное наставничество и записи обучения.',gatheringsTitle:'Моменты наших встреч',gatheringsDescription:'Конференции, школы и события международного служения.'});
   Object.assign(copy.en, {storyTitle:'Stories of God’s transforming work',storyDescription:'Real testimonies of how God works in people’s lives.',teachingDescription:'Sermons, spiritual mentorship, and recorded teaching.',gatheringsTitle:'Moments from our gatherings',gatheringsDescription:'Conferences, schools, and events of our international ministry.'});
-  Object.assign(copy.de, {storyTitle:'Geschichten von Gottes Wirken',storyDescription:'Echte Zeugnisse darüber, wie Gott im Leben von Menschen wirkt.',teachingDescription:'Predigten, geistliche Begleitung und Lehraufzeichnungen.',gatheringsTitle:'Momente unserer Begegnungen',gatheringsDescription:'Konferenzen, Schulen und Veranstaltungen unseres internationalen Dienstes.'});
+
   const translate = () => {
     const t = copy[document.documentElement.lang] || copy.ru;
     document.querySelectorAll('[data-editorial]').forEach(node => { node.textContent = t[node.dataset.editorial]; });
     document.querySelectorAll('#founders .founders-cutout').forEach(node => { node.alt = t.foundersNames; });
     const labels = {
       ru:['Корона служения Mysterion','Основная навигация','Мобильная навигация','Основные ценности'],
-      en:['Mysterion ministry crown','Main navigation','Mobile navigation','Core values'],
-      de:['Krone des Dienstes Mysterion','Hauptnavigation','Mobile Navigation','Grundwerte']
+      en:['Mysterion ministry crown','Main navigation','Mobile navigation','Core values']
     }[document.documentElement.lang] || ['Корона служения Mysterion','Основная навигация','Мобильная навигация','Основные ценности'];
     document.querySelector('.heavenly-emblem img')?.setAttribute('alt',labels[0]);
     document.querySelector('.desktop-nav')?.setAttribute('aria-label',labels[1]);

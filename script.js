@@ -260,146 +260,18 @@ const translations = {
     "socialText": "Official Telegram and social media links will be added here.",
     "footerDescription": "A place to know God, grow spiritually, and discover your calling.",
     "footerRights": "All rights reserved"
-  },
-  "de": {
-    "skip": "Zum Inhalt springen",
-    "brandSubtitle": "INTERNATIONALER DIENST",
-    "navAbout": "Über uns",
-    "navFounders": "Gründer",
-    "navMinistry": "Unser Dienst",
-    "navEvents": "Veranstaltungen",
-    "navSchool": "Online-Schule",
-    "navMedia": "Medien",
-    "navSermons": "Predigten",
-    "navPhotos": "Fotos",
-    "navContacts": "Kontakt",
-    "headerCta": "Kontakt",
-    "libEyebrow": "WORT · GLAUBE · TIEFE",
-    "libHead": "Predigten",
-    "libHeadEm": "und Lehren.",
-    "libIntro": "Botschaften und Aufzeichnungen der Mysterion-Schulen und internationalen Konferenzen. Hier entsteht unsere Videothek.",
-    "backMedia": "Zur Startseite",
-    "libCollection": "VIDEOTHEK",
-    "catAll": "Alle",
-    "catSermon": "Predigten",
-    "catConference": "Konferenzen",
-    "catSchool": "Schulen",
-    "catTestimony": "Zeugnisse",
-    "searchLabel": "Suche",
-    "playlistTitle": "Videos aus unserer Playlist",
-    "galleryEyebrow": "MOMENTE UNSERER BEGEGNUNGEN",
-    "galleryHead": "Fotos",
-    "galleryHeadEm": "von Mysterion.",
-    "galleryIntro": "Momente des Lobpreises, der Gemeinschaft, des Gebets und internationaler Begegnungen. Bald gibt es hier Fotos unserer Veranstaltungen.",
-    "galleryCollection": "FOTOGALERIE",
-    "mediaMore": "Alle ansehen ↗",
-    "heroEyebrow": "INTERNATIONALER CHRISTLICHER DIENST",
-    "heroHead1": "Ein Ort,",
-    "heroHead2": "an dem Glaube",
-    "heroHead3": "zum Leben wird.",
-    "heroLead": "Wir verbinden Menschen aus verschiedenen Ländern, um Gott tiefer kennenzulernen, im Glauben zu wachsen und unsere Berufung zu entdecken.",
-    "heroPrimary": "Über unseren Dienst",
-    "heroSecondary": "Schulen und Konferenzen",
-    "heroFoot": "GLAUBE • EINHEIT • BERUFUNG",
-    "aboutLabel": "ÜBER UNSEREN DIENST",
-    "aboutEyebrow": "WER WIR SIND",
-    "aboutHead1": "Mehr als",
-    "aboutHead2": "eine Begegnung.",
-    "aboutIntro": "Mysterion ist ein internationaler christlicher Dienst, der Menschen verbindet, die sich nach einer tieferen Beziehung zu Gott und geistlichem Wachstum sehnen.",
-    "aboutText": "Wir glauben, dass Glaube nicht nur unser Wissen, sondern auch unseren Alltag verändert: unser Denken, unsere Beziehungen, unsere Entscheidungen und unseren Umgang mit anderen. Durch Schulen, Konferenzen, Gebet und Gemeinschaft schaffen wir Raum, in dem Menschen im Glauben wachsen, ihre Gaben entdecken und mit anderen teilen können.",
-    "aboutLink": "Unseren Dienst entdecken",
-    "pillar1": "Gott kennenlernen",
-    "pillar1Text": "Sein Herz und seinen Charakter tiefer entdecken",
-    "pillar2": "Geistliches Wachstum",
-    "pillar2Text": "Im Glauben wachsen und das Denken erneuern",
-    "pillar3": "Einheit und Dienst",
-    "pillar3Text": "Gutes tun, unterstützen und aufbauen",
-    "foundersLabel": "MENSCHEN UND VISION",
-    "foundersPhoto": "Foto der Gründer",
-    "foundersEyebrow": "GRÜNDER DES DIENSTES",
-    "foundersHead1": "Eduard und",
-    "foundersHead2": "Natalia Khestanov",
-    "foundersIntro": "Gründer des internationalen christlichen Dienstes Mysterion, Pastoren, geistliche Mentoren und Lehrer.",
-    "foundersP1": "Seit 2008 dienen Eduard und Natalia als Pastoren in der Region Moskau. Sie widmen sich der geistlichen Begleitung, Lehre und Unterstützung von Menschen. Über die Jahre haben sie Einzelpersonen und Familien geholfen, Gott tiefer kennenzulernen, im Glauben zu wachsen und ihre Berufung zu entdecken.",
-    "foundersP2": "Ihr Dienst umfasst geistliche Schulen, Bildungsprogramme, Gebetstreffen und internationale Konferenzen. Sie nehmen auch an Missionsreisen teil, unter anderem nach Afrika, und pflegen Beziehungen zu Gemeinden und Dienern aus verschiedenen Ländern.",
-    "foundersP3": "Ihre Vision ist es, Menschen zu sehen, die in Christus verwurzelt sind, in ihrer Identität gefestigt werden und ihre Gaben entfalten, um ihre Umgebung positiv zu verändern.",
-    "ministryLabel": "DIENSTBEREICHE",
-    "ministryEyebrow": "WAS WIR TUN",
-    "ministryHead1": "Verschiedene Wege.",
-    "ministryHead2": "Eine Berufung.",
-    "ministryIntro": "Wir schaffen Möglichkeiten für geistliches Wachstum, Gemeinschaft und praktischen Dienst – von persönlicher Begleitung bis zu internationalen Begegnungen.",
-    "card1Title": "Geistliche Begleitung",
-    "card1Text": "Wir helfen Menschen, ihre Beziehung zu Gott zu stärken, Veränderungen zu meistern und ihre Berufung zu entdecken.",
-    "card2Title": "Schulen und Lehre",
-    "card2Text": "Programme über die Erkenntnis Gottes, geistliches Wachstum, Erneuerung des Denkens und gelebten Glauben.",
-    "card3Title": "Internationale Konferenzen",
-    "card3Text": "Wir bringen Diener und Teilnehmer aus verschiedenen Ländern zu Lehre, Gebet, Lobpreis und Gemeinschaft zusammen.",
-    "card4Title": "Gebet und Lobpreis",
-    "card4Text": "Wir schaffen Raum für gemeinsames Gebet, Lobpreis und Ermutigung im Glauben.",
-    "card5Title": "Mission und Partnerschaft",
-    "card5Text": "Wir bauen internationale Beziehungen zu Gemeinden und Dienern auf und beteiligen uns an missionarischen Initiativen.",
-    "card6Title": "Gemeinschaft und Einheit",
-    "card6Text": "Wir verbinden Menschen unterschiedlicher Generationen, Kulturen und Gemeinden, um einander zu unterstützen und gemeinsam zu dienen.",
-    "visionQuote": "Wir glauben an eine Generation von Menschen, die Gott tief kennen, aus ihrer Identität in Christus leben und mutig seiner Berufung folgen.",
-    "visionCredit": "DIE VISION DES DIENSTES MYSTERION",
-    "eventsLabel": "SCHULEN UND KONFERENZEN",
-    "eventsEyebrow": "UNSERE BEGEGNUNGEN",
-    "eventsHead1": "Zeit für",
-    "eventsHead2": "neue Tiefe.",
-    "eventsIntro": "Lernen, echte Gemeinschaft, Gebet und Lobpreis gehören zum Herzen der internationalen Mysterion-Gemeinschaft.",
-    "schoolType": "AUSBILDUNG",
-    "schoolTitle": "Internationale Schule Mysterion",
-    "schoolText": "Ein Programm für Menschen, die Gott tiefer kennenlernen, im Glauben wachsen, ihr Denken erneuern und geistliche Gaben entwickeln möchten. Informationen zum nächsten Kurs gibt unser Team.",
-    "schoolButton": "Mehr über die Schule",
-    "conferenceType": "INTERNATIONALE BEGEGNUNGEN",
-    "conferenceTitle": "Mysterion-Konferenzen",
-    "conferenceText": "Begegnungen mit internationalen Sprechern und Dienern. Im Oktober 2026 fand eine Konferenz in Alanya, Türkei, statt. Achten Sie auf Ankündigungen kommender Veranstaltungen.",
-    "conferenceButton": "Organisatoren kontaktieren",
-    "mediaLabel": "MEDIEN UND GESCHICHTEN",
-    "mediaEyebrow": "WIR TEILEN, WAS WICHTIG IST",
-    "mediaHead1": "Geschichten,",
-    "mediaHead2": "die inspirieren.",
-    "mediaIntro": "Zeugnisse, Predigtaufnahmen, Fotos und Materialien unserer Treffen helfen uns, als Gemeinschaft verbunden zu bleiben.",
-    "media1Cat": "ZEUGNISSE",
-    "media1Title": "Geschichten darüber, wie Gott Leben verändert",
-    "media1Desc": "Echte Geschichten von Teilnehmern unseres Dienstes.",
-    "media2Cat": "PREDIGTEN UND LEHRE",
-    "media2Title": "Worte, die den Glauben stärken",
-    "media2Desc": "Lehren und Aufzeichnungen aus Schulen und Konferenzen.",
-    "media3Cat": "VERANSTALTUNGEN",
-    "media3Title": "Momente unserer gemeinsamen Begegnungen",
-    "media3Desc": "Fotos, Videos und Erinnerungen.",
-    "mediaNote": "Dieser Bereich ist für echte Materialien vorbereitet. Wir ergänzen sie in Abstimmung mit dem Team.",
-    "faqLabel": "FRAGEN UND ANTWORTEN",
-    "faqHead1": "Häufige",
-    "faqHead2": "Fragen.",
-    "faq1Q": "Wer kann an den Veranstaltungen teilnehmen?",
-    "faq1A": "Wir freuen uns über Menschen aus verschiedenen Ländern und christlichen Gemeinden. Die Teilnahmebedingungen können je nach Schule oder Konferenz unterschiedlich sein – bitte fragen Sie unser Team.",
-    "faq2Q": "Wie erfahre ich von der nächsten Schule oder Konferenz?",
-    "faq2A": "Schreiben Sie uns eine E-Mail. Unser Team informiert Sie über aktuelle Programme und Teilnahmebedingungen.",
-    "faq3Q": "Können wir über eine Zusammenarbeit sprechen?",
-    "faq3A": "Ja. Wir freuen uns über den Austausch mit Gemeinden, Dienern und Initiativen, die unsere Werte des geistlichen Wachstums, der Einheit und des Dienstes teilen.",
-    "contactLabel": "BLEIBEN WIR IN KONTAKT",
-    "contactEyebrow": "IHR NÄCHSTER SCHRITT",
-    "contactHead1": "Lernen wir",
-    "contactHead2": "uns kennen.",
-    "contactText": "Möchten Sie mehr über unsere Schulen und Konferenzen erfahren, ein Zeugnis teilen oder über Zusammenarbeit sprechen? Wir freuen uns auf Ihre Nachricht.",
-    "contactButton": "Nachricht senden",
-    "emailLabel": "E-MAIL",
-    "phoneLabel": "TELEFON",
-    "socialLabel": "SOZIALE MEDIEN",
-    "socialText": "Hier finden Sie unsere offiziellen Links zu Telegram und sozialen Medien.",
-    "footerDescription": "Ein Ort, um Gott kennenzulernen, geistlich zu wachsen und die eigene Berufung zu entdecken.",
-    "footerRights": "Alle Rechte vorbehalten"
-}
+  }
 };
 
+Object.assign(translations.ru,{authProtected:'Управление и вход защищены',authUnavailable:'Сервис временно недоступен. Проверьте серверную настройку медиатеки по коду причины ниже.',authAuthentication:'Сессия не подтверждена. Войдите через Cloudflare Access снова.',authForbidden:'Вход подтверждён, но разрешённой активной роли для этой страницы нет.',authWrongOrigin:'Этот адрес не совпадает с разрешённым адресом медиатеки.',authReturn:'Вернуться в медиатеку'});
+Object.assign(translations.en,{authProtected:'Management and sign-in are protected',authUnavailable:'The service is unavailable. Check the media server configuration using the reason code below.',authAuthentication:'Your session could not be verified. Sign in through Cloudflare Access again.',authForbidden:'Sign-in was verified, but this account has no active role permitted for this page.',authWrongOrigin:'This address does not match the permitted media origin.',authReturn:'Return to the library'});
+
 let currentLanguage = "ru";
-const languageNames = {ru: "Русский", en: "English", de: "Deutsch"};
-const languageCodes = {ru: "RU", en: "EN", de: "DE"};
+const languageNames = {ru: "Русский", en: "English"};
+const languageCodes = {ru: "RU", en: "EN"};
 // Upgrade the language control on older pages without requiring edits to their HTML.
 if (!document.getElementById("language-menu") && document.querySelector(".lang-toggle")) {
-  document.querySelector(".lang-toggle").outerHTML = `<div class="language-picker"><button class="lang-toggle" type="button" aria-label="Choose language" aria-haspopup="listbox" aria-controls="language-menu" aria-expanded="false"><span aria-hidden="true">🌐</span><span class="lang-strong">RU</span><span class="language-chevron" aria-hidden="true">⌄</span></button><div class="language-menu" id="language-menu" role="listbox" aria-label="Choose language" hidden><button type="button" role="option" data-lang="ru">🇷🇺 Русский <span>RU</span></button><button type="button" role="option" data-lang="en">🇬🇧 English <span>EN</span></button><button type="button" role="option" data-lang="de">🇩🇪 Deutsch <span>DE</span></button></div></div>`;
+  document.querySelector(".lang-toggle").outerHTML = `<div class="language-picker"><button class="lang-toggle" type="button" aria-label="Choose language" aria-haspopup="listbox" aria-controls="language-menu" aria-expanded="false"><span aria-hidden="true"></span><span class="lang-strong">RU</span><span class="language-chevron" aria-hidden="true">⌄</span></button><div class="language-menu" id="language-menu" role="listbox" aria-label="Choose language" hidden><button type="button" role="option" data-lang="ru">Русский <span>RU</span></button><button type="button" role="option" data-lang="en">English <span>EN</span></button></div></div>`;
 }
 const languageButton = document.querySelector(".lang-toggle");
 const languageMenu = document.getElementById("language-menu");
@@ -409,7 +281,7 @@ function closeLanguageMenu() {
   languageButton.setAttribute("aria-expanded", "false");
 }
 function setLanguage(lang) {
-  if (!translations[lang]) return;
+  lang = ['ru','en'].includes(lang) ? lang : 'ru';
   currentLanguage = lang;
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-i18n]").forEach(element => {
@@ -423,11 +295,10 @@ function setLanguage(lang) {
     option.setAttribute("aria-selected", String(active));
     option.classList.toggle("is-selected", active);
   });
-  document.title = lang === "ru" ? "Мистерион — международное христианское служение" : lang === "de" ? "Mysterion — Internationaler christlicher Dienst" : "Mysterion — International Christian Ministry";
+  document.title = lang === "ru" ? "Мистерион — международное христианское служение" : "Mysterion — International Christian Ministry";
   const descriptions = {
     ru: "Мистерион — международное христианское служение. Школы, конференции и духовное наставничество.",
-    en: "Mysterion International Christian Ministry. Schools, conferences, prayer, and spiritual mentorship.",
-    de: "Mysterion ist ein internationaler christlicher Dienst mit Schulen, Konferenzen, Gebet und geistlicher Begleitung."
+    en: "Mysterion International Christian Ministry. Schools, conferences, prayer, and spiritual mentorship."
   };
   const description = document.querySelector('meta[name="description"]');
   if (description) description.setAttribute("content", descriptions[lang]);

@@ -33,7 +33,7 @@ try{const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.mess
  for(const file of ['admin-media.html','media-login.html'])for(const width of [375,390,430,1440]){
   await page.setViewport({width,height:900,isMobile:width<500,deviceScaleFactor:1});await page.goto(origin+'/'+file,{waitUntil:'networkidle0'});
   await page.waitForSelector(file.startsWith('admin')?'.media-members .member-form':'#viewer-account .member-material');
-  for(const l of ['ru','en','de']){await page.evaluate(l=>window.setLanguage(l),l);await new Promise(r=>setTimeout(r,100));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.equal(await page.$eval('html',n=>n.lang),l);checks++}
+  for(const l of ['ru','en']){await page.evaluate(l=>window.setLanguage(l),l);await new Promise(r=>setTimeout(r,100));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.equal(await page.$eval('html',n=>n.lang),l);checks++}
   if([390,1440].includes(width))await page.screenshot({path:path.join(out,file+'-'+width+'.png'),fullPage:true});
   metrics.push({file,width,...await page.evaluate(()=>({longTasks:window.memberLongTasks.length,longestTaskMs:Math.max(0,...window.memberLongTasks),heapBytes:performance.memory?.usedJSHeapSize??null,domElements:document.querySelectorAll('*').length}))});
  }
@@ -43,7 +43,7 @@ try{const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.mess
  await page.waitForFunction(()=>document.querySelectorAll('.media-members .member-material').length===2);assert.ok(calls.some(([m,p])=>m==='POST'&&p.endsWith('/grants')));checks++;
  page.on('dialog',d=>d.accept());await page.evaluate(()=>{const blocks=document.querySelectorAll('.media-members .member-material');blocks[1].querySelector('button').click()});await page.waitForFunction(()=>document.querySelectorAll('.media-members .member-material').length===1);checks++;
  await page.click('.media-members > button');
- await page.evaluate(()=>{const form=document.querySelector('#collection-editor form');for(const locale of ['ru','en','de'])for(const key of ['title','description'])form.elements[key+'_'+locale].value='LOCAL COLLECTION';form.querySelector('[type=checkbox]').checked=true;form.requestSubmit()});
+ await page.evaluate(()=>{const form=document.querySelector('#collection-editor form');for(const locale of ['ru','en'])for(const key of ['title','description'])form.elements[key+'_'+locale].value='LOCAL COLLECTION';form.querySelector('[type=checkbox]').checked=true;form.requestSubmit()});
  await page.waitForFunction(()=>[...document.querySelectorAll('.media-members > button')].some(b=>b.textContent==='LOCAL COLLECTION'));assert.ok(calls.some(([m,p])=>m==='POST'&&p.endsWith('/collections')));checks++;
  registered=false;await page.goto(origin+'/media-login.html',{waitUntil:'networkidle0'});assert.equal(await page.$eval('#viewer-account code',n=>n.textContent),'LOCAL_VERIFIED_SUB');checks++;
  assert.deepEqual(errors,[]);await fs.writeFile(path.join(out,'results.json'),JSON.stringify({checks,errors,metrics,browser:'Chrome',widths:[375,390,430,1440],mode:'Local UI fixtures, not production authentication'},null,2));console.log(JSON.stringify({checks,errors,metrics,screenshots:out}));

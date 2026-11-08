@@ -1,13 +1,13 @@
-import {HttpError, verifyRequestAccess} from './auth.mjs';
+import {HttpError, verifySiteIdentity} from './auth.mjs';
 const deny=(status,code)=>{throw new HttpError(status,code)};
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const now=()=>new Date().toISOString();
 export async function viewerIdentity(request,env) {
- if(!env.MEDIA_VIEWER_ACCESS_AUD || env.MEDIA_VIEWER_ACCESS_AUD===env.MEDIA_ACCESS_AUD)deny(503,'viewer_identity_not_configured');
- return verifyRequestAccess(request,{...env,MEDIA_ACCESS_AUD:env.MEDIA_VIEWER_ACCESS_AUD});
+ return verifySiteIdentity(request,env);
 }
 function text(value,max=500){if(typeof value!=='string'||!value.trim()||value.length>max)deny(400,'invalid_fields');return value.trim()}
-function translations(value,max){if(!value||Array.isArray(value)||Object.keys(value).some(k=>!['ru','en','de'].includes(k)))deny(400,'invalid_translation');return JSON.stringify(Object.fromEntries(['ru','en','de'].map(k=>[k,text(value[k],max)])))}
+function translations(value,max,previous){if(!value||Array.isArray(value)||Object.keys(value).some(k=>!['ru','en','de'].includes(k)))deny(400,'invalid_translation');const result=Object.fromEntries(['ru','en'].map(k=>[k,text(value[k],max)]));const old=previous?JSON.parse(previous):value;if(typeof old.de==='string')result.de=old.de;return JSON.stringify(result)}
+const visible=value=>{const p=JSON.parse(value);return {ru:p.ru||'',en:p.en||''}};
 const id=value=>{if(!uuid.test(value||''))deny(400,'invalid_id');return value};
 const rows=async stmt=>(await stmt.all()).results;
 async function auditBatch(env,user,action,target,detail,statements){
@@ -24,6 +24,7 @@ export async function memberRoute(request,env,path,method,user,readBody) {
   if(!account)return {identity:claims.sub,registered:false,items:[]};
   if(!account.active)deny(403,'account_disabled');
   const items=await rows(db.prepare(`SELECT v.id,v.title,v.description,v.category,v.year,v.access,
+   CASE WHEN p.id IS NOT NULL THEN 'purchase' ELSE 'manual' END AS access_kind,
    CASE WHEN p.id IS NOT NULL AND e.expires_at IS NULL THEN NULL
     WHEN g.id IS NULL THEN e.expires_at WHEN p.id IS NULL THEN g.expires_at
     WHEN julianday(g.expires_at)>julianday(e.expires_at) THEN g.expires_at ELSE e.expires_at END AS expires_at
@@ -33,7 +34,7 @@ export async function memberRoute(request,env,path,method,user,readBody) {
    LEFT JOIN purchases p ON p.id=e.purchase_id AND p.user_id=e.user_id AND p.video_id=e.video_id AND p.status='paid'
    WHERE v.state='published' AND v.publish_at<=? AND (g.id IS NOT NULL OR p.id IS NOT NULL)
    ORDER BY v.publish_at DESC LIMIT 200`).bind(account.id,now(),account.id,now(),now()));
-  return {registered:true,items:items.map(r=>({...r,title:JSON.parse(r.title),description:JSON.parse(r.description)}))};
+  return {registered:true,items:items.map(r=>({...r,title:visible(r.title),description:visible(r.description)}))};
  }
  if(!user||user.role!=='admin')deny(403,'admin_required');
  if(path==='admin/members' && method==='GET')return {users:await rows(db.prepare('SELECT id,access_sub,role,active FROM users ORDER BY id LIMIT 500')),grants:await rows(db.prepare('SELECT * FROM manual_grants ORDER BY created_at DESC LIMIT 500'))};
@@ -62,13 +63,14 @@ export async function memberRoute(request,env,path,method,user,readBody) {
   if(!await db.prepare('SELECT id FROM manual_grants WHERE id=?').bind(id(grant[1])).first())deny(404,'not_found');
   await auditBatch(env,user,'manual_revoke',grant[1],{},[db.prepare('UPDATE manual_grants SET revoked_at=? WHERE id=?').bind(now(),grant[1])]);return {ok:true};
  }
- if(path==='admin/collections' && method==='GET')return {items:(await rows(db.prepare('SELECT * FROM collections ORDER BY created_at DESC LIMIT 200'))).map(r=>({...r,title:JSON.parse(r.title),description:JSON.parse(r.description)}))};
+ if(path==='admin/collections' && method==='GET')return {items:(await rows(db.prepare('SELECT * FROM collections ORDER BY created_at DESC LIMIT 200'))).map(r=>({...r,title:visible(r.title),description:visible(r.description)}))};
  const collection=path.match(/^admin\/collections\/([a-f0-9-]{36})$/);
  if(path==='admin/collections' && method==='POST'||collection && method==='PUT'){
   const input=await inputBody(),cid=collection?id(collection[1]):crypto.randomUUID();
   if(Object.keys(input).some(k=>!['title','description','state','videos'].includes(k))||!['draft','published'].includes(input.state)||!Array.isArray(input.videos)||input.videos.length>20||new Set(input.videos).size!==input.videos.length)deny(400,'invalid_fields');
-  const title=translations(input.title,180),description=translations(input.description,4000);
-  if(collection&&!await db.prepare('SELECT id FROM collections WHERE id=?').bind(cid).first())deny(404,'not_found');
+  const old=collection?await db.prepare('SELECT * FROM collections WHERE id=?').bind(cid).first():null;
+  const title=translations(input.title,180,old?.title),description=translations(input.description,4000,old?.description);
+  if(collection&&!old)deny(404,'not_found');
   for(const vid of input.videos)if(!await db.prepare("SELECT id FROM videos WHERE id=? AND state!='deleted'").bind(id(vid)).first())deny(404,'not_found');
   const statements=[db.prepare('INSERT INTO collections VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,state=excluded.state').bind(cid,title,description,input.state,now()),db.prepare('DELETE FROM collection_videos WHERE collection_id=?').bind(cid),...input.videos.map((vid,i)=>db.prepare('INSERT INTO collection_videos VALUES (?,?,?)').bind(cid,vid,i))];
   await auditBatch(env,user,'collection_save',cid,{videos:input.videos},statements);return {id:cid};

@@ -2,7 +2,7 @@
  'use strict';
  const $=id=>document.getElementById(id),t=window.mediaText,form=$('media-editor'),status=$('admin-status');
  let current=null,role,rows=[],capabilities={},upload=null,poll=null,busy=false,autoPublish=false,generation=0,savedCover=null,publishing=false;
- async function api(path,options={}){const response=await fetch('/api/media/admin/'+path,{credentials:'same-origin',redirect:'error',...options});const data=await response.json();if(!response.ok)throw Error(data.error);return data}
+ async function api(path,options={}){const response=await (window.mysterionAuthenticatedFetch||fetch)('/api/media/admin/'+path,{credentials:'same-origin',redirect:'error',...options});const data=await response.json();if(!response.ok)throw Error(data.error);return data}
  const post=(path,data)=>api(path,{method:'POST',...(data?{headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{})});
  const operation=action=>post(`videos/${current.id}/bunny/${action}`);
  function controls(){
@@ -34,13 +34,13 @@
  async function refresh(){rows=(await api('videos')).items;render()}
  async function refreshCurrent(id){await refresh();if(current?.id!==id)throw Error('selection_changed');const row=rows.find(r=>r.id===id);if(!row)throw Error('not_found');current=row;form.elements.source_ref.value=row.source_ref;form.elements.state.value=row.state;controls()}
  function edit(row=null){if(busy)return;generation++;clearTimeout(poll);upload?.pause();upload=null;autoPublish=false;current=row;savedCover=null;form.reset();$('bunny-progress').value=0;
-  for(const lang of ['ru','en','de'])for(const key of ['title','description'])form.elements[key+'_'+lang].value=row?.[key]?.[lang]||'';
+  for(const lang of ['ru','en'])for(const key of ['title','description'])form.elements[key+'_'+lang].value=row?.[key]?.[lang]||'';
   const defaults={year:new Date().getFullYear(),price_minor:0,category:'sermon',source_type:'bunny',access:'free',currency:'EUR',state:'draft'};
   for(const key of ['category','year','source_type','source_ref','access','price_minor','currency','state'])form.elements[key].value=row?.[key]??defaults[key]??'';
   const date=new Date(row?.publish_at||Date.now());form.elements.publish_at.value=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);
   $('admin-delete').hidden=!row||role!=='admin'||row.state==='deleted';form.hidden=false;status.textContent='';controls();providerStatus();
  }
- function data(state){const out={title:{},description:{}};for(const lang of ['ru','en','de'])for(const key of ['title','description'])out[key][lang]=form.elements[key+'_'+lang].value;
+ function data(state){const out={title:{},description:{}};for(const lang of ['ru','en'])for(const key of ['title','description'])out[key][lang]=form.elements[key+'_'+lang].value;
   for(const key of ['category','source_type','source_ref','access','currency'])out[key]=form.elements[key].value;
   out.state=state;out.year=Number(form.elements.year.value);out.price_minor=Number(form.elements.price_minor.value);out.publish_at=new Date(form.elements.publish_at.value).toISOString();if(current)out.revision=current.revision;return out;
  }
@@ -97,5 +97,10 @@
  window.addEventListener('pagehide',()=>{generation++;autoPublish=false;upload?.pause();clearTimeout(poll)});
  window.addEventListener('beforeunload',event=>{if(busy){event.preventDefault();event.returnValue=''}});
  window.addEventListener('mysterion:language',()=>{render();if(!role)status.textContent=t('locked');else controls();providerStatus()});
- (async()=>{try{capabilities=await api('me');role=capabilities.role;await refresh();$('admin-controls').hidden=false;status.removeAttribute('data-media');status.textContent=''}catch{status.textContent=t('locked');$('admin-controls').hidden=true;form.hidden=true}})();
+ async function initialize(){try{capabilities=await api('me');role=capabilities.role;await refresh();$('admin-controls').hidden=false;status.removeAttribute('data-media');status.textContent=''}catch{status.textContent=t('locked');$('admin-controls').hidden=true;form.hidden=true}}
+ initialize();
+ let suspended=false;
+ window.addEventListener('mysterion:session-expired',()=>{suspended=true;generation++;autoPublish=false;upload?.pause();clearTimeout(poll);busy=false;role=null;$('admin-controls').hidden=true;status.textContent=t('sessionExpired')});
+ window.addEventListener('mysterion:session',event=>{if(event.detail.authenticated&&suspended){suspended=false;initialize()}});
+
 })();

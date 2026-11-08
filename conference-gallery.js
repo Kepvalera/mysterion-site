@@ -2,8 +2,7 @@
 (() => {
   const copy = {
     ru: {conference:'Конференция', photos:'Фотографии', collection:'ФОТОАРХИВ', name2024:'«Мистерион».', name2025:'«Величие Царя в славе и изобилии».', lead:year => `Фотографии конференции ${year} года. Нажмите на фотографию, чтобы открыть её в увеличенном виде.`, photo:'Фотография конференции', open:'Увеличить фотографию', close:'Закрыть', viewer:'Просмотр фотографии'},
-    en: {conference:'Conference', photos:'Photos', collection:'PHOTO ARCHIVE', name2024:'Mysterion.', name2025:'“The Majesty of the King in Glory and Abundance”.', lead:year => `Photos from the ${year} conference. Select a photo to view it in full size.`, photo:'Conference photo', open:'Enlarge photo', close:'Close', viewer:'Photo viewer'},
-    de: {conference:'Konferenz', photos:'Fotos', collection:'FOTOARCHIV', name2024:'Mysterion.', name2025:'„Die Majestät des Königs in Herrlichkeit und Fülle“.', lead:year => `Fotos der Konferenz ${year}. Wählen Sie ein Foto aus, um es zu vergrößern.`, photo:'Konferenzfoto', open:'Foto vergrößern', close:'Schließen', viewer:'Fotoansicht'}
+    en: {conference:'Conference', photos:'Photos', collection:'PHOTO ARCHIVE', name2024:'Mysterion.', name2025:'“The Majesty of the King in Glory and Abundance”.', lead:year => `Photos from the ${year} conference. Select a photo to view it in full size.`, photo:'Conference photo', open:'Enlarge photo', close:'Close', viewer:'Photo viewer'}
   };
   const year = document.body.dataset.conferenceYear;
   const grid = document.getElementById('archive-grid');

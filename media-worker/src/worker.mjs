@@ -1,4 +1,4 @@
-import {HttpError,administrator,entitledViewer} from './auth.mjs';
+import {HttpError,administrator,entitledViewer,siteSession} from './auth.mjs';
 import * as bunny from './bunny.mjs';
 import {requireMediaOrigin} from './origin.mjs';
 import {memberRoute} from './members.mjs';
@@ -10,7 +10,8 @@ function ready(env) {
 }
 function localized(value,max,required=false) {
  if(!value || typeof value!=='object' || Array.isArray(value) || Object.keys(value).some(k=>!['ru','en','de'].includes(k))) fail(400,'invalid_translation');
- const result={}; for(const lang of ['ru','en','de']) { const text=value[lang]??''; if(typeof text!=='string' || text.length>max || (required && !text.trim())) fail(400,'invalid_translation'); result[lang]=text.trim(); } return JSON.stringify(result);
+ const result={}; for(const lang of ['ru','en']) { const text=value[lang]??''; if(typeof text!=='string' || text.length>max || (required && !text.trim())) fail(400,'invalid_translation'); result[lang]=text.trim(); }
+ if(value.de!==undefined){if(typeof value.de!=='string'||value.de.length>max)fail(400,'invalid_translation');result.de=value.de}return JSON.stringify(result);
 }
 export function validate(data,env={}) {
  const allowed=['title','description','category','year','source_type','source_ref','access','price_minor','currency','state','publish_at','revision'];
@@ -27,7 +28,8 @@ export function validate(data,env={}) {
  const date=new Date(data.publish_at); if(!Number.isFinite(date.getTime())) fail(400,'invalid_date');
  return {...data,title,description,publish_at:date.toISOString()};
 }
-const decodeRow=row=>({...row,title:JSON.parse(row.title),description:JSON.parse(row.description)});
+const visible=value=>{const parsed=JSON.parse(value);return {ru:parsed.ru||'',en:parsed.en||''}};
+const decodeRow=row=>({...row,title:visible(row.title),description:visible(row.description)});
 const publicColumns="id,title,description,category,year,access,price_minor,currency,publish_at,(cover_key IS NOT NULL OR (source_type='bunny' AND bunny_thumbnail IS NOT NULL)) AS has_cover";
 const noLease=" AND NOT EXISTS (SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>unixepoch())";
 function sameOrigin(request,env){if(request.headers.get('Origin')!==env.MEDIA_PUBLIC_ORIGIN || request.headers.get('Sec-Fetch-Site')==='cross-site')fail(403,'invalid_origin')}
@@ -49,6 +51,7 @@ export async function handle(request,env) {
   requireMediaOrigin(request,env);
   const url=new URL(request.url), path=url.pathname.replace(/^\/api\/media\/?/,'').replace(/\/$/,''), method=request.method;
   if(!url.pathname.startsWith('/api/media')) fail(404,'not_found');
+  if(path==='session'&&method==='GET')return json(await siteSession(request,env));
   if(path==='view/account')return json(await memberRoute(request,env,path,method,null,body));
   if(path==='collections' && method==='GET'){
    if(env.MEDIA_MEMBERS_ENABLED!=='true')return json({items:[]});
@@ -175,6 +178,7 @@ export async function handle(request,env) {
    const input=validate(await body(request),env),id=edit?edit[1]:crypto.randomUUID(),now=new Date().toISOString(),mutation=crypto.randomUUID();
    const existing=edit?await env.MEDIA_DB.prepare("SELECT * FROM videos WHERE id=? AND state!='deleted'").bind(id).first():null;
    if(edit && !existing)fail(404,'not_found');
+   if(existing)for(const key of ['title','description']){const old=JSON.parse(existing[key]);if(typeof old.de==='string')input[key]=JSON.stringify({...JSON.parse(input[key]),de:old.de})}
    if(existing?.source_type==='bunny' && (input.source_type!=='bunny'||input.source_ref!==existing.source_ref))fail(409,'bunny_source_immutable');
    if(input.source_type==='bunny' && input.source_ref && (!existing||existing.source_type!=='bunny'||existing.source_ref!==input.source_ref))fail(403,'bunny_video_not_bound');
    if(input.state==='published' && input.source_type==='bunny') {bunny.boundVideo(env,existing);const video=await bunny.bunnyRequest(env,input.source_ref);if(video.status!==4)fail(409,'video_not_ready')}
@@ -218,6 +222,7 @@ export async function handle(request,env) {
   }
   fail(404,'not_found');
  } catch(error) {
+  if(new URL(request.url).pathname==='/api/media/session'&&request.method==='GET'&&(!(error instanceof HttpError)||error.status!==421))return json({authenticated:false,reason:error instanceof HttpError&&error.status===401?'session_expired':'unavailable'});
   const response=json({error:error instanceof HttpError?error.message:'service_unavailable'},error instanceof HttpError?error.status:503);
   if(response.status===401){
    response.headers.set('X-Mysterion-Media-Error',error.message==='authentication_required'?'authentication_required':'invalid_identity');

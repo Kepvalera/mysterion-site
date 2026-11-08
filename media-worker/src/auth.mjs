@@ -12,6 +12,20 @@ export function accessToken(request) {
   return matches.length?matches[0].slice('CF_Authorization='.length):null;
 }
 export const verifyRequestAccess=(request,env)=>verifyAccess(accessToken(request),env);
+export async function verifySiteIdentity(request,env){
+  const audiences=[...new Set([env.MEDIA_ACCESS_AUD,env.MEDIA_VIEWER_ACCESS_AUD].filter(Boolean))];
+  if(!audiences.length)throw new HttpError(503,'viewer_identity_not_configured');
+  let last;
+  for(const audience of audiences){try{return await verifyRequestAccess(request,{...env,MEDIA_ACCESS_AUD:audience})}catch(error){if(!(error instanceof HttpError)||error.status!==401)throw error;last=error}}
+  throw last;
+}
+export async function siteSession(request,env){
+  if(!accessToken(request))return {authenticated:false,reason:'signed_out'};
+  const claims=await verifySiteIdentity(request,env);
+  const user=await env.MEDIA_DB.prepare('SELECT role,active FROM users WHERE access_sub=?').bind(claims.sub).first();
+  if(user&&!user.active)return {authenticated:false,reason:'account_disabled'};
+  return {authenticated:true,role:user?.role||null,canManage:user?.active===1&&user.role==='admin',registered:Boolean(user),expiresAt:claims.exp*1000};
+}
 export async function verifyAccess(token, env) {
   if (!token) throw new HttpError(401,'authentication_required');
   if (token.length > 16000) throw new HttpError(401,'invalid_identity');
@@ -39,8 +53,9 @@ export async function verifyAccess(token, env) {
   } catch { throw new HttpError(401,'invalid_identity'); }
 }
 export async function entitledViewer(request, env, videoId) {
-  if (!env.MEDIA_VIEWER_ACCESS_AUD || env.MEDIA_VIEWER_ACCESS_AUD === env.MEDIA_ACCESS_AUD) throw new HttpError(503, 'viewer_identity_not_configured');
-  const claims = await verifyRequestAccess(request, {...env, MEDIA_ACCESS_AUD: env.MEDIA_VIEWER_ACCESS_AUD});
+  const audience=env.MEDIA_VIEWER_ACCESS_AUD||env.MEDIA_ACCESS_AUD;
+  if(!audience)throw new HttpError(503,'viewer_identity_not_configured');
+  const claims = await verifyRequestAccess(request, {...env, MEDIA_ACCESS_AUD: audience});
   // A role, email, request parameter or localStorage value never grants paid viewing.
   const user = await env.MEDIA_DB.prepare('SELECT id FROM users WHERE access_sub=? AND active=1').bind(claims.sub).first();
   if (!user) throw new HttpError(403, 'viewing_right_required');

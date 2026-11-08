@@ -1,0 +1,54 @@
+// Local integration: real JWT validation, D1-compatible in-memory SQLite and UI.
+// Logout models cookie removal, not Cloudflare's external revocation service.
+import fs from 'node:fs/promises';import path from 'node:path';import http from 'node:http';import os from 'node:os';import {spawn} from 'node:child_process';import {DatabaseSync} from 'node:sqlite';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import {pathToFileURL} from 'node:url';
+import {handle} from '../media-worker/src/worker.mjs';import {protectMediaPage} from '../media-worker/src/page-guard.mjs';import {mediaTemplates} from '../media-worker/src/page-templates.mjs';
+const require=createRequire(import.meta.url),puppeteer=(await import(pathToFileURL(require.resolve('puppeteer-core',{paths:[path.resolve('output/audit-tools/lighthouse')]})))).default;
+const out=path.resolve('output/site-account-check');await fs.mkdir(out,{recursive:true});const sql=new DatabaseSync(':memory:');
+for(const file of ['0001_media.sql','0002_bunny_stream.sql','0003_media_members.sql']){sql.exec('BEGIN');sql.exec(await fs.readFile('media-worker/migrations/'+file,'utf8'));sql.exec('COMMIT')}
+for(const [id,role,active]of [['admin','admin',1],['viewer','viewer',1],['editor','editor',1],['disabled','admin',0]])sql.prepare('INSERT INTO users VALUES (?,?,?,?)').run(id,id+'-subject',role,active);
+const video='00000000-0000-4000-8000-000000000001',title=JSON.stringify({ru:'ЛОКАЛЬНЫЙ УРОК',en:'LOCAL LESSON',de:'LEGACY_GERMAN_MUST_NOT_RENDER'});
+sql.prepare("INSERT INTO videos(id,title,description,category,year,source_type,source_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id) VALUES (?,?,?,'school',2026,'youtube','abcdefghijk','free',0,'EUR','published','2020-01-01','2020-01-01','fixture')").run(video,title,title);
+sql.prepare("INSERT INTO purchases VALUES ('fixture-purchase','viewer',?,'LOCAL_ONLY','paid',100,'EUR')").run(video);
+sql.prepare("INSERT INTO entitlements VALUES ('fixture-grant','viewer',?,'fixture-purchase',?,NULL)").run(video,new Date(Date.now()+86400000).toISOString());
+const prepare=query=>({bind(...args){this.args=args;return this},first(){return sql.prepare(query).get(...(this.args||[]))||null},all(){return {results:sql.prepare(query).all(...(this.args||[]))}},run(){return {meta:{changes:Number(sql.prepare(query).run(...(this.args||[])).changes)}}}});
+const env={MEDIA_ENABLED:'true',MEDIA_MEMBERS_ENABLED:'true',MEDIA_PAID_ENABLED:'false',MEDIA_ACCESS_ISSUER:'https://site-fixture.cloudflareaccess.com',MEDIA_ACCESS_AUD:'unified-fixture-audience',MEDIA_VIEWER_ACCESS_AUD:'unified-fixture-audience',MEDIA_DB:{prepare,batch(statements){sql.exec('BEGIN');try{const r=statements.map(s=>s.run());sql.exec('COMMIT');return r}catch(e){sql.exec('ROLLBACK');throw e}}}};
+const pair=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']),jwk=await crypto.subtle.exportKey('jwk',pair.publicKey);jwk.kid='local-only';
+const nativeFetch=globalThis.fetch;globalThis.fetch=async(address,...args)=>String(address)===env.MEDIA_ACCESS_ISSUER+'/cdn-cgi/access/certs'?Response.json({keys:[jwk]}):nativeFetch(address,...args);
+async function token(role,expires=3600){const encode=v=>Buffer.from(JSON.stringify(v)).toString('base64url');const input=encode({alg:'RS256',kid:jwk.kid})+'.'+encode({iss:env.MEDIA_ACCESS_ISSUER,aud:[env.MEDIA_ACCESS_AUD],sub:role+'-subject',iat:Math.floor(Date.now()/1000),exp:Math.floor(Date.now()/1000)+expires});return input+'.'+Buffer.from(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',pair.privateKey,new TextEncoder().encode(input))).toString('base64url')}
+const root=process.cwd();let origin;
+const server=http.createServer(async(req,res)=>{try{const pathname=new URL(req.url,origin).pathname;let response;
+ if(pathname==='/cdn-cgi/access/logout'){res.writeHead(302,{'Location':'/index.html','Set-Cookie':'CF_Authorization=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax'});res.end();return}
+ const request=new Request(origin+req.url,{headers:req.headers});
+ if(pathname.startsWith('/api/media/'))response=await handle(request,env);
+ else if(/^\/(admin-media|media-login)(\.html)?\/?$/.test(pathname))response=await protectMediaPage({request,env,next:()=>{throw Error('Must use authenticated template')}},mediaTemplates);
+ if(response){res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return}
+ const file=path.resolve(root,'.'+decodeURIComponent(pathname==='/'?'/index.html':pathname));if(!file.startsWith(root+path.sep))throw Error();const bytes=await fs.readFile(file);res.writeHead(200,{'Content-Type':{'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.woff2':'font/woff2','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml'}[path.extname(file)]||'application/octet-stream'});res.end(bytes)
+ }catch{res.writeHead(500);res.end('Local fixture failure')}});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));origin='http://127.0.0.1:'+server.address().port;env.MEDIA_PUBLIC_ORIGIN=origin;
+const profile=await fs.mkdtemp(path.join(os.tmpdir(),'mysterion-account-')),chrome=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless','--no-first-run','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{windowsHide:true,stdio:'ignore'});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));let port;for(let i=0;i<100;i++){try{port=(await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0];break}catch{await sleep(100)}}if(!port)throw Error('Chrome unavailable');
+const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:'+port});const errors=[],checks=[];
+try{const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));
+ async function identity(role,expires){await page.deleteCookie({name:'CF_Authorization',url:origin});if(role)await page.setCookie({name:'CF_Authorization',value:await token(role,expires),url:origin,httpOnly:true,sameSite:'Lax'})}
+ async function state(){return page.evaluate(()=>({entry:document.querySelector('.account-entry')?.textContent,manageHidden:document.querySelector('[data-account=manage]')?.hidden,overflow:document.documentElement.scrollWidth>innerWidth+1,deOptions:document.querySelectorAll('[data-lang=de],[lang=de],[name$="_de"]').length,german:document.body.textContent.includes('Deutsch')||document.body.textContent.includes('LEGACY_GERMAN_MUST_NOT_RENDER')}))}
+ const files=['index.html','online-school.html','photos.html','conference-2024.html','conference-2025.html','sermons.html','media.html'];
+ for(const file of files)for(const width of [320,375,390,430,768,1024,1440]){
+  await page.setViewport({width,height:900,isMobile:width<500,deviceScaleFactor:1});await page.goto(origin+'/'+file,{waitUntil:'networkidle0'});
+  for(const lang of ['ru','en']){await page.evaluate(l=>window.setLanguage(l),lang);const s=await state();assert.equal(s.overflow,false,file+' '+width+' '+lang);assert.equal(s.deOptions,0);assert.equal(s.german,false);assert.equal(s.manageHidden,true);assert.equal(s.entry,lang==='ru'?'Войти':'Sign in');checks.push({file,width,lang,identity:'anonymous'})}
+  if(width<1251){await page.click('.menu-toggle');assert.ok(await page.$eval('#mobile-nav',n=>!n.hidden&&getComputedStyle(n).display!=='none'&&n.getBoundingClientRect().height>0));await page.keyboard.press('Escape');assert.equal(await page.$eval('#mobile-nav',n=>n.hidden),true)}
+ }
+ await page.evaluate(()=>localStorage.setItem('mysterion-language','de'));await page.goto(origin+'/index.html',{waitUntil:'networkidle0'});assert.equal(await page.$eval('html',n=>n.lang),'ru');assert.equal(await page.evaluate(()=>localStorage.getItem('mysterion-language')),'ru');checks.push({legacyLanguage:'de -> ru'});
+ for(const role of ['admin','viewer','editor']){
+  await identity(role);await page.goto(origin+'/index.html',{waitUntil:'networkidle0'});await page.waitForFunction(()=>document.querySelector('.account-menu-toggle').hidden===false);
+  assert.equal((await state()).manageHidden,role!=='admin');await page.click('.account-menu-toggle');assert.equal(await page.$eval('#account-menu',n=>n.hidden),false);
+  await page.click('[data-account=account]');await page.waitForSelector('#viewer-account h2');
+  if(role==='viewer'){await page.waitForSelector('#viewer-account .member-material');const text=await page.$eval('#viewer-account',n=>n.textContent);assert.ok(/LOCAL LESSON|ЛОКАЛЬНЫЙ УРОК/.test(text));assert.ok(!text.includes('LEGACY_GERMAN'));}
+  for(const width of [320,375,390,430,768,1440]){await page.setViewport({width,height:900,isMobile:width<500,deviceScaleFactor:1});for(const lang of ['ru','en']){await page.evaluate(l=>window.setLanguage(l),lang);await sleep(60);const s=await state();assert.equal(s.overflow,false,role+' '+width+' '+lang);assert.equal(s.deOptions,0);assert.equal(s.german,false);checks.push({role,width,lang})}if(role==='viewer'&&[390,1440].includes(width))await page.screenshot({path:path.join(out,'account-'+width+'.png'),fullPage:true})}
+  const response=await page.goto(origin+'/admin-media.html',{waitUntil:'networkidle0'});assert.equal(response.status(),role==='viewer'?403:200);
+  if(role==='admin'){await page.click('#admin-new');assert.equal(await page.$('[name=title_de]'),null);assert.equal(await page.$('[name=description_de]'),null)}
+  await page.click('.account-menu-toggle');await page.click('[data-account=logout]');await page.waitForFunction(()=>document.querySelector('.account-entry').textContent==='Sign in'||document.querySelector('.account-entry').textContent==='Войти');assert.equal((await state()).manageHidden,true);checks.push({logout:role});
+ }
+ await identity('disabled');await page.goto(origin+'/index.html',{waitUntil:'networkidle0'});assert.equal((await state()).manageHidden,true);assert.ok(await page.$eval('.account-session-notice',n=>!n.hidden));checks.push({disabled:'denied'});
+ await identity('viewer',5);await page.goto(origin+'/index.html',{waitUntil:'networkidle0'});await page.waitForFunction(()=>!document.querySelector('.account-menu-toggle').hidden);await sleep(5200);assert.equal(await page.$eval('.account-menu-toggle',n=>n.hidden),true);assert.ok(await page.$eval('.account-session-notice',n=>!n.hidden));checks.push({expiry:'banner and private links cleared'});
+ assert.deepEqual(errors,[]);await fs.writeFile(path.join(out,'results.json'),JSON.stringify({checks,errors,mode:'Local real JWT/D1-compatible SQLite; logout cookie removal fixture; not real Cloudflare/IdP',screenshots:out},null,2));console.log(JSON.stringify({checks:checks.length,errors,screenshots:out}));
+}finally{await browser.close();chrome.kill();await new Promise(r=>server.close(r));globalThis.fetch=nativeFetch;sql.close()}

@@ -69,7 +69,7 @@ try {
   const checks=[];
   for(const width of [320,375,390,430,768,1440]){
    await cdp('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<500});
-   for(const lang of ['ru','en','de'])checks.push(await js(`setLanguage('${lang}');({width:innerWidth,lang:document.documentElement.lang,overflow:document.documentElement.scrollWidth>innerWidth+1,foundersColor:getComputedStyle(document.querySelector('#founders-heading')).color,emptyTranslations:[...document.querySelectorAll('[data-i18n],[data-editorial],[data-jubilee]')].filter(e=>!e.textContent.trim()).length})`));
+   for(const lang of ['ru','en'])checks.push(await js(`setLanguage('${lang}');({width:innerWidth,lang:document.documentElement.lang,overflow:document.documentElement.scrollWidth>innerWidth+1,foundersColor:getComputedStyle(document.querySelector('#founders-heading')).color,emptyTranslations:[...document.querySelectorAll('[data-i18n],[data-editorial],[data-jubilee]')].filter(e=>!e.textContent.trim()).length})`));
   }
   report.checks=checks;
   report.menu=await js(`(()=>{const b=document.querySelector('.menu-toggle'),m=document.querySelector('#mobile-nav');b.click();const open=!m.hidden;document.querySelector('#mobile-nav a').click();return {open,closedAfterLink:m.hidden}})()`);

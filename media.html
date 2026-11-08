@@ -1,36 +1,43 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="MYSTERION MEDIA — медиатека MYSTERION INTERNATIONAL."><title>MYSTERION MEDIA</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="media.css"><script defer src="script.js"></script><script defer src="media-i18n.js"></script><script defer src="media.js"></script></head><body data-media-page="catalog"><a href="#main" class="skip-link" data-i18n="skip">Перейти к содержимому</a><header class="site-header" id="top">
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="MYSTERION MEDIA — медиатека MYSTERION INTERNATIONAL."><title>MYSTERION MEDIA</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="media.css"><script defer src="script.js"></script><script defer src="/account.js"></script><script defer src="media-i18n.js"></script><script defer src="media.js"></script><link rel="stylesheet" href="/account.css"></head><body data-media-page="catalog"><a href="#main" class="skip-link" data-i18n="skip">Перейти к содержимому</a><header class="site-header" id="top">
   <div class="header-inner container">
-    <a href="index.html#home" class="brand" aria-label="Mysterion">
-      <span class="brand-symbol crown-mark" aria-hidden="true">♛</span>
+    <a href="/index.html#home" class="brand">
+      <span class="brand-symbol crown-mark" aria-hidden="true">M</span>
       <span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span>
     </a>
     <nav class="desktop-nav" aria-label="Main navigation">
-      <a href="index.html#about" data-i18n="navAbout">О нас</a>
-      <a href="index.html#founders" data-i18n="navFounders">Основатели</a>
-      <a href="index.html#ministry" data-i18n="navMinistry">Направления</a>
-      <a href="index.html#events" data-i18n="navEvents">События</a>
+      <a href="/index.html#about" data-i18n="navAbout">О нас</a>
+      <a href="/index.html#founders" data-i18n="navFounders">Основатели</a>
+      <a href="/index.html#ministry" data-i18n="navMinistry">Направления</a>
+      <a href="/index.html#events" data-i18n="navEvents">События</a>
       <a href="online-school.html" data-i18n="navSchool">Онлайн-школа</a>
       <a href="sermons.html" data-i18n="navSermons">Проповеди</a>
       <a href="photos.html" data-i18n="navPhotos">Фото</a>
-      <a href="media.html" data-i18n="navMedia">Медиа</a>
-      <a href="index.html#contacts" data-i18n="navContacts">Контакты</a>
+      <a href="/media.html" data-i18n="navMedia">Медиа</a>
+      <a href="/index.html#contacts" data-i18n="navContacts">Контакты</a>
     </nav>
-    <div class="header-actions">
-      <button class="lang-toggle" type="button" aria-label="Switch language to English"><span class="lang-strong">RU</span><span class="lang-muted"> / EN</span></button>
-      <a class="header-cta" href="index.html#contacts"><span data-i18n="headerCta">Связаться</span><span aria-hidden="true">↗</span></a>
+    <div class="header-actions"><div class="site-account"><a class="account-entry" href="/media-login.html">Войти</a><button class="account-menu-toggle" type="button" aria-label="Меню аккаунта" aria-controls="account-menu" aria-expanded="false" hidden>⌄</button><nav class="account-menu" id="account-menu" aria-label="Аккаунт" hidden><a href="/media-login.html" data-account="account">Личный кабинет</a><a href="/admin-media.html" data-account="manage" hidden>Панель управления</a><a href="/cdn-cgi/access/logout" data-account="logout">Выйти</a></nav></div>
+      <div class="language-picker">
+        <button class="lang-toggle" type="button" aria-label="Language: Русский" aria-haspopup="listbox" aria-controls="language-menu" aria-expanded="false"><span aria-hidden="true"></span><span class="lang-strong">RU</span><span class="language-chevron" aria-hidden="true">⌄</span></button>
+        <div class="language-menu" id="language-menu" role="listbox" aria-label="Choose language" hidden>
+          <button type="button" role="option" data-lang="ru" aria-selected="true">Русский <span>RU</span></button>
+          <button type="button" role="option" data-lang="en" aria-selected="false">English <span>EN</span></button>
+
+        </div>
+      </div>
+      <a class="header-cta" href="/index.html#contacts"><span data-i18n="headerCta">Связаться</span><span aria-hidden="true">↗</span></a>
       <button class="menu-toggle" type="button" aria-controls="mobile-nav" aria-expanded="false" aria-label="Open menu"><span></span><span></span></button>
     </div>
   </div>
   <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation" hidden>
-    <a href="index.html#about" data-i18n="navAbout">О нас</a>
-    <a href="index.html#founders" data-i18n="navFounders">Основатели</a>
-    <a href="index.html#ministry" data-i18n="navMinistry">Направления</a>
-    <a href="index.html#events" data-i18n="navEvents">События</a>
+    <a href="/index.html#about" data-i18n="navAbout">О нас</a>
+    <a href="/index.html#founders" data-i18n="navFounders">Основатели</a>
+    <a href="/index.html#ministry" data-i18n="navMinistry">Направления</a>
+    <a href="/index.html#events" data-i18n="navEvents">События</a>
       <a href="online-school.html" data-i18n="navSchool">Онлайн-школа</a>
     <a href="sermons.html" data-i18n="navSermons">Проповеди</a>
       <a href="photos.html" data-i18n="navPhotos">Фото</a>
-      <a href="media.html" data-i18n="navMedia">Медиа</a>
-    <a href="index.html#contacts" data-i18n="navContacts">Контакты</a>
+      <a href="/index.html#media" data-i18n="navMedia">Медиа</a>
+    <a href="/index.html#contacts" data-i18n="navContacts">Контакты</a>
   </nav>
 </header>
 <main id="main" class="media-platform"><div class="container"><div class="media-intro"><p class="eyebrow" data-media="tag">МЕДИАТЕКА СЛУЖЕНИЯ</p><h1>MYSTERION<br><em>MEDIA</em></h1><p data-media="intro">Проповеди, свидетельства, конференции и школы MYSTERION INTERNATIONAL.</p></div><section aria-label="MYSTERION MEDIA"><div class="media-tools"><label><span data-media="search">search</span><input id="media-q" type="search" maxlength="120" autocomplete="off"></label><label><span data-media="category">category</span><select name="category" id="media-category"><option value="" data-media="all">Все</option><option value="sermon" data-media="sermon">sermon</option><option value="testimony" data-media="testimony">testimony</option><option value="conference" data-media="conference">conference</option><option value="school" data-media="school">school</option></select></label><label><span data-media="year">year</span><input id="media-year" type="number" min="1900" max="2200" inputmode="numeric"></label><label><span data-media="access">access</span><select name="access" id="media-access"><option value="" data-media="all">Все</option><option value="free" data-media="free">free</option><option value="paid" data-media="paid">paid</option></select></label></div><p id="media-status" class="media-status" role="status" aria-live="polite">Загрузка…</p><button id="media-retry" type="button" data-media="retry" hidden>Повторить</button><div id="media-grid" class="media-grid"></div><button id="media-more" type="button" data-media="more" hidden>Показать ещё</button></section><footer><a href="media-login.html" data-media="account">Мой кабинет</a><a href="index.html" data-media="back">На главную</a><a href="sermons.html" data-media="legacy">Существующая видеотека</a><a href="admin-media.html" data-media="admin">Управление медиатекой</a></footer></div></main><dialog id="media-dialog" class="media-player" aria-labelledby="player-title"><button id="player-close" type="button" data-media="close">Закрыть</button><h2 id="player-title"></h2><div id="player-slot" class="player-slot"></div></dialog></body></html>

@@ -114,11 +114,15 @@ try{
  await expect(401,'view/play/'+created.id,'POST',undefined,null);
  await expect(401,'view/play/'+created.id,'POST',undefined,admin); // Admin application's audience cannot impersonate a viewer.
  const viewer=await token('viewer-sub',{aud:['viewer-audience']});
- const viewerAud=env.MEDIA_VIEWER_ACCESS_AUD;env.MEDIA_VIEWER_ACCESS_AUD=env.MEDIA_ACCESS_AUD;await expect(503,'view/play/'+created.id,'POST',undefined,admin);env.MEDIA_VIEWER_ACCESS_AUD=viewerAud;
+ const viewerAud=env.MEDIA_VIEWER_ACCESS_AUD;env.MEDIA_VIEWER_ACCESS_AUD=env.MEDIA_ACCESS_AUD;await expect(403,'view/play/'+created.id,'POST',undefined,admin);env.MEDIA_VIEWER_ACCESS_AUD=viewerAud;
  await expect(403,'view/play/'+created.id,'POST',undefined,viewer);
  sql.prepare('INSERT INTO purchases VALUES (?,?,?,?,?,?,?)').run('purchase','viewer',created.id,'test-payment','paid',100,'EUR');
  sql.prepare('INSERT INTO entitlements VALUES (?,?,?,?,?,?)').run('grant','viewer',created.id,'purchase',null,null);
  const permitted=await expect(200,'view/play/'+created.id,'POST',undefined,viewer);const signed=new URL(permitted.url);assert.equal(signed.searchParams.get('token'),createHash('sha256').update(env.BUNNY_TOKEN_KEY+row().source_ref+permitted.expires).digest('hex'));assert.ok(permitted.expires<Date.now()/1000+181);assert.ok(!permitted.url.includes(env.BUNNY_TOKEN_KEY));
+ const distinctAudience=env.MEDIA_VIEWER_ACCESS_AUD;env.MEDIA_VIEWER_ACCESS_AUD=env.MEDIA_ACCESS_AUD;
+ await expect(200,'view/play/'+created.id,'POST',undefined,await token('viewer-sub'));
+ await expect(403,'admin/me','GET',undefined,await token('viewer-sub'));
+ env.MEDIA_VIEWER_ACCESS_AUD=distinctAudience;
  await expect(403,'view/play/'+created.id,'POST',undefined,viewer,{Origin:'https://evil.invalid'});
  sql.prepare("UPDATE purchases SET status='refunded' WHERE id='purchase'").run();await expect(403,'view/play/'+created.id,'POST',undefined,viewer);
  sql.prepare("UPDATE purchases SET status='paid' WHERE id='purchase'").run();sql.prepare("UPDATE entitlements SET revoked_at='2026-01-01' WHERE id='grant'").run();await expect(403,'view/play/'+created.id,'POST',undefined,viewer);
@@ -134,7 +138,7 @@ try{
  await expect(503,'view/account','GET',undefined,viewer);
  env.MEDIA_MEMBERS_ENABLED='true';
  await expect(401,'view/account','GET',undefined,null);
- await expect(401,'view/account','GET',undefined,admin);
+ await expect(200,'view/account','GET',undefined,admin);
  const unknownViewer=await token('new-viewer',{aud:['viewer-audience']});
  assert.equal((await expect(200,'view/account','GET',undefined,unknownViewer)).registered,false);
  await expect(403,'admin/members','GET',undefined,editor);
@@ -239,10 +243,10 @@ try{
  await page(canonical,'/admin-media',admin,503,{...domainEnv,MEDIA_PUBLIC_ORIGIN:undefined});
  await page(canonical,'/admin-media/private',admin,404);
  await page(canonical,'/media-login',null,401);
- await page(canonical,'/media-login',admin,401);
+ await page(canonical,'/media-login',admin,200);
  await page(canonical,'/media-login',viewer,200);
  await page('https://preview.mysterion-international.pages.dev','/media-login.html',viewer,421);
- for(const lang of ['ru','en','de']){const response=await protectMediaPage({request:domainRequest(canonical,'/admin-media',null,{'Accept-Language':lang}),env:domainEnv,next:()=>{throw Error('Must not serve protected page')}});assert.ok((await response.text()).includes('lang="'+lang+'"'));tests++}
+ for(const lang of ['ru','en']){const response=await protectMediaPage({request:domainRequest(canonical,'/admin-media',null,{'Accept-Language':lang}),env:domainEnv,next:()=>{throw Error('Must not serve protected page')}});assert.ok((await response.text()).includes('lang="'+lang+'"'));tests++}
  const redirected=await protectMediaPage({request:domainRequest(canonical,'/admin-media.html',admin),env:domainEnv,next:()=>new Response(null,{status:308,headers:{Location:'/admin-media'}})});assert.equal(redirected.status,308);assert.equal(redirected.headers.get('Location'),'/admin-media');tests++;
  const routes=JSON.parse(await fs.readFile(new URL('../_routes.json',import.meta.url),'utf8'));validateMediaRoutes(routes);assert.throws(()=>validateMediaRoutes({...routes,include:[...routes.include,'/admin-media/']}),/Overlapping Pages route/);tests++;
  for(const [identity,expected] of [[null,401],[await token('viewer-sub'),403],[admin,200]]){
@@ -250,6 +254,24 @@ try{
   assert.equal(response.status,expected);assert.equal((await response.text()).includes('id="media-editor"'),expected===200);tests++;
  }
  for(const file of ['admin-media.html','media-login.html']){const fallback=await fs.readFile(new URL('../'+file,import.meta.url),'utf8');assert.ok(!fallback.includes('id="media-editor"'));assert.ok(!fallback.includes('<form'));assert.ok(!fallback.includes('src="admin-media.js"'));tests++}
+
+ // Session metadata is signed server identity, never a frontend role or email.
+ assert.equal((await expect(200,'session','GET',undefined,null)).authenticated,false);
+ const adminSession=await expect(200,'session');assert.equal(adminSession.authenticated,true);assert.equal(adminSession.canManage,true);assert.equal(adminSession.role,'admin');assert.ok(!('sub' in adminSession));assert.ok(!('email' in adminSession));
+ const editorSession=await expect(200,'session','GET',undefined,editor);assert.equal(editorSession.canManage,false);
+ const viewerSession=await expect(200,'session','GET',undefined,viewer);assert.equal(viewerSession.authenticated,true);assert.equal(viewerSession.canManage,false);
+ assert.equal((await expect(200,'session','GET',undefined,await token('disabled-sub'))).authenticated,false);
+ assert.equal((await expect(200,'session','GET',undefined,await token('admin-sub',{exp:1}))).reason,'session_expired');
+ assert.equal((await expect(200,'session','GET',undefined,await token('admin-sub',{aud:['not-trusted']}))).authenticated,false);
+ const langRecord={...record,title:{ru:'РУ',en:'EN',de:'LEGACY_DE'},description:{ru:'',en:'',de:'LEGACY_DESCRIPTION'}};
+ const oldLanguage=await expect(201,'admin/videos','POST',langRecord);
+ await expect(200,'admin/videos/'+oldLanguage.id,'PUT',{...langRecord,title:{ru:'Новый',en:'New'},description:{ru:'',en:''},revision:1});
+ const preserved=sql.prepare('SELECT title,description FROM videos WHERE id=?').get(oldLanguage.id);assert.equal(JSON.parse(preserved.title).de,'LEGACY_DE');assert.equal(JSON.parse(preserved.description).de,'LEGACY_DESCRIPTION');
+ const interfaceRow=(await expect(200,'admin/videos')).items.find(r=>r.id===oldLanguage.id);assert.ok(!('de' in interfaceRow.title));
+ env.MEDIA_MEMBERS_ENABLED='true';
+ const legacyCollection=await expect(200,'admin/collections','POST',{title:{ru:'RU',en:'EN',de:'OLD_COLLECTION'},description:{ru:'RU',en:'EN',de:'OLD_DESCRIPTION'},state:'draft',videos:[]});
+ await expect(200,'admin/collections/'+legacyCollection.id,'PUT',{title:{ru:'RU2',en:'EN2'},description:{ru:'RU',en:'EN'},state:'draft',videos:[]});assert.equal(JSON.parse(sql.prepare('SELECT title FROM collections WHERE id=?').get(legacyCollection.id).title).de,'OLD_COLLECTION');
+ env.MEDIA_MEMBERS_ENABLED='false';
  // Errors stay fail-closed but expose only fixed diagnostic codes, not secrets.
  const warnings=[],warnOriginal=console.warn;console.warn=(...args)=>warnings.push(args.join(' '));
  try {

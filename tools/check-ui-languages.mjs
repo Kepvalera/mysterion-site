@@ -1,0 +1,8 @@
+// UI-only checks: legacy translations in D1/server compatibility are intentional.
+import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import {mediaTemplates} from '../media-worker/src/page-templates.mjs';
+const require=createRequire(import.meta.url),acorn=require(require.resolve('acorn',{paths:[path.resolve('output/audit-tools/build')]}));const issues=[];
+const htmls=fs.readdirSync('.').filter(f=>f.endsWith('.html')).map(f=>[f,fs.readFileSync(f,'utf8')]);htmls.push(['server admin',mediaTemplates.admin],['server account',mediaTemplates.login]);
+for(const [file,html]of htmls){if(/data-lang=["']de["']|lang=["']de["']|name=["'][^"']*_de["']|<legend>DE<\/legend>|Deutsch|RU\/EN\/DE/.test(html))issues.push(file+': German UI markup');assert.ok(html.includes('class="site-account"'),file+': missing account navigation')}
+const files=fs.readdirSync('.').filter(f=>f.endsWith('.js'));
+for(const file of files){const source=fs.readFileSync(file,'utf8');const ast=acorn.parse(source,{ecmaVersion:'latest',sourceType:'module'});function walk(node){if(!node||typeof node!=='object')return;if(node.type==='Property'&&(node.key.name==='de'||node.key.value==='de'))issues.push(file+': German dictionary');if(node.type==='Literal'&&node.value==='de')issues.push(file+': unsupported UI language');for(const value of Object.values(node)){if(Array.isArray(value))value.forEach(walk);else if(value&&typeof value==='object')walk(value)}}walk(ast);if(/Deutsch|RU\/EN\/DE/.test(source))issues.push(file+': German text')}
+assert.deepEqual(issues,[]);console.log(JSON.stringify({htmlDocuments:htmls.length,uiScripts:files.length,issues,legacyDatabase:'not read or modified'}));
