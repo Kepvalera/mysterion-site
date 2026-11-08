@@ -34,6 +34,7 @@ async function expect(status,path,method,data,identity,headers){const response=a
 try{
  assert.equal((await handle(new Request('http://localhost/api/media/videos'),{})).status,503);tests++;
  await expect(401,'admin/me','GET',undefined,null);
+ await expect(401,'admin/me','GET',undefined,null,{'Cf-Access-Authenticated-User-Email':'local-fixture@example.invalid'});
  for(const bad of [await token('admin-sub',{exp:1}),await token('admin-sub',{aud:['wrong']}),await token('admin-sub',{iss:'https://evil.invalid'}),await token('admin-sub',{}, {alg:'none',kid:jwk.kid}),admin.slice(0,-10)+'aaaaaaaaaa'])await expect(401,'admin/me','GET',undefined,bad);
  for(const sub of ['viewer-sub','disabled-sub','unknown-sub'])await expect(403,'admin/me','GET',undefined,await token(sub));
  await expect(200,'admin/me');
@@ -221,5 +222,26 @@ try{
   assert.equal(response.status,expected);assert.equal((await response.text()).includes('id="media-editor"'),expected===200);tests++;
  }
  for(const file of ['admin-media.html','media-login.html']){const fallback=await fs.readFile(new URL('../'+file,import.meta.url),'utf8');assert.ok(!fallback.includes('id="media-editor"'));assert.ok(!fallback.includes('<form'));assert.ok(!fallback.includes('src="admin-media.js"'));tests++}
- console.log(JSON.stringify({passed:tests,sqlite:'in-memory only; populated migration preserves relations',bunny:'mock API only; SHA256 and HMAC signatures independently checked',paidPlayback:'JWT + active user + paid purchase + current entitlement',domain:'canonical URL pinned; pages.dev and preview rejected',protectedHTML:'JWT checked before serving template',productionMigrations:0,realBunnyResources:0}));
+ // Errors stay fail-closed but expose only fixed diagnostic codes, not secrets.
+ const warnings=[],warnOriginal=console.warn;console.warn=(...args)=>warnings.push(args.join(' '));
+ try {
+  async function diagnosed(pageEnv,identity,expectedStatus,expectedCode,templates=mediaTemplates,next=()=>{throw Error('must not serve')}){
+   const response=await protectMediaPage({request:domainRequest(canonical,'/admin-media.html',identity),env:pageEnv,next},templates);
+   assert.equal(response.status,expectedStatus);assert.equal(response.headers.get('X-Mysterion-Media-Error'),expectedCode);
+   const body=await response.text();assert.ok(body.includes(expectedCode));assert.ok(!body.includes('id="media-editor"'));assert.ok(!body.includes('PRIVATE_EXCEPTION_MARKER'));assert.ok(!body.includes(admin));tests++;
+  }
+  await diagnosed({...domainEnv,MEDIA_PUBLIC_ORIGIN:undefined},admin,503,'origin_not_configured');
+  await diagnosed({...domainEnv,MEDIA_ENABLED:'false'},admin,503,'media_disabled');
+  await diagnosed({...domainEnv,MEDIA_DB:undefined},admin,503,'database_not_bound');
+  await diagnosed({...domainEnv,MEDIA_ACCESS_ISSUER:'invalid'},admin,503,'access_issuer_not_configured');
+  await diagnosed({...domainEnv,MEDIA_ACCESS_AUD:''},admin,503,'access_audience_not_configured');
+  await diagnosed(domainEnv,null,401,'authentication_required');
+  await diagnosed(domainEnv,await token('unknown-sub'),403,'forbidden');
+  await diagnosed(domainEnv,await token('disabled-sub'),403,'forbidden');
+  await diagnosed({...domainEnv,MEDIA_DB:{prepare(){throw Error('PRIVATE_EXCEPTION_MARKER '+admin)}}},admin,503,'identity_store_unavailable');
+  await diagnosed(domainEnv,admin,503,'internal_unavailable',null,()=>{throw Error('PRIVATE_EXCEPTION_MARKER '+admin)});
+  assert.ok(warnings.every(line=>!line.includes(admin)&&!line.includes('PRIVATE_EXCEPTION_MARKER')));
+  assert.ok(warnings.map(line=>JSON.parse(line)).every(entry=>entry.event==='mysterion_media_unavailable'&&Object.keys(entry).sort().join(',')==='code,event,phase'));tests++;
+ }finally{console.warn=warnOriginal}
+ console.log(JSON.stringify({passed:tests,sqlite:'in-memory only; populated migration preserves relations',bunny:'mock API only; SHA256 and HMAC signatures independently checked',paidPlayback:'JWT + active user + paid purchase + current entitlement',domain:'canonical URL pinned; pages.dev and preview rejected',protectedHTML:'JWT checked before serving template; safe diagnostics distinguish configuration, identity and D1 failures',productionMigrations:0,realBunnyResources:0}));
 }finally{globalThis.fetch=fetchOriginal;sql.close()}

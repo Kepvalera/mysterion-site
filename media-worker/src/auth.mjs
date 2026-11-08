@@ -44,7 +44,13 @@ export async function entitledViewer(request, env, videoId) {
 }
 export async function administrator(request,env) {
   const claims=await verifyAccess(request.headers.get('Cf-Access-Jwt-Assertion'),env);
-  const user=await env.MEDIA_DB.prepare('SELECT id,role FROM users WHERE access_sub=? AND active=1').bind(claims.sub).first();
+  let user;
+  try {
+    user=await env.MEDIA_DB.prepare('SELECT id,role FROM users WHERE access_sub=? AND active=1').bind(claims.sub).first();
+  } catch {
+    // Do not expose D1 errors: they can contain SQL, identifiers or bound data.
+    throw new HttpError(503,'identity_store_unavailable');
+  }
   if(!user || !['admin','editor'].includes(user.role)) throw new HttpError(403,'forbidden');
   return user;
 }
