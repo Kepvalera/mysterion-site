@@ -1,0 +1,14 @@
+.viewer-auth { min-height:70vh; padding:clamp(40px,7vw,88px) 0; background:radial-gradient(ellipse at 15% 20%,#dceef6,transparent 65%),linear-gradient(135deg,#f4f8fc,#eee9f5); }
+.viewer-auth .auth-shell { width:min(100% - 32px,560px); margin:auto; }
+.auth-panel { padding:clamp(24px,5vw,40px); border:1px solid #d6c399; border-radius:24px; background:#ffffffdb; }
+.auth-panel h1 { font-size:clamp(32px,7vw,48px); color:#a47c39; margin:16px 0 24px; }
+.auth-panel p { line-height:1.65; }
+.auth-tabs { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px; }
+.auth-tabs button { border:0; background:none; color:#3d475b; padding:10px 0; text-decoration:underline; cursor:pointer; }
+.auth-tabs button[aria-current=true] { color:#896327; text-decoration-thickness:2px; }
+.auth-panel label { display:grid; gap:8px; margin:18px 0; color:#3d475b; }
+.auth-panel input { width:100%; min-width:0; padding:14px; border:1px solid #cdd8e2; border-radius:10px; background:#fff; color:#243449; font:inherit; }
+.auth-panel button:focus-visible,.auth-panel input:focus-visible { outline:3px solid #a47c39; outline-offset:4px; }
+.auth-panel .btn { margin:8px 0; min-height:48px; }
+.auth-status { color:#34435b; white-space:pre-line; overflow-wrap:anywhere; }
+.auth-panel [hidden] { display:none; }

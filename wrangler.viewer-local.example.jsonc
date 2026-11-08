@@ -1,0 +1,10 @@
+// Inactive local example. Never use --remote for this preview.
+{
+ "name":"mysterion-viewer-local",
+ "pages_build_output_dir":".",
+ "compatibility_date":"2026-11-08",
+ "d1_databases":[{"binding":"MEDIA_DB","database_name":"mysterion-viewer-local","database_id":"00000000-0000-0000-0000-000000000000","migrations_dir":"media-worker/migrations"}],
+ "vars":{"VIEWER_AUTH_ENABLED":"false","MEDIA_PAID_ENABLED":"false","MEDIA_PUBLIC_ORIGIN":"http://localhost:8788","VIEWER_EMAIL_PROVIDER":"resend","VIEWER_EMAIL_FROM":"REPLACE_WITH_VERIFIED_SENDER"}
+ // Local .dev.vars: VIEWER_RATE_KEY (random >=32 chars), RESEND_API_KEY.
+ // Never put secrets here. Automated tests capture email privately in memory.
+}
