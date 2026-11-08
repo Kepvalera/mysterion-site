@@ -17,7 +17,7 @@ window.MysterionBunnyUpload = class {
   }
   async request(method,headers) {
     this.controller=new AbortController();
-    const response=await fetch(this.url||'https://video.bunnycdn.com/tusupload',{method,headers,redirect:'error',credentials:'omit',signal:this.controller.signal});
+    let response;try{response=await fetch(this.url||'https://video.bunnycdn.com/tusupload',{method,headers,redirect:'error',credentials:'omit',signal:this.controller.signal})}catch(error){if(error?.name==='AbortError')throw error;throw Error('upload_network_error')}
     if(!response.ok)throw Error('tus_'+response.status);return response;
   }
   async start() {

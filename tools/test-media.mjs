@@ -3,6 +3,8 @@ import {DatabaseSync} from 'node:sqlite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {handle} from '../media-worker/src/worker.mjs';
+import {withLease} from '../media-worker/src/bunny.mjs';
+import {HttpError} from '../media-worker/src/auth.mjs';
 import {protectMediaPage} from '../media-worker/src/page-guard.mjs';
 import {validateMediaRoutes} from './check-media-routes.mjs';
 import {mediaTemplates} from '../media-worker/src/page-templates.mjs';
@@ -71,7 +73,7 @@ try{
  // Provider calls are intercepted locally: no paid Bunny resources are ever created.
  const {createHash,createHmac}=await import('node:crypto');
  Object.assign(env,{BUNNY_ENABLED:'true',BUNNY_SECURITY_CONFIRMED:'true',BUNNY_LIBRARY_ID:'123',BUNNY_API_KEY:crypto.randomUUID(),BUNNY_TOKEN_KEY:crypto.randomUUID(),BUNNY_CDN_TOKEN_KEY:crypto.randomUUID(),BUNNY_CDN_HOST:'vz-test.b-cdn.net',MEDIA_VIEWER_ACCESS_AUD:'viewer-audience'});
- const provider=new Map();let providerCalls=0,deleteFails=false;
+ const provider=new Map();let providerCalls=0,deleteFails=false,providerFailure=null;
  globalThis.fetch=async (address,options={})=>{
   const url=new URL(address);if(url.hostname==='test-team.cloudflareaccess.com')return Response.json({keys:[jwk]});
   if(url.hostname==='vz-test.b-cdn.net'){
@@ -79,6 +81,7 @@ try{
    return new Response(new Uint8Array([255,216,255]),{headers:{'Content-Type':'image/jpeg'}});
   }
   assert.equal(url.origin,'https://video.bunnycdn.com');assert.equal(options.headers.AccessKey,env.BUNNY_API_KEY);assert.ok(url.pathname.startsWith('/library/123/videos'));providerCalls++;
+  if(providerFailure){if(providerFailure==='network')throw Error('PRIVATE_PROVIDER_SECRET');if(providerFailure==='timeout')throw new DOMException('PRIVATE_PROVIDER_SECRET','TimeoutError');if(providerFailure==='json')return new Response('PRIVATE_PROVIDER_SECRET',{status:200});return new Response('PRIVATE_PROVIDER_SECRET',{status:providerFailure})}
   const id=url.pathname.split('/')[4],method=options.method||'GET';
   if(method==='POST'&&!id){const guid=crypto.randomUUID();provider.set(guid,{guid,videoLibraryId:123,status:0,encodeProgress:0,thumbnailFileName:'thumbnail.jpg'});return Response.json(provider.get(guid))}
   if(!provider.has(id))return Response.json({error:'not found'},{status:404});
@@ -94,6 +97,22 @@ try{
  await expect(403,op+'upload','POST',undefined,admin,{Origin:'https://evil.invalid'});
  const before=providerCalls;env.BUNNY_SECURITY_CONFIRMED='false';await expect(503,op+'upload','POST');assert.equal(providerCalls,before);env.BUNNY_SECURITY_CONFIRMED='true';
  await expect(403,'admin/videos','POST',{...bunnyRecord,source_ref:crypto.randomUUID()});
+ const diagnosticLogs=[],originalWarn=console.warn;console.warn=entry=>diagnosticLogs.push(entry);
+ try{
+  for(const [upstream,code] of [[401,'bunny_auth_failed'],[403,'bunny_forbidden'],[404,'bunny_library_or_video_not_found'],[429,'bunny_rate_limited'],[500,'bunny_unavailable'],[400,'bunny_request_rejected'],['network','bunny_network_error'],['timeout','bunny_timeout'],['json','bunny_response_invalid']]){
+   providerFailure=upstream;const response=await call(op+'upload','POST'),result=await response.json();assert.equal(response.status,502);assert.equal(result.error,code);assert.match(result.requestId,/^[a-f0-9-]{36}$/);assert.equal(response.headers.get('X-Mysterion-Request-ID'),result.requestId);assert.equal(result.upstreamStatus,typeof upstream==='number'?upstream:undefined);
+   assert.ok(!JSON.stringify(result).includes('PRIVATE_PROVIDER_SECRET'));assert.equal(provider.size,0);assert.equal(sql.prepare('SELECT source_ref FROM videos WHERE id=?').get(created.id).source_ref,'');assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM bunny_leases').get().n,0);tests++;
+  }
+  assert.ok(diagnosticLogs.every(line=>!line.includes('PRIVATE_PROVIDER_SECRET')&&!line.includes(env.BUNNY_API_KEY)&&!line.includes(admin)));assert.ok(diagnosticLogs.every(line=>JSON.parse(line).phase==='bunny_create'));tests++;
+ }finally{providerFailure=null;console.warn=originalWarn}
+ const realDatabase=env.MEDIA_DB;
+ for(const [message,code] of [['D1_ERROR: no such table: PRIVATE_DETAIL','bunny_store_schema_error'],['D1_ERROR: FOREIGN KEY constraint failed PRIVATE_DETAIL','bunny_store_constraint_error'],['D1_TYPE_ERROR: unsupported type for bind PRIVATE_DETAIL','bunny_store_binding_error'],['PRIVATE_DETAIL','bunny_store_unavailable']]){
+  env.MEDIA_DB={...realDatabase,prepare(query){if(query.startsWith('INSERT INTO bunny_leases'))throw Error(message);return realDatabase.prepare(query)}};
+  try{const result=await expect(503,op+'upload','POST');assert.equal(result.error,code);assert.equal(result.phase,'bunny_store_lease_acquire');assert.ok(!JSON.stringify(result).includes('PRIVATE_DETAIL'));assert.equal(provider.size,0)}finally{env.MEDIA_DB=realDatabase}
+ }
+ const badCleanup={MEDIA_DB:{prepare(query){return {bind(){return this},run(){if(query.startsWith('DELETE'))throw Error('PRIVATE_CLEANUP');return {meta:{changes:1}}}}}}};
+ await assert.rejects(()=>withLease(badCleanup,created.id,()=>{throw new HttpError(502,'bunny_auth_failed')}),error=>error.message==='bunny_auth_failed');tests++;
+ await assert.rejects(()=>withLease(badCleanup,created.id,()=>({ok:true})),error=>error.message==='bunny_store_unavailable'&&error.phase==='bunny_store_lease_release');tests++;
  const grant=await expect(200,op+'upload','POST');
  const row=()=>sql.prepare('SELECT * FROM videos WHERE id=?').get(created.id);
  assert.equal(grant.headers.VideoId,row().source_ref);assert.equal(grant.headers.LibraryId,'123');assert.ok(grant.expires>Date.now()/1000&&grant.expires<Date.now()/1000+901);

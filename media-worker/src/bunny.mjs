@@ -1,6 +1,18 @@
 import {HttpError} from './auth.mjs';
 
 export const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+export async function atStage(phase,callback){
+  try{return await callback()}catch(cause){
+    let error=cause;
+    if(!(cause instanceof HttpError)){
+      const database=phase.startsWith('bunny_store_'),message=String(cause?.message||'');
+      const code=database?(/no such (table|column)/i.test(message)?'bunny_store_schema_error':/constraint|foreign key/i.test(message)?'bunny_store_constraint_error':/bind|parameter|unsupported type/i.test(message)?'bunny_store_binding_error':'bunny_store_unavailable'):'bunny_internal_error';
+      error=new HttpError(503,code);
+      error.errorKind=['TypeError','SyntaxError','TimeoutError','AbortError'].includes(cause?.name)?cause.name:'Error';
+    }
+    error.phase??=phase;throw error;
+  }
+}
 export function configured(env) {
   if (env.BUNNY_ENABLED !== 'true' || !/^[1-9]\d{0,11}$/.test(env.BUNNY_LIBRARY_ID || '') ||
       !env.BUNNY_API_KEY || !env.BUNNY_TOKEN_KEY || env.BUNNY_SECURITY_CONFIRMED !== 'true') {
@@ -14,16 +26,21 @@ export async function sha256(value) {
 export async function bunnyRequest(env, videoId = '', method = 'GET', data) {
   configured(env);
   if (videoId && !uuid.test(videoId)) throw new HttpError(400, 'invalid_bunny_id');
-  const response = await fetch(`https://video.bunnycdn.com/library/${env.BUNNY_LIBRARY_ID}/videos${videoId ? '/' + videoId : ''}`, {
+  let response;
+  try {response = await fetch(`https://video.bunnycdn.com/library/${env.BUNNY_LIBRARY_ID}/videos${videoId ? '/' + videoId : ''}`, {
     method, redirect: 'error', signal: AbortSignal.timeout(12000),
     headers: {AccessKey: env.BUNNY_API_KEY, Accept: 'application/json', ...(data ? {'Content-Type': 'application/json'} : {})},
     ...(data ? {body: JSON.stringify(data)} : {})
-  });
+  });} catch(error) {throw new HttpError(502,['TimeoutError','AbortError'].includes(error?.name)?'bunny_timeout':'bunny_network_error')}
   if (method === 'DELETE' && response.status === 404) return {success: true};
-  if (!response.ok) throw new HttpError(502, 'bunny_request_failed');
+  if (!response.ok) {
+    const code=({401:'bunny_auth_failed',403:'bunny_forbidden',404:'bunny_library_or_video_not_found',429:'bunny_rate_limited'})[response.status]||(response.status>=500?'bunny_unavailable':'bunny_request_rejected');
+    const error=new HttpError(502,code);error.upstreamStatus=response.status;throw error;
+  }
   // Never return an upstream error body, API key, or arbitrary provider fields to clients.
   if (response.status === 204) return {success: true};
-  const result = await response.json();
+  let result;try{result=await response.json()}catch{throw new HttpError(502,'bunny_response_invalid')}
+  if(!result||typeof result!=='object'||Array.isArray(result))throw new HttpError(502,'bunny_response_invalid');
   if (result.success === false) throw new HttpError(502, 'bunny_request_failed');
   return result;
 }
@@ -48,12 +65,13 @@ export async function uploadGrant(env, row) {
 }
 export async function withLease(env, id, callback) {
   const lease = crypto.randomUUID(), now = Math.floor(Date.now() / 1000);
-  const result = await env.MEDIA_DB.prepare(`INSERT INTO bunny_leases(video_id,lease_id,expires_at) VALUES (?,?,?)
+  const result = await atStage('bunny_store_lease_acquire',()=>env.MEDIA_DB.prepare(`INSERT INTO bunny_leases(video_id,lease_id,expires_at) VALUES (?,?,?)
     ON CONFLICT(video_id) DO UPDATE SET lease_id=excluded.lease_id,expires_at=excluded.expires_at WHERE bunny_leases.expires_at<?`)
-    .bind(id, lease, now + 90, now).run();
+    .bind(id, lease, now + 90, now).run());
   if (!result.meta.changes) throw new HttpError(409, 'video_busy');
-  try { return await callback(); }
-  finally { await env.MEDIA_DB.prepare('DELETE FROM bunny_leases WHERE video_id=? AND lease_id=?').bind(id, lease).run(); }
+  let failed=false;
+  try { return await callback(); }catch(error){failed=true;throw error}
+  finally {try{await atStage('bunny_store_lease_release',()=>env.MEDIA_DB.prepare('DELETE FROM bunny_leases WHERE video_id=? AND lease_id=?').bind(id, lease).run())}catch(error){if(!failed)throw error}}
 }
 export async function syncVideo(env, row) {
   boundVideo(env, row);

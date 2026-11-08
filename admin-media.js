@@ -2,7 +2,14 @@
  'use strict';
  const $=id=>document.getElementById(id),t=window.mediaText,form=$('media-editor'),status=$('admin-status');
  let current=null,role,rows=[],capabilities={},upload=null,poll=null,busy=false,autoPublish=false,generation=0,savedCover=null,publishing=false;
- async function api(path,options={}){const response=await (window.mysterionAuthenticatedFetch||fetch)('/api/media/admin/'+path,{credentials:'same-origin',redirect:'error',...options});const data=await response.json();if(!response.ok)throw Error(data.error);return data}
+ async function api(path,options={}){
+  const phase=/\/bunny\/upload$/.test(path)?'authorize':/\/cover$/.test(path)?'cover':/\/publish$/.test(path)?'publish':/\/bunny\//.test(path)?'processing':options.method==='POST'||options.method==='PUT'?'save':'read';
+  try{
+   let response;try{response=await (window.mysterionAuthenticatedFetch||fetch)('/api/media/admin/'+path,{credentials:'same-origin',redirect:'error',...options})}catch{throw Error('api_network_error')}
+   let data;try{data=await response.json()}catch{const error=Error('api_invalid_response');error.httpStatus=response.status;throw error}
+   if(!response.ok){const error=Error(data?.error||'api_invalid_response');error.httpStatus=response.status;error.upstreamStatus=data?.upstreamStatus;error.requestId=data?.requestId;error.serverPhase=data?.phase;throw error}return data;
+  }catch(error){error.phase=phase;throw error}
+ }
  const post=(path,data)=>api(path,{method:'POST',...(data?{headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{})});
  const operation=action=>post(`videos/${current.id}/bunny/${action}`);
  function controls(){
@@ -52,7 +59,15 @@
   // Never reset the form here: FileList cannot safely be recreated after reset.
   return saved.id;
  }
- function failure(error){autoPublish=false;busy=false;clearTimeout(poll);controls();status.textContent=t(['image_too_large','cover_limit_512_kib'].includes(error?.message)?'coverTooLarge':error?.message==='paid_publication_disabled'?'paidPublicationBlocked':error?.message==='video_processing_failed'?'processingFailed':'draftRetained');$('bunny-status').textContent=status.textContent}
+ const failureKeys={bunny_auth_failed:'errorBunnyAuth',bunny_forbidden:'errorBunnyForbidden',bunny_library_or_video_not_found:'errorBunnyMissing',bunny_rate_limited:'errorBunnyRate',bunny_unavailable:'errorBunnyUnavailable',bunny_request_rejected:'errorBunnyRejected',bunny_request_failed:'errorBunnyRejected',bunny_timeout:'errorBunnyTimeout',bunny_network_error:'errorBunnyNetwork',bunny_response_invalid:'errorBunnyResponse',bunny_not_configured:'bunnySetupRequired',authentication_required:'sessionExpired',invalid_identity:'sessionExpired',forbidden:'errorPermission',admin_required:'errorPermission',invalid_origin:'errorOrigin',wrong_origin:'errorOrigin',revision_conflict:'errorRevision',video_busy:'errorBusy',invalid_translation:'errorTranslation',invalid_fields:'errorFields',invalid_date:'errorDate',private_paid_source_required:'errorPaidSettings',image_too_large:'coverTooLarge',cover_limit_512_kib:'coverTooLarge',unsupported_image:'errorCoverFormat',custom_covers_not_configured:'errorCoverSetup',paid_publication_disabled:'paidPublicationBlocked',video_processing_failed:'processingFailed',service_unavailable:'errorService',identity_store_unavailable:'errorService',not_configured:'errorService',api_network_error:'errorApiNetwork',api_invalid_response:'errorApiResponse',upload_network_error:'errorUploadNetwork',missing_upload_location:'errorUploadHeaders',invalid_upload_offset:'errorUploadHeaders',invalid_upload_location:'errorUploadLocation',invalid_upload_endpoint:'errorUploadLocation',upload_already_started:'errorAlreadyStarted',video_not_ready:'errorNotReady',bunny_video_not_bound:'errorBinding',not_found:'errorMissing'};
+ Object.assign(failureKeys,{bunny_store_schema_error:'errorStoreSchema',bunny_store_constraint_error:'errorStoreConstraint',bunny_store_binding_error:'errorStoreBinding',bunny_store_unavailable:'errorStore',bunny_internal_error:'errorBunnyInternal'});
+ function failure(error){autoPublish=false;busy=false;clearTimeout(poll);controls();const code=error?.message||'',known=Object.hasOwn(failureKeys,code),tus=/^tus_\d{3}$/.test(code),phase=error?.phase||'transfer';
+  const reason=t(known?failureKeys[code]:tus?'errorTus':'errorUnexpected');
+  const details=[known||tus?code:'unexpected_error'];if(Number.isInteger(error?.httpStatus))details.push('HTTP '+error.httpStatus);if(Number.isInteger(error?.upstreamStatus))details.push('Bunny HTTP '+error.upstreamStatus);
+  if(['bunny_store_lease_acquire','bunny_store_lease_release','bunny_store_read','bunny_store_bind','bunny_create','bunny_sign_upload'].includes(error?.serverPhase))details.push(error.serverPhase);
+  if(/^[a-f0-9-]{36}$/.test(error?.requestId||''))details.push('Request ID: '+error.requestId);
+  status.textContent=`${t('operationFailed')} ${t('step_'+phase)}. ${reason} ${t('formRetained')} [${details.join(' · ')}]`;$('bunny-status').textContent=status.textContent;
+ }
  async function publish(id,version){if(version!==generation||!autoPublish||current?.id!==id)return;publishing=true;controls();status.textContent=t('publishing');try{await post('videos/'+id+'/publish',{revision:current.revision});if(version!==generation)return;await refreshCurrent(id);autoPublish=false;busy=false;$('admin-delete').hidden=false;controls();status.textContent=t('publishedSuccess');$('bunny-status').textContent=t('publishedSuccess')}finally{publishing=false;controls()}}
  async function sync(schedule=false){clearTimeout(poll);if(!current?.source_ref||document.hidden)return;const id=current.id,version=generation;
   try{const result=await operation('sync');if(version!==generation)return;await refreshCurrent(id);if(version!==generation)return;

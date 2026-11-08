@@ -133,7 +133,7 @@ export async function handle(request,env) {
    bunny.configured(env);
    const [_,id,action]=operation;
    return await bunny.withLease(env,id,async()=>{
-    let row=await env.MEDIA_DB.prepare('SELECT * FROM videos WHERE id=?').bind(id).first();
+    let row=await bunny.atStage('bunny_store_read',()=>env.MEDIA_DB.prepare('SELECT * FROM videos WHERE id=?').bind(id).first());
     if(!row||row.source_type!=='bunny')fail(404,'not_found');
     if(action==='delete'){if(row.state!=='deleted')fail(409,'delete_record_first');await bunny.removeVideo(env,row);return json({ok:true})}
     if(row.state==='deleted')fail(404,'not_found');
@@ -163,14 +163,14 @@ export async function handle(request,env) {
     if(action==='sync'){const data=await bunny.syncVideo(env,row);return json(data)}
     if(row.state!=='draft')fail(409,'draft_required');
     if(!row.source_ref){
-     const video=await bunny.bunnyRequest(env,'','POST',{title:JSON.parse(row.title).ru});
+     const video=await bunny.atStage('bunny_create',()=>bunny.bunnyRequest(env,'','POST',{title:JSON.parse(row.title).ru}));
      if(!bunny.uuid.test(video.guid||''))fail(502,'bunny_response_invalid');
      const mutation=crypto.randomUUID();
-     try{await mutate(env,user,id,'bunny_create',env.MEDIA_DB.prepare("UPDATE videos SET source_ref=?,bunny_library_id=?,bunny_status=0,bunny_progress=0,revision=revision+1,mutation_id=?,updated_at=? WHERE id=? AND revision=? AND state='draft' AND source_ref=''").bind(video.guid,env.BUNNY_LIBRARY_ID,mutation,new Date().toISOString(),id,row.revision),mutation)}
+     try{await bunny.atStage('bunny_store_bind',()=>mutate(env,user,id,'bunny_create',env.MEDIA_DB.prepare("UPDATE videos SET source_ref=?,bunny_library_id=?,bunny_status=0,bunny_progress=0,revision=revision+1,mutation_id=?,updated_at=? WHERE id=? AND revision=? AND state='draft' AND source_ref=''").bind(video.guid,env.BUNNY_LIBRARY_ID,mutation,new Date().toISOString(),id,row.revision),mutation))}
      catch(error){await bunny.bunnyRequest(env,video.guid,'DELETE').catch(()=>{});throw error}
      row=await env.MEDIA_DB.prepare('SELECT * FROM videos WHERE id=?').bind(id).first();
     }else{bunny.boundVideo(env,row);const video=await bunny.bunnyRequest(env,row.source_ref);if(![0,6].includes(video.status))fail(409,'upload_already_started')}
-    return json(await bunny.uploadGrant(env,row));
+    return json(await bunny.atStage('bunny_sign_upload',()=>bunny.uploadGrant(env,row)));
    });
   }
   const edit=path.match(/^admin\/videos\/([a-f0-9-]{36})(\/cover)?$/);
@@ -223,7 +223,17 @@ export async function handle(request,env) {
   fail(404,'not_found');
  } catch(error) {
   if(new URL(request.url).pathname==='/api/media/session'&&request.method==='GET'&&(!(error instanceof HttpError)||error.status!==421))return json({authenticated:false,reason:error instanceof HttpError&&error.status===401?'session_expired':'unavailable'});
-  const response=json({error:error instanceof HttpError?error.message:'service_unavailable'},error instanceof HttpError?error.status:503);
+  const requestId=crypto.randomUUID(),code=error instanceof HttpError?error.message:'service_unavailable';
+  const route=new URL(request.url).pathname;
+  const knownPhase=['bunny_store_lease_acquire','bunny_store_lease_release','bunny_store_read','bunny_store_bind','bunny_create','bunny_sign_upload'];
+  const phase=knownPhase.includes(error?.phase)?error.phase:/\/bunny\/upload$/.test(route)?'bunny_upload_authorization':/\/bunny\//.test(route)?'bunny_operation':/\/cover$/.test(route)?'cover':/\/publish$/.test(route)?'publish':/^\/api\/media\/admin\/videos/.test(route)?'video_record':'media_api';
+  // Only fixed classifications and numeric status: never log exception text,
+  // provider bodies, credentials, request bodies, user identifiers or signed URLs.
+  const upstreamStatus=Number.isInteger(error?.upstreamStatus)?error.upstreamStatus:undefined;
+  const errorKind=['TypeError','SyntaxError','TimeoutError','AbortError','Error'].includes(error?.errorKind)?error.errorKind:undefined;
+  console.warn(JSON.stringify({event:'mysterion_media_operation_failed',requestId,phase,code,status:error instanceof HttpError?error.status:503,...(errorKind?{errorKind}:{}),...(upstreamStatus?{upstreamStatus}:{})}));
+  const response=json({error:code,requestId,phase,...(upstreamStatus?{upstreamStatus}:{})},error instanceof HttpError?error.status:503);
+  response.headers.set('X-Mysterion-Request-ID',requestId);
   if(response.status===401){
    response.headers.set('X-Mysterion-Media-Error',error.message==='authentication_required'?'authentication_required':'invalid_identity');
    response.headers.set('X-Mysterion-Auth-Transport',request.headers.has('Cf-Access-Jwt-Assertion')?'assertion':/(?:^|;)\s*CF_Authorization=/.test(request.headers.get('Cookie')||'')?'cookie':'missing');
