@@ -52,7 +52,9 @@ SELECT id,role FROM users WHERE access_sub=? AND active=1;
 
 Если 503 приходит без этого заголовка и без кода на странице, дополнительно проверьте слой Cloudflare/Access и актуальность deployment: это может быть ответ до выполнения данного обработчика.
 
-## Как владельцу добавить первого администратора
+## Первый администратор legacy media API
+
+Этот раздел относится к legacy API, которое проверяет таблицу `users`. Для новой панели при `VIEWER_PLATFORM_ENABLED=true` используйте следующую инструкцию «Назначение owner новой платформы» и не создавайте дублирующую строку `users`.
 
 **Ниже только инструкция. INSERT этой задачей не выполнялся. Создание административной записи требует подтверждённой личности и отдельного разрешения владельца.**
 
@@ -87,3 +89,29 @@ SELECT role, active FROM users WHERE access_sub='<VERIFIED_ACCESS_SUB>';
 - Локальная сборка Pages Functions успешна.
 
 Первоначальная учётная запись администратора не создаётся кодом и не появляется автоматически после миграций. Источники: [Access application token, sub и user_uuid](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/application-token/), [проверка JWT](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/).
+
+## Назначение owner новой платформы
+
+При `VIEWER_PLATFORM_ENABLED=true` панель проверяет роль в `platform_staff`, а не только `users`. Не создавайте новую строку в `users` и не используйте учётную запись участника из `viewer_accounts`: это отдельные механизмы входа. Привязка owner должна использовать тот же `access_sub`, что и подтверждённая учётная запись Access с существующей ролью `admin`.
+
+Перед записью войдите через Access на основном домене и локально сравните `user_uuid` со значением `access_sub` единственной активной строки `users` с `role='admin'`. Идентификаторы, JWT и cookies не отправляйте в чат. Если соответствие не подтверждено, администраторов больше одного или в `platform_staff` уже есть записи, остановитесь и разберите ситуацию вручную.
+
+Только после отдельного разрешения на изменение production D1 можно выполнить guarded INSERT. Он копирует существующий Access subject, не создаёт пользовательский аккаунт и срабатывает только при ровно одном активном admin и пустой `platform_staff`:
+
+```sql
+INSERT INTO platform_staff (access_sub, role, active, created_at, updated_at)
+SELECT u.access_sub, 'owner', 1, unixepoch(), unixepoch()
+FROM users AS u
+WHERE u.active = 1
+  AND u.role = 'admin'
+  AND (SELECT COUNT(*) FROM users WHERE active = 1 AND role = 'admin') = 1
+  AND NOT EXISTS (SELECT 1 FROM platform_staff);
+```
+
+После записи проверьте только роль и активность, не выводя subject:
+
+```sql
+SELECT role, active FROM platform_staff WHERE role = 'owner';
+```
+
+В локальной подготовке 10 ноября 2026 года read-only запросы нашли одну активную строку `users` с ролью `admin`, ноль строк `platform_staff` и ноль строк `viewer_accounts`. После приватной сверки владельцем `user_uuid` и отдельного разрешения guarded INSERT добавил одну запись `owner`, привязанную к существующему `users.access_sub`; новый аккаунт не создавался. Последующая read-only проверка подтвердила одну активную owner-запись, соответствующую активному legacy admin, `PRAGMA quick_check=ok` и ноль нарушений внешних ключей. Публикация сайта не выполнялась.
