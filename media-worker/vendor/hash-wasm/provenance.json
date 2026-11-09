@@ -1,0 +1,16 @@
+{
+  "package": "hash-wasm",
+  "version": "4.13.0",
+  "integrity": "sha512-GrWl7wsV46fKIXQZB5ebskLZLAmKL6d9RS0fspCxDeQyjoNu1AfTJTMLPOJyfzaQm0ldFiwFN21/w+sE/kgEFQ==",
+  "source": "https://github.com/Daninet/hash-wasm",
+  "adaptations": [
+    "static WASM imports instead of runtime compilation",
+    "request-local factory for all upstream state",
+    "wipe instance memory after each operation"
+  ],
+  "files": {
+    "argon2.mjs": "e3fa5d242b154dc19e9a68026a1538090bfbb7879a06abea333c8d2522eebdd6",
+    "argon2.wasm": "7a25eff94eb7bc559acb7305d8352ed24470670a9ae653d79d86f92f8a395c3d",
+    "blake2b.wasm": "2aa7f33c4ece502997304672bc8defa348a7a30ef9a191e8648d317830e50afd"
+  }
+}
