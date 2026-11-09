@@ -2,6 +2,7 @@ import {HttpError} from './auth.mjs';
 import {requireMediaOrigin} from './origin.mjs';
 import {hashPassword,verifyPassword,validPassword,dummyPasswordHash} from './viewer-password.mjs';
 import {mailConfigured,deliver} from './viewer-mail.mjs';
+import {admitViewerOperation,admitViewerKdf,reserveViewerPassword,ViewerRateLimitError} from './viewer-rate-limit.mjs';
 const cookieName='__Host-mysterion_viewer',day=86400,idle=43200;
 const now=()=>Math.floor(Date.now()/1000),random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('');
 const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),x=>x.toString(16).padStart(2,'0')).join('');
@@ -15,14 +16,6 @@ async function input(request,allowed){
  const reader=request.body?.getReader();if(!reader)fail(400,'invalid_json');let size=0,chunks=[];while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>4096){await reader.cancel();fail(413,'body_too_large')}chunks.push(value)}
  const bytes=new Uint8Array(size);let at=0;for(const c of chunks){bytes.set(c,at);at+=c.length}let data;try{data=JSON.parse(new TextDecoder().decode(bytes))}catch{fail(400,'invalid_json')}
  if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).some(k=>!allowed.includes(k)))fail(400,'invalid_fields');return data;
-}
-async function limit(request,env,address){
- await env.MEDIA_DB.prepare('DELETE FROM viewer_rate_limits WHERE bucket IN (SELECT bucket FROM viewer_rate_limits WHERE expires_at<? LIMIT 100)').bind(now()).run();
- const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.VIEWER_RATE_KEY),{name:'HMAC',hash:'SHA-256'},false,['sign']);
- for(const [type,value,max] of [['ip',request.headers.get('CF-Connecting-IP')||'local',30],...(address?[['email',address,10]]:[])]){
-  const hash=Array.from(new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(type+':'+value))),x=>x.toString(16).padStart(2,'0')).join('');const time=now(),bucket=hash+':'+Math.floor(time/600);
-  const row=await env.MEDIA_DB.prepare('INSERT INTO viewer_rate_limits(bucket,count,expires_at) VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket,time+1200).first();if(row.count>max)fail(429,'rate_limited');
- }
 }
 async function audit(db,id,action){await db.prepare('INSERT INTO viewer_auth_events VALUES (?,?,?,?)').bind(crypto.randomUUID(),id,action,now()).run()}
 async function sendToken(env,account,purpose,context){
@@ -55,10 +48,12 @@ export async function handleViewer(request,env,context){
    const user=await session(request,env);if(user){if(route==='logout-all')await db.batch([db.prepare('UPDATE viewer_accounts SET credential_version=credential_version+1,updated_at=? WHERE id=? AND credential_version=?').bind(now(),user.id,user.credential_version),db.prepare('DELETE FROM viewer_sessions WHERE account_id=? AND token_hash=?').bind(user.id,user.hash)]);else await db.prepare('DELETE FROM viewer_sessions WHERE token_hash=?').bind(user.hash).run();await audit(db,user.id,route)}
    return reply({ok:true},200,clearCookie());
   }
-  const address=['register','login','resend-verification','forgot-password'].includes(route)?email(data.email):null;phase='rate_limit';await limit(request,env,address);
+  const address=['register','login','resend-verification','forgot-password'].includes(route)?email(data.email):null;
   phase='mail_configuration';if(['register','resend-verification','forgot-password'].includes(route)&&!mailConfigured(env))fail(503,'email_not_configured');
+  if(route==='register'){if(!validPassword(data.password))fail(400,'invalid_password');if(data.locale!==undefined&&!['ru','en'].includes(data.locale))fail(400,'invalid_locale')}
+  phase='rate_limit';await admitViewerOperation(request,env,route,{address,token:data.token});
   if(route==='register'){
-   if(!validPassword(data.password))fail(400,'invalid_password');if(data.locale!==undefined&&!['ru','en'].includes(data.locale))fail(400,'invalid_locale');
+   phase='kdf_admission';await admitViewerKdf(request,env);
    phase='password_hash';const hash=await hashPassword(data.password),id=crypto.randomUUID(),time=now();phase='account_store';const result=await db.prepare("INSERT INTO viewer_accounts(id,email,password_hash,locale,created_at,updated_at) VALUES (?,?,?,?,?,?) ON CONFLICT(email) DO NOTHING").bind(id,address,hash,data.locale||'ru',time,time).run();
    if(result.meta.changes){const account=await db.prepare('SELECT * FROM viewer_accounts WHERE id=?').bind(id).first();phase='email_token';await sendToken(env,account,'verify',context);phase='audit';await audit(db,id,'registered')}
    return reply({ok:true,message:'check_email'},202);
@@ -67,21 +62,25 @@ export async function handleViewer(request,env,context){
    const started=Date.now(),account=await db.prepare('SELECT * FROM viewer_accounts WHERE email=?').bind(address).first();if(account&&account.status!=='disabled'&&(route==='forgot-password'||!account.email_verified_at))await sendToken(env,account,route==='forgot-password'?'reset':'verify',context);await new Promise(resolve=>setTimeout(resolve,Math.max(0,500-(Date.now()-started))));return reply({ok:true,message:'check_email'},202);
   }
   if(route==='login'){
-   phase='account_lookup';const account=await db.prepare('SELECT * FROM viewer_accounts WHERE email=?').bind(address).first();phase='password_verify';const valid=await verifyPassword(data.password,account?.password_hash||dummyPasswordHash);
-   if(!valid||!account||account.status!=='active'||!account.email_verified_at)fail(401,'invalid_credentials');
+   phase='password_admission';const attempt=await reserveViewerPassword(request,env,address);
+   try{
+   phase='account_lookup';const account=await db.prepare('SELECT * FROM viewer_accounts WHERE email=?').bind(address).first();phase='kdf_admission';await admitViewerKdf(request,env);phase='password_verify';const valid=await verifyPassword(data.password,account?.password_hash||dummyPasswordHash);
+   if(!valid){phase='password_failure';await attempt.finish(true);fail(401,'invalid_credentials')}
+   await attempt.finish(false);
+   if(!account||account.status!=='active'||!account.email_verified_at)fail(401,'invalid_credentials');
    phase='session_store';const token=random(),hash=await digest(token),time=now();
    // Primary-key replacement is atomic. Guard against password-reset/disable races.
    const result=await db.prepare(`INSERT INTO viewer_sessions(account_id,token_hash,credential_version,created_at,last_seen_at,idle_expires_at,expires_at) SELECT id,?,credential_version,?,?,?,? FROM viewer_accounts WHERE id=? AND credential_version=? AND status='active' AND email_verified_at IS NOT NULL ON CONFLICT(account_id) DO UPDATE SET token_hash=excluded.token_hash,credential_version=excluded.credential_version,created_at=excluded.created_at,last_seen_at=excluded.last_seen_at,idle_expires_at=excluded.idle_expires_at,expires_at=excluded.expires_at`).bind(hash,time,time,time+idle,time+7*day,account.id,account.credential_version).run();
    if(!result.meta.changes)fail(401,'invalid_credentials');await audit(db,account.id,'login');return reply({ok:true},200,`${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7*day}`);
+   }finally{await attempt.finish(false)}
   }
   if(!/^[a-f0-9]{64}$/.test(data.token||''))fail(400,'invalid_or_expired_token');
   phase='token_lookup';const hash=await digest(data.token),purpose=route==='verify-email'?'verify':'reset';
   const record=await db.prepare(`SELECT t.*,a.email,a.status,a.credential_version AS current_version FROM viewer_email_tokens t JOIN viewer_accounts a ON a.id=t.account_id WHERE t.token_hash=? AND t.purpose=? AND t.consumed_at IS NULL AND t.expires_at>?`).bind(hash,purpose,now()).first();
   if(!record||record.status==='disabled'||record.credential_version!==record.current_version)fail(400,'invalid_or_expired_token');
-  await limit(request,env,record.email);
   // Verification proves possession of the single-use, expiring 256-bit token.
   // Explicit same-origin POST only; no automatic login or GET-side mutation.
-  let nextHash;if(purpose==='reset'){phase='password_hash';nextHash=await hashPassword(data.password)}
+  let nextHash;if(purpose==='reset'){phase='kdf_admission';await admitViewerKdf(request,env);phase='password_hash';nextHash=await hashPassword(data.password)}
   phase='token_consume';
   const time=now(),consume=crypto.randomUUID();
   const statements=[db.prepare('UPDATE viewer_email_tokens SET consumed_at=?,consumption_id=? WHERE token_hash=? AND consumed_at IS NULL AND expires_at>? AND credential_version=(SELECT credential_version FROM viewer_accounts WHERE id=account_id)').bind(time,consume,hash,time)];
@@ -91,9 +90,10 @@ export async function handleViewer(request,env,context){
  }catch(error){
   // Fixed classifications only: never log request URLs/bodies, exception messages,
   // identity, cookies, tokens, provider responses or credentials.
-  const allowed=new Set(['viewer_auth_disabled','viewer_auth_not_configured','email_not_configured','origin_not_configured','wrong_origin','invalid_origin','not_found','method_not_allowed','json_required','invalid_json','body_too_large','invalid_fields','invalid_email','invalid_password','invalid_locale','rate_limited','invalid_credentials','invalid_or_expired_token','password_record_invalid']);
+  const allowed=new Set(['viewer_auth_disabled','viewer_auth_not_configured','email_not_configured','origin_not_configured','wrong_origin','invalid_origin','not_found','method_not_allowed','json_required','invalid_json','body_too_large','invalid_fields','invalid_email','invalid_password','invalid_locale','rate_limited','invalid_credentials','invalid_or_expired_token','password_record_invalid','client_ip_unavailable']);
   const known=error instanceof HttpError&&allowed.has(error.message),code=known?error.message:'viewer_service_unavailable',status=known?error.status:503;
-  console.warn(JSON.stringify({event:'viewer_auth_failed',requestId,operation,phase,code,status,elapsedWallMs:Math.max(0,Date.now()-started)}));
-  const response=reply({error:code,requestId},status);response.headers.set('X-Mysterion-Request-ID',requestId);return response;
+  const rate=error instanceof ViewerRateLimitError?{retryAfter:error.retryAfter,limitScope:error.limitScope}:{};
+  console.warn(JSON.stringify({event:'viewer_auth_failed',requestId,operation,phase,code,status,...rate,elapsedWallMs:Math.max(0,Date.now()-started)}));
+  const response=reply({error:code,requestId,...rate},status);response.headers.set('X-Mysterion-Request-ID',requestId);if(rate.retryAfter)response.headers.set('Retry-After',String(rate.retryAfter));return response;
  }
 }

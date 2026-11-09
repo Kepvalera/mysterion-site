@@ -19,7 +19,7 @@ try{
   for(const statement of sql.split(';').map(s=>s.trim()).filter(Boolean))await db.prepare(statement).run();
  }
  const session=await mf.dispatchFetch('https://local.invalid/api/viewer/session');assert.equal(session.status,200);
- const login=await mf.dispatchFetch('https://local.invalid/api/viewer/login',{method:'POST',headers:{Origin:'https://local.invalid','X-Requested-With':'XMLHttpRequest','Content-Type':'application/json'},body:JSON.stringify({email:'local-build@example.invalid',password:'Local8!?'})});
+ const login=await mf.dispatchFetch('https://local.invalid/api/viewer/login',{method:'POST',headers:{Origin:'https://local.invalid','CF-Connecting-IP':'192.0.2.1','X-Requested-With':'XMLHttpRequest','Content-Type':'application/json'},body:JSON.stringify({email:'local-build@example.invalid',password:'Local8!?'})});
  assert.equal(login.status,401,await login.clone().text());assert.equal((await login.json()).error,'invalid_credentials');
  console.log(JSON.stringify({pagesFunctionsBuild:true,staticWasmModules:wasm.length,runtimeCompile:false,bundleBytes:Buffer.byteLength(code),localD1Session:true,actualBundledWasmLogin:true,remoteWrites:0}));
 }finally{await mf.dispose()}

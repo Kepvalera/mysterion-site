@@ -12,11 +12,15 @@
   const operation=async()=>{
    const r=await fetch('/api/viewer/'+path,{method:data?'POST':'GET',credentials:'same-origin',cache:'no-store',redirect:'error',signal:controller.signal,headers:data?{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'}:{},...(data?{body:JSON.stringify(data)}:{})});
    let result;try{result=await r.json()}catch{throw Error('failed')}
-   if(!r.ok){const error=Error(['viewer_auth_disabled','viewer_auth_not_configured','email_not_configured'].includes(result.error)?'unavailable':result.error);if(/^[a-f0-9-]{36}$/.test(result.requestId||''))error.requestId=result.requestId;throw error}return result;
+   if(!r.ok){const error=Error(['viewer_auth_disabled','viewer_auth_not_configured','email_not_configured'].includes(result.error)?'unavailable':result.error);if(/^[a-f0-9-]{36}$/.test(result.requestId||''))error.requestId=result.requestId;const retry=Number(r.headers.get('Retry-After')||result.retryAfter);if(r.status===429&&Number.isInteger(retry)&&retry>0&&retry<=3600)error.retryAfter=retry;throw error}return result;
   };
   try{return await Promise.race([operation(),deadline])}catch(error){if(controller.signal.aborted)throw Error('request_timeout');if(error instanceof TypeError)throw Error('network_error');throw error}finally{clearTimeout(timer)}
  }
- function failure(error){return t(error.message)+(error.requestId?' ('+t('requestId')+': '+error.requestId+')':'')}
+ function failure(error){
+  let message=t(error.message);
+  if(error.message==='rate_limited'&&error.retryAfter){const ru=document.documentElement.lang!=='en',minutes=Math.floor(error.retryAfter/60),seconds=error.retryAfter%60,wait=(minutes?minutes+(ru?' мин ':' min '):'')+seconds+(ru?' сек.':' sec.');message=ru?'Слишком много попыток. Повторите через '+wait:'Too many attempts. Try again in '+wait}
+  return message+(error.requestId?' ('+t('requestId')+': '+error.requestId+')':'');
+ }
 
  async function check(){try{const s=await api('session'),showingSession=s.authenticated&&!['verify','reset'].includes(action);$('viewer-signed-in').hidden=!showingSession;form.hidden=showingSession;$('viewer-tabs').hidden=showingSession;if(s.authenticated){sessionStorage.setItem('viewer-was-signed-in','1');if(showingSession)status.textContent=t('welcome')}else if(sessionStorage.getItem('viewer-was-signed-in')){status.textContent=t('expired');sessionStorage.removeItem('viewer-was-signed-in')}}catch(error){status.textContent=failure(error)}}
  document.querySelectorAll('[data-auth-action]').forEach(b=>b.onclick=()=>{if(busy)return;status.textContent='';token='';choose(b.dataset.authAction)});

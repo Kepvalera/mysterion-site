@@ -35,5 +35,8 @@ for(const lang of ['ru','en']){
  p.setFetch(async()=>{throw new TypeError('PRIVATE_NETWORK_DETAIL')});await p.submit();assert.match(p.get('viewer-status').textContent,lang==='ru'?/Проверьте соединение/:/Check your connection/);assert.ok(!p.get('viewer-status').textContent.includes('PRIVATE_'));checks++;
  const id='01234567-89ab-4cde-8fab-0123456789ab';p.setFetch(async()=>Response.json({error:'viewer_service_unavailable',requestId:id},{status:503}));await p.submit();assert.ok(p.get('viewer-status').textContent.includes(id));checks++;
  p.setFetch(async()=>Response.json({error:'PRIVATE_ERROR',requestId:'PRIVATE_TOKEN'},{status:503}));await p.submit();assert.ok(!p.get('viewer-status').textContent.includes('PRIVATE_'));checks++;
+ p.setFetch(async()=>Response.json({error:'rate_limited',retryAfter:300},{status:429,headers:{'Retry-After':'125'}}));await p.submit();assert.match(p.get('viewer-status').textContent,lang==='ru'?/2 мин 5 сек/:/2 min 5 sec/);checks++;
+ p.setFetch(async()=>Response.json({error:'rate_limited',retryAfter:25},{status:429}));await p.submit();assert.match(p.get('viewer-status').textContent,lang==='ru'?/25 сек/:/25 sec/);checks++;
+ p.setFetch(async()=>Response.json({error:'rate_limited',retryAfter:'PRIVATE_TOKEN'},{status:429,headers:{'Retry-After':'invalid'}}));await p.submit();assert.ok(!/NaN|PRIVATE_TOKEN/.test(p.get('viewer-status').textContent));assert.match(p.get('viewer-status').textContent,lang==='ru'?/Повторите позже/:/Retry later/);checks++;
 }
 console.log(JSON.stringify({checks,languages:['ru','en'],timeoutMs:20000,timeoutDuringFetch:true,timeoutDuringBody:true,retry:true,productionRequests:0}));
