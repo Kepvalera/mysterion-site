@@ -60,8 +60,13 @@ export async function platformAdmin(request,env,path,method){
   }
   if(method==='POST'&&vm[2]==='status')return bunny.syncVideo(env,video);
   if(vm[2]==='resume'){
-   if(video.state!=='draft'||video.source_type!=='bunny')deny(409,'bunny_draft_required');bunny.boundVideo(env,video);
-   if(method==='GET')return {upload:await db.prepare('SELECT location,file_size,fingerprint FROM platform_uploads WHERE video_id=?').bind(video.id).first()};
+   if(video.state!=='draft'||video.source_type!=='bunny')deny(409,'bunny_draft_required');
+   if(method==='GET'){
+    if(!video.source_ref)return {upload:null};
+    bunny.boundVideo(env,video);
+    return {upload:await db.prepare('SELECT location,file_size,fingerprint FROM platform_uploads WHERE video_id=?').bind(video.id).first()};
+   }
+   bunny.boundVideo(env,video);
    if(method==='PUT'){const d=await input(request,['location','file_size','fingerprint']);let url;try{url=new URL(d.location)}catch{deny(400,'invalid_upload_location')}
     if(url.origin!=='https://video.bunnycdn.com'||!/^\/tusupload\/[a-zA-Z0-9_-]+$/.test(url.pathname)||url.search||url.hash||url.username||url.password||!Number.isSafeInteger(d.file_size)||d.file_size<1||d.file_size>20*1024**3||!/^[a-f0-9]{64}$/.test(d.fingerprint))deny(400,'invalid_upload_location');
     await db.prepare('INSERT INTO platform_uploads VALUES (?,?,?,?,?) ON CONFLICT(video_id) DO UPDATE SET location=excluded.location,file_size=excluded.file_size,fingerprint=excluded.fingerprint,updated_at=excluded.updated_at').bind(video.id,url.href,d.file_size,d.fingerprint,time()).run();return {ok:true};}
