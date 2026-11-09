@@ -22,16 +22,30 @@
   return message+(error.requestId?' ('+t('requestId')+': '+error.requestId+')':'');
  }
 
- async function check(){try{const s=await api('session'),showingSession=s.authenticated&&!['verify','reset'].includes(action);$('viewer-signed-in').hidden=!showingSession;form.hidden=showingSession;$('viewer-tabs').hidden=showingSession;if(s.authenticated){sessionStorage.setItem('viewer-was-signed-in','1');if(showingSession)status.textContent=t('welcome')}else if(sessionStorage.getItem('viewer-was-signed-in')){status.textContent=t('expired');sessionStorage.removeItem('viewer-was-signed-in')}}catch(error){status.textContent=failure(error)}}
+
+ function showAccount(show,expiresAt){
+  $('viewer-signed-in').hidden=!show;const zone=$('viewer-auth-zone');if(zone)zone.hidden=show;form.hidden=show;$('viewer-tabs').hidden=show;
+  window.dispatchEvent(new CustomEvent('mysterion:viewer-session',{detail:{showAccount:show,expiresAt}}));
+ }
+ async function check(){try{
+  const s=await api('session'),showingSession=s.authenticated&&!['verify','reset'].includes(action);showAccount(showingSession,s.expiresAt);
+  if(s.authenticated){sessionStorage.setItem('viewer-was-signed-in','1');if(showingSession)status.textContent=t('welcome')}
+  else if(sessionStorage.getItem('viewer-was-signed-in')){status.textContent=t('expired');sessionStorage.removeItem('viewer-was-signed-in')}
+ }catch(error){showAccount(false);status.textContent=failure(error)}}
+
  document.querySelectorAll('[data-auth-action]').forEach(b=>b.onclick=()=>{if(busy)return;status.textContent='';token='';choose(b.dataset.authAction)});
  form.onsubmit=async event=>{event.preventDefault();if(busy)return;if(['register','reset'].includes(action)&&form.elements.password.value!==form.elements.confirm.value){status.textContent=t('mismatch');return}busy=true;$('viewer-submit').disabled=true;status.textContent=t('working');
   try{const data={};if(['login','register','forgot','resend'].includes(action))data.email=form.elements.email.value;if(['login','register','reset'].includes(action))data.password=form.elements.password.value;if(action==='register')data.locale=document.documentElement.lang==='en'?'en':'ru';if(['verify','reset'].includes(action))data.token=token;
    const path={forgot:'forgot-password',resend:'resend-verification',verify:'verify-email',reset:'reset-password'}[action]||action;await api(path,data);
-   if(action==='login'){await check();window.dispatchEvent(new Event('mysterion:viewer-auth-changed'))}else if(action==='verify'||action==='reset'){const message=t(action==='verify'?'verified':'resetDone');token='';choose('login');status.textContent=message}else status.textContent=t('check');
+   if(action==='login'){history.replaceState(null,'',location.pathname+location.search);await check();window.dispatchEvent(new Event('mysterion:viewer-auth-changed'))}else if(action==='verify'||action==='reset'){const message=t(action==='verify'?'verified':'resetDone');token='';choose('login');status.textContent=message}else status.textContent=t('check');
   }catch(error){status.textContent=failure(error)}finally{form.elements.password.value='';form.elements.confirm.value='';busy=false;$('viewer-submit').disabled=false}
  };
- for(const [id,path]of [['viewer-logout','logout'],['viewer-logout-all','logout-all']])$(id).onclick=async()=>{if(busy)return;busy=true;try{await api(path,{});sessionStorage.removeItem('viewer-was-signed-in');await check();status.textContent=t('signedOut');window.dispatchEvent(new Event('mysterion:viewer-auth-changed'))}catch(error){status.textContent=failure(error)}finally{busy=false}};
- function readLink(){const params=new URLSearchParams(location.hash.slice(1));if(['verify','reset'].includes(params.get('action'))){action=params.get('action');token=params.get('token')||'';history.replaceState(null,'',location.pathname);form.elements.password.value='';form.elements.confirm.value='';form.hidden=false;$('viewer-signed-in').hidden=true;$('viewer-tabs').hidden=false;render()}}
+ for(const [id,path]of [['viewer-logout','logout'],['viewer-logout-all','logout-all']])$(id).onclick=async()=>{if(busy)return;busy=true;try{await api(path,{});sessionStorage.removeItem('viewer-was-signed-in');await check();status.textContent=t('signedOut');window.dispatchEvent(new Event('mysterion:viewer-signed-out'))}catch(error){status.textContent=failure(error)}finally{busy=false}};
+ function readLink(){const params=new URLSearchParams(location.hash.slice(1));if(['verify','reset'].includes(params.get('action'))){action=params.get('action');token=params.get('token')||'';history.replaceState(null,'',location.pathname);form.elements.password.value='';form.elements.confirm.value='';showAccount(false);render()}}
+
+ function expiredAccount(){token='';choose('login');showAccount(false);status.textContent=t('expired');sessionStorage.removeItem('viewer-was-signed-in')}
+ window.addEventListener('mysterion:viewer-unauthorized',()=>{expiredAccount();window.dispatchEvent(new Event('mysterion:viewer-auth-changed'))});
+ window.addEventListener('mysterion:session-expired',()=>{if(!$('viewer-signed-in').hidden)expiredAccount()});
  window.addEventListener('hashchange',readLink);readLink();
  window.addEventListener('mysterion:language',render);window.addEventListener('focus',()=>{if(!busy)check()});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!busy)check()});setInterval(()=>{if(!document.hidden&&!busy)check()},60000);render();check();
 })();

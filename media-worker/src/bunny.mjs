@@ -53,9 +53,10 @@ export function boundVideo(env, row) {
     throw new HttpError(409, 'bunny_video_not_bound');
   }
 }
-export async function playback(env, row) {
+export async function playback(env, row, maxExpiry) {
   boundVideo(env, row);
-  const expires = Math.floor(Date.now() / 1000) + 180;
+  const expires = Math.min(Math.floor(Date.now() / 1000) + 180,Number.isSafeInteger(maxExpiry)?maxExpiry:Infinity);
+  if(expires<=Math.floor(Date.now()/1000))throw new HttpError(403,'viewing_right_required');
   const token = await sha256(env.BUNNY_TOKEN_KEY + row.source_ref + expires);
   return {type: 'bunny', url: `https://player.mediadelivery.net/embed/${env.BUNNY_LIBRARY_ID}/${row.source_ref}?token=${token}&expires=${expires}`, expires};
 }

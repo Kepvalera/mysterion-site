@@ -30,6 +30,9 @@ window.MysterionBunnyUpload = class {
         const mime=this.file.type||({mov:'video/quicktime',webm:'video/webm',mp4:'video/mp4'}[extension])||'video/mp4';
         const response=await this.request('POST',{...headers,'Upload-Length':String(this.file.size),'Upload-Metadata':`filetype ${encode(mime)},title ${encode(this.file.name.slice(0,180))}`});
         const location=response.headers.get('Location');if(!location)throw Error('missing_upload_location');this.url=this.location(location);
+        // Persist only the provider location + fingerprint on the authorized server.
+        // Signing headers never leave this instance.
+        if(this.onLocation)await this.onLocation(this.url);
       }
       if(this.paused)return false;
       const head=await this.request('HEAD',headers);const rawOffset=head.headers.get('Upload-Offset');if(rawOffset===null)throw Error('invalid_upload_offset');this.offset=Number(rawOffset);

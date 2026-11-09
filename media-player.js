@@ -20,6 +20,7 @@
     if(requestVersion!==version||!dialog.open)return;
     let player;
     if(data.type==='youtube'&&/^[\w-]{11}$/.test(data.id)){player=node('iframe');player.src='https://www.youtube-nocookie.com/embed/'+data.id}
+    else if(data.type==='vk'&&typeof data.url==='string'){const u=new URL(data.url);if(!['https://vk.com','https://vkvideo.ru'].includes(u.origin)||u.pathname!=='/video_ext.php'||u.username||u.password)throw Error('invalid_player');player=node('iframe');player.src=u.href}
     else if(data.type==='bunny'&&typeof data.url==='string'&&/^https:\/\/player\.mediadelivery\.net\/embed\/\d+\/[a-f0-9-]{36}\?token=[a-f0-9]{64}&expires=\d+$/.test(data.url)){player=node('iframe');player.src=data.url}
     else if(data.type==='r2'&&data.url===`/api/media/videos/${item.id}/stream`){player=node('video');player.controls=true;player.preload='metadata';player.src=data.url}
     else throw Error('invalid_player');

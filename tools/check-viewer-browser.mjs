@@ -16,7 +16,32 @@ try{
  const link=mails.at(-1).text.split('\n\n').at(-1);await a.goto(link,{waitUntil:'networkidle0'});await a.waitForFunction(()=>location.hash==='');assert.equal(await a.$eval('#viewer-password-label',n=>n.hidden),true);await a.click('#viewer-submit');await a.waitForFunction(()=>document.getElementById('viewer-heading').textContent==='Sign in');checks++;
  async function login(page){await page.$eval('[name=email]',n=>n.value='browser@example.invalid');await page.$eval('[name=password]',(n,p)=>n.value=p,password);await page.click('#viewer-submit');await page.waitForFunction(()=>!document.getElementById('viewer-signed-in').hidden)}
  await login(a);await a.waitForFunction(()=>document.querySelector('.account-entry').getAttribute('href')==='/viewer-account.html'&&!document.querySelector('.account-menu-toggle').hidden);assert.equal(await a.$eval('[data-account=manage]',n=>n.hidden),true);checks++;
- const context=await browser.createBrowserContext(),b=await context.newPage();await b.goto(env.MEDIA_PUBLIC_ORIGIN+'/viewer-account.html',{waitUntil:'networkidle0'});await login(b);await a.bringToFront();await a.evaluate(()=>window.dispatchEvent(new Event('focus')));await a.waitForFunction(()=>document.getElementById('viewer-signed-in').hidden);checks++;
- await b.bringToFront();await b.click('#viewer-logout-all');await b.waitForFunction(()=>document.getElementById('viewer-signed-in').hidden);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM viewer_sessions').get().n,0);checks++;
- assert.deepEqual(errors,[]);await fs.writeFile(path.join(out,'results.json'),JSON.stringify({checks,errors,widths:[320,375,390,430,768,1440],languages:['ru','en'],mode:'Chrome + actual auth module + in-memory SQLite; email capture only; no production'},null,2));console.log(JSON.stringify({checks,errors,screenshots:out}));await context.close();
+ await a.waitForSelector('#member-views',{visible:true});
+ const dashboardOut=path.resolve('output/viewer-dashboard-check');await fs.mkdir(dashboardOut,{recursive:true});
+ for(const width of [320,375,390,430,768,1440]){
+  await a.setViewport({width,height:900,isMobile:width<500,deviceScaleFactor:1});
+  for(const language of ['ru','en']){
+   await a.evaluate(value=>window.setLanguage(value),language);
+   for(const section of ['home','courses','videos','purchases','profile']){
+    await a.evaluate(()=>window.scrollTo(0,0));await a.click('.member-nav [data-member-section="'+section+'"]');
+    await a.waitForSelector('#member-panel-'+section,{visible:true});
+    assert.equal(await a.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Dashboard horizontal overflow');
+    assert.equal(await a.$eval('#member-panel-'+section,n=>n.contains(document.activeElement)),true);
+    if([390,1440].includes(width)&&((language==='ru'&&['home','profile','purchases'].includes(section))||(language==='en'&&section==='home'))){await new Promise(r=>setTimeout(r,400));await a.screenshot({path:path.join(dashboardOut,section+'-'+width+'-'+language+'.png'),fullPage:true})}
+    checks++;
+   }
+  }
+ }
+ assert.equal(await a.$eval('[data-member-value="email"]',n=>n.textContent),'browser@example.invalid');
+ assert.equal(await a.$eval('[data-member-value="name"]',n=>n.textContent),'Not provided');
+ assert.equal(await a.evaluate(()=>document.cookie.includes('__Host-mysterion_viewer')),false);checks++;
+ const mailCount=mails.length;await a.click('#member-change-password');await a.waitForFunction(()=>!document.getElementById('member-change-password').disabled);assert.equal(mails.length,mailCount+1);assert.match(await a.$eval('#member-profile-status',n=>n.textContent),/reset email has been sent/);checks++;
+ await a.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);await a.click('.member-nav [data-member-section="home"]');assert.equal(await a.$eval('.member-continuation-art>.member-icon:last-child',n=>getComputedStyle(n).animationName),'none');await a.emulateMediaFeatures([]);checks++;
+ const context=await browser.createBrowserContext(),b=await context.newPage();await b.goto(env.MEDIA_PUBLIC_ORIGIN+'/viewer-account.html',{waitUntil:'networkidle0'});assert.equal(await b.$eval('#viewer-signed-in',n=>n.hidden),true);assert.equal(await b.evaluate(async()=>{const r=await fetch('/api/viewer/account');return r.status}),401);checks++;
+ await login(b);await a.bringToFront();await a.evaluate(()=>window.dispatchEvent(new Event('focus')));await a.waitForFunction(()=>document.getElementById('viewer-signed-in').hidden);assert.equal(await a.$eval('#viewer-signed-in',n=>n.textContent.includes('browser@example.invalid')),false);assert.equal(await a.evaluate(async()=>{const r=await fetch('/api/viewer/account');return r.status}),401);checks++;
+ await b.bringToFront();await b.waitForSelector('#member-views',{visible:true});await b.click('.member-nav [data-member-section="profile"]');await b.click('#viewer-logout-all');await b.waitForFunction(()=>document.getElementById('viewer-signed-in').hidden);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM viewer_sessions').get().n,0);checks++;
+ assert.equal(await b.$eval('#viewer-signed-in',n=>n.textContent.includes('browser@example.invalid')),false);assert.equal(await b.evaluate(async()=>{const r=await fetch('/api/viewer/account');return r.status}),401);checks++;
+ await login(b);await b.waitForSelector('.account-menu-toggle',{visible:true});await b.click('.account-menu-toggle');const signedOutNavigation=b.waitForNavigation({waitUntil:'networkidle0'});await b.click('[data-account="logout"]');await signedOutNavigation;
+ assert.equal(await b.$eval('#viewer-signed-in',n=>n.hidden),true);assert.equal(await b.$eval('.account-session-notice',n=>n.hidden),true);assert.equal(await b.evaluate(()=>sessionStorage.getItem('viewer-was-signed-in')),null);checks++;
+ assert.deepEqual(errors,[]);const result={checks,errors,widths:[320,375,390,430,768,1440],languages:['ru','en'],mode:'Chrome + actual auth module + in-memory SQLite; email capture only; no production',materials:'No purchase or material fixtures',safariTested:false};await fs.writeFile(path.join(out,'results.json'),JSON.stringify(result,null,2));await fs.writeFile(path.join(dashboardOut,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({checks,errors,screenshots:dashboardOut}));await context.close();
 }finally{await browser.close();await new Promise(r=>server.close(r));db.close()}

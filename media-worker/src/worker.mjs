@@ -2,6 +2,7 @@ import {HttpError,administrator,entitledViewer,siteSession} from './auth.mjs';
 import * as bunny from './bunny.mjs';
 import {requireMediaOrigin} from './origin.mjs';
 import {memberRoute} from './members.mjs';
+import {vkEmbed} from './video-source.mjs';
 const categories=['sermon','testimony','conference','school'];
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 const fail=(status,code)=>{throw new HttpError(status,code)};
@@ -84,7 +85,7 @@ export async function handle(request,env) {
   if(match && method==='GET') {
    const row=await published(env,match[1]),kind=match[2];
    if(kind==='cover') {
-    if(row.cover_key==='d1' && env.MEDIA_MEMBERS_ENABLED==='true'){
+    if(row.cover_key==='d1' && (env.MEDIA_MEMBERS_ENABLED==='true'||env.VIEWER_PLATFORM_ENABLED==='true')){
      const cover=await env.MEDIA_DB.prepare('SELECT mime,bytes FROM media_covers WHERE video_id=?').bind(row.id).first();
      if(!cover)fail(404,'not_found');
      return new Response(new Uint8Array(cover.bytes),{headers:{'Content-Type':cover.mime,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -94,6 +95,7 @@ export async function handle(request,env) {
    // Paid R2/YouTube and the legacy GET route can never issue a viewing grant.
    if(row.access!=='free') fail(402,'paid_playback_disabled');
    if(kind==='play' && row.source_type==='bunny') {if(row.bunny_status!==4)fail(409,'video_not_ready');return json(await bunny.playback(env,row))}
+   if(kind==='play'&&row.source_type==='vk')return json({type:'vk',url:vkEmbed(row.source_ref)});
    if(kind==='play') return json(row.source_type==='youtube'?{type:'youtube',id:row.source_ref}:{type:'r2',url:`/api/media/videos/${row.id}/stream`});
    if(row.source_type!=='r2' || !env.MEDIA_BUCKET) fail(404,'not_found');
    const range=request.headers.get('Range'); if(range && !/^bytes=\d+-\d*$/.test(range)) fail(416,'invalid_range');
@@ -103,6 +105,9 @@ export async function handle(request,env) {
    return new Response(object.body,{status:object.range?206:200,headers});
   }
   if(!path.startsWith('admin/')) fail(404,'not_found');
+  // When the explicit new platform flag is enabled, legacy roles cannot bypass
+  // the separate owner/publisher/uploader permissions through an older endpoint.
+  if(env.VIEWER_PLATFORM_ENABLED==='true')fail(409,'use_platform_admin_api');
   const user=await administrator(request,env);
   if(method!=='GET')sameOrigin(request,env);
   if(/^admin\/(members|grants|collections)(\/|$)/.test(path))return json(await memberRoute(request,env,path,method,user,body));

@@ -13,7 +13,7 @@ function page(lang='ru'){
  let handler=async()=>Response.json({authenticated:false});
  const context=vm.createContext({document:{documentElement:{lang},hidden:false,getElementById:get,querySelectorAll:selector=>selector==='[data-auth]'?dataNodes:tabs,addEventListener(){}},
   window:{addEventListener(){},dispatchEvent(){}},location:{hash:'',pathname:'/viewer-account.html'},history:{replaceState(){}},sessionStorage:{getItem(){},setItem(){},removeItem(){}},
-  AbortController,Event,URLSearchParams,TypeError,console,
+  AbortController,Event,CustomEvent,URLSearchParams,TypeError,console,
   setTimeout(callback,ms){assert.equal(ms,20000);timers.set(++timerId,callback);return timerId},clearTimeout(id){timers.delete(id)},setInterval(){},fetch:(url,options)=>handler(url,options)});
  vm.runInContext(source,context);
  return {get,form,tabs,dataNodes,timers,setFetch(fn){handler=fn},async flush(){for(let i=0;i<20;i++)await Promise.resolve()},async submit(){form.elements.email.value='local@example.invalid';form.elements.password.value='Local8!?';form.elements.confirm.value='Local8!?';return form.onsubmit({preventDefault(){}})}};

@@ -1,6 +1,8 @@
 import {administrator, verifySiteIdentity, HttpError} from './auth.mjs';
 import {requireMediaOrigin} from './origin.mjs';
 import {siteHeader} from './site-header.mjs';
+import {staffIdentity} from './platform-data.mjs';
+import {platformAdminTemplate} from './platform-admin-template.mjs';
 
 const securityHeaders = {
   'Cache-Control': 'private, no-store',
@@ -33,13 +35,13 @@ export async function protectMediaPage(context, templates) {
     if(!/^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/.test(context.env.MEDIA_ACCESS_ISSUER||''))throw new HttpError(503,'access_issuer_not_configured');
     if(!context.env.MEDIA_ACCESS_AUD)throw new HttpError(503,'access_audience_not_configured');
     phase=admin?'administrator':'viewer_identity';
-    if (admin) await administrator(context.request, context.env);
+    if (admin) {if(context.env.VIEWER_PLATFORM_ENABLED==='true')await staffIdentity(context.request,context.env);else await administrator(context.request, context.env);}
     else {
       await verifySiteIdentity(context.request,context.env);
     }
     // Full UI is returned only after authentication. Static aliases never contain the form.
     phase='template';
-    const original = templates ? new Response(admin ? templates.admin : templates.login, {headers:{'Content-Type':'text/html; charset=utf-8'}}) : await context.next();
+    const original = admin&&context.env.VIEWER_PLATFORM_ENABLED==='true'?new Response(platformAdminTemplate,{headers:{'Content-Type':'text/html; charset=utf-8'}}):templates ? new Response(admin ? templates.admin : templates.login, {headers:{'Content-Type':'text/html; charset=utf-8'}}) : await context.next();
     const response = new Response(original.body, original);
     for (const [key, value] of Object.entries(securityHeaders)) response.headers.set(key, value);
     return response;

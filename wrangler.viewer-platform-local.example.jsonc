@@ -1,0 +1,21 @@
+// LOCAL EXAMPLE ONLY. No real database IDs, credentials, deployment or migrations.
+{
+  "name": "mysterion-viewer-local",
+  "pages_build_output_dir": ".",
+  "compatibility_date": "2026-11-08",
+  "d1_databases": [{
+    "binding": "MEDIA_DB",
+    "database_name": "mysterion-viewer-local-only",
+    "database_id": "00000000-0000-0000-0000-000000000000",
+    "migrations_dir": "media-worker/migrations"
+  }],
+  "vars": {
+    "MEDIA_PUBLIC_ORIGIN": "http://127.0.0.1:8788",
+    "MEDIA_ENABLED": "true",
+    "VIEWER_AUTH_ENABLED": "true",
+    "VIEWER_PLATFORM_ENABLED": "true",
+    "MEDIA_PAID_ENABLED": "false",
+    "BUNNY_ENABLED": "false",
+    "VIEWER_LOCAL_IP_FALLBACK": "true"
+  }
+}

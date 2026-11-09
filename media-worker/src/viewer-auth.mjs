@@ -3,6 +3,7 @@ import {requireMediaOrigin} from './origin.mjs';
 import {hashPassword,verifyPassword,validPassword,dummyPasswordHash} from './viewer-password.mjs';
 import {mailConfigured,deliver} from './viewer-mail.mjs';
 import {admitViewerOperation,admitViewerKdf,reserveViewerPassword,ViewerRateLimitError} from './viewer-rate-limit.mjs';
+import {viewerLibrary} from './platform-data.mjs';
 const cookieName='__Host-mysterion_viewer',day=86400,idle=43200;
 const now=()=>Math.floor(Date.now()/1000),random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('');
 const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),x=>x.toString(16).padStart(2,'0')).join('');
@@ -31,15 +32,37 @@ async function session(request,env){
  const row=await env.MEDIA_DB.prepare(`SELECT a.id,a.credential_version,s.created_at,s.expires_at FROM viewer_sessions s JOIN viewer_accounts a ON a.id=s.account_id WHERE s.token_hash=? AND s.credential_version=a.credential_version AND a.status='active' AND a.email_verified_at IS NOT NULL AND s.expires_at>? AND s.idle_expires_at>?`).bind(hash,time,time).first();
  if(!row)return null;await env.MEDIA_DB.prepare('UPDATE viewer_sessions SET last_seen_at=?,idle_expires_at=min(expires_at,?) WHERE token_hash=? AND last_seen_at<?').bind(time,time+idle,hash,time-300).run();return {...row,hash};
 }
+export async function requireViewerSession(request,env){
+ if(env.VIEWER_AUTH_ENABLED!=='true'||!env.MEDIA_DB||typeof env.VIEWER_RATE_KEY!=='string'||env.VIEWER_RATE_KEY.length<32)fail(503,'viewer_auth_not_configured');
+ requireMediaOrigin(request,env);const user=await session(request,env);if(!user)fail(401,'authentication_required');return user;
+}
 export async function handleViewer(request,env,context){
  const requestId=crypto.randomUUID(),started=Date.now();let phase='configuration';
  const candidate=new URL(request.url).pathname.replace(/^\/api\/viewer\//,'');
- const operation=['session','register','login','verify-email','resend-verification','forgot-password','reset-password','logout','logout-all'].includes(candidate)?candidate:'unknown';
+ const operation=['session','account','register','login','verify-email','resend-verification','forgot-password','reset-password','logout','logout-all'].includes(candidate)?candidate:'unknown';
  try{
   if(env.VIEWER_AUTH_ENABLED!=='true')fail(503,'viewer_auth_disabled');requireMediaOrigin(request,env);
   if(!env.MEDIA_DB||typeof env.VIEWER_RATE_KEY!=='string'||env.VIEWER_RATE_KEY.length<32)fail(503,'viewer_auth_not_configured');
   const route=new URL(request.url).pathname.replace(/^\/api\/viewer\//,''),method=request.method,db=env.MEDIA_DB;
   if(route==='session'&&method==='GET'){phase='session';const user=await session(request,env);return reply(user?{authenticated:true,verified:true,expiresAt:user.expires_at*1000}:{authenticated:false},200,!user&&cookie(request)?clearCookie():undefined)}
+  if(route==='account'){
+   if(method!=='GET')fail(405,'method_not_allowed');phase='account_session';
+   const user=await session(request,env);if(!user)fail(401,'authentication_required');
+   // Recheck the current token in the profile query. Never map legacy Access
+   // users or entitlements by email, URL parameters, browser state or claimed roles.
+   phase='account_profile';const time=now();
+   const profile=await db.prepare(`SELECT a.email,a.locale,a.created_at,a.email_verified_at,s.expires_at
+    FROM viewer_accounts a JOIN viewer_sessions s ON s.account_id=a.id
+    WHERE s.token_hash=? AND s.credential_version=a.credential_version
+    AND a.status='active' AND a.email_verified_at IS NOT NULL AND s.expires_at>? AND s.idle_expires_at>?`).bind(user.hash,time,time).first();
+   if(!profile)fail(401,'authentication_required');
+   if(env.VIEWER_PLATFORM_ENABLED==='true'){
+    const details=await db.prepare('SELECT first_name,last_name FROM viewer_accounts WHERE id=?').bind(user.id).first();
+    return reply({profile:{firstName:details.first_name,lastName:details.last_name,name:[details.first_name,details.last_name].filter(Boolean).join(' '),email:profile.email,emailVerified:true,locale:profile.locale,joinedAt:profile.created_at*1000},session:{expiresAt:profile.expires_at*1000},library:await viewerLibrary(db,user.id),features:{materialAccess:true,purchases:true,displayName:true}});
+   }
+   return reply({profile:{name:null,email:profile.email,emailVerified:true,locale:profile.locale,joinedAt:profile.created_at*1000},session:{expiresAt:profile.expires_at*1000},
+    library:{courses:[],videos:[],purchases:[],continueLearning:[]},features:{materialAccess:false,purchases:false,displayName:false}});
+  }
   const fields={register:['email','password','locale'],login:['email','password'],'verify-email':['token'],'resend-verification':['email'],'forgot-password':['email'],'reset-password':['token','password'],logout:[],'logout-all':[]};
   if(!Object.hasOwn(fields,route))fail(404,'not_found');if(method!=='POST')fail(405,'method_not_allowed');
   if(request.headers.get('Origin')!==env.MEDIA_PUBLIC_ORIGIN||request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.get('X-Requested-With')!=='XMLHttpRequest')fail(403,'invalid_origin');
@@ -90,7 +113,7 @@ export async function handleViewer(request,env,context){
  }catch(error){
   // Fixed classifications only: never log request URLs/bodies, exception messages,
   // identity, cookies, tokens, provider responses or credentials.
-  const allowed=new Set(['viewer_auth_disabled','viewer_auth_not_configured','email_not_configured','origin_not_configured','wrong_origin','invalid_origin','not_found','method_not_allowed','json_required','invalid_json','body_too_large','invalid_fields','invalid_email','invalid_password','invalid_locale','rate_limited','invalid_credentials','invalid_or_expired_token','password_record_invalid','client_ip_unavailable']);
+  const allowed=new Set(['viewer_auth_disabled','viewer_auth_not_configured','email_not_configured','origin_not_configured','wrong_origin','invalid_origin','not_found','method_not_allowed','json_required','invalid_json','body_too_large','invalid_fields','invalid_email','invalid_password','invalid_locale','rate_limited','invalid_credentials','invalid_or_expired_token','password_record_invalid','client_ip_unavailable','authentication_required']);
   const known=error instanceof HttpError&&allowed.has(error.message),code=known?error.message:'viewer_service_unavailable',status=known?error.status:503;
   const rate=error instanceof ViewerRateLimitError?{retryAfter:error.retryAfter,limitScope:error.limitScope}:{};
   console.warn(JSON.stringify({event:'viewer_auth_failed',requestId,operation,phase,code,status,...rate,elapsedWallMs:Math.max(0,Date.now()-started)}));

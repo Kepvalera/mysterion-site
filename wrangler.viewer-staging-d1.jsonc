@@ -1,0 +1,13 @@
+// D1 operations only. Explicit --config required. Not a deployment configuration.
+// Never substitute the production/media database here.
+{
+  "name": "mysterion-viewer-staging",
+  "compatibility_date": "2026-11-08",
+  "d1_databases": [
+    {
+      "binding": "MEDIA_DB",
+      "database_name": "mysterion-viewer-auth-staging",
+      "database_id": "99255496-6173-4efe-8b14-5924f3c1ceeb"
+    }
+  ]
+}

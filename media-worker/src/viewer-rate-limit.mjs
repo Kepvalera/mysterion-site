@@ -2,6 +2,9 @@ import {HttpError} from './auth.mjs';
 
 const now=()=>Math.floor(Date.now()/1000);
 const policies=Object.freeze({
+ profile:[['profile_ip','ip',30,600],['profile_viewer','email',20,600]],
+ orders:[['orders_ip','ip',10,600],['orders_viewer','email',10,600]],
+ progress:[['progress_ip','ip',120,600],['progress_viewer','email',120,600]],
  login:[['login_ip','ip',30,600],['login_email','email',30,600]],
  register:[['register_ip','ip',5,3600],['register_email','email',3,3600]],
  'forgot-password':[['recovery_ip','ip',10,900],['recovery_email','email',3,900]],

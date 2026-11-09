@@ -22,6 +22,12 @@ export async function verifySiteIdentity(request,env){
 export async function siteSession(request,env){
   if(!accessToken(request))return {authenticated:false,reason:'signed_out'};
   const claims=await verifySiteIdentity(request,env);
+  if(env.VIEWER_PLATFORM_ENABLED==='true'){
+    // Management always requires the administrative application's audience.
+    let administrative;try{administrative=await verifyRequestAccess(request,env)}catch{return {authenticated:true,canManage:false,role:null,expiresAt:claims.exp*1000}}
+    const staff=await env.MEDIA_DB.prepare('SELECT role FROM platform_staff WHERE access_sub=? AND active=1').bind(administrative.sub).first();
+    return {authenticated:true,role:staff?.role||null,canManage:Boolean(staff),registered:Boolean(staff),expiresAt:claims.exp*1000};
+  }
   const user=await env.MEDIA_DB.prepare('SELECT role,active FROM users WHERE access_sub=?').bind(claims.sub).first();
   if(user&&!user.active)return {authenticated:false,reason:'account_disabled'};
   return {authenticated:true,role:user?.role||null,canManage:user?.active===1&&user.role==='admin',registered:Boolean(user),expiresAt:claims.exp*1000};
