@@ -6,8 +6,11 @@ import {vkEmbed} from './video-source.mjs';
 const categories=['sermon','testimony','conference','school'];
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 const fail=(status,code)=>{throw new HttpError(status,code)};
-function ready(env) {
- if(env.MEDIA_ENABLED!=='true' || !env.MEDIA_DB || !/^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/.test(env.MEDIA_ACCESS_ISSUER||'') || !env.MEDIA_ACCESS_AUD || !env.MEDIA_PUBLIC_ORIGIN) fail(503,'not_configured');
+function ready(env,publicRead=false) {
+ if(env.MEDIA_ENABLED!=='true' || !env.MEDIA_DB || !env.MEDIA_PUBLIC_ORIGIN) fail(503,'not_configured');
+ // The new platform's public catalog must not depend on staff Access setup.
+ // All administrative/member routes keep the original identity prerequisites.
+ if(!publicRead&&(!/^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/.test(env.MEDIA_ACCESS_ISSUER||'')||!env.MEDIA_ACCESS_AUD))fail(503,'not_configured');
 }
 function localized(value,max,required=false) {
  if(!value || typeof value!=='object' || Array.isArray(value) || Object.keys(value).some(k=>!['ru','en','de'].includes(k))) fail(400,'invalid_translation');
@@ -48,9 +51,10 @@ async function mutate(env,user,id,action,statement,mutation) {
 }
 export async function handle(request,env) {
  try {
-  ready(env);
-  requireMediaOrigin(request,env);
   const url=new URL(request.url), path=url.pathname.replace(/^\/api\/media\/?/,'').replace(/\/$/,''), method=request.method;
+  const publicRead=env.VIEWER_PLATFORM_ENABLED==='true'&&method==='GET'&&(['videos','collections','session'].includes(path)||/^videos\/[a-f0-9-]{36}\/(play|cover|stream)$/.test(path));
+  ready(env,publicRead);
+  requireMediaOrigin(request,env);
   if(!url.pathname.startsWith('/api/media')) fail(404,'not_found');
   if(path==='session'&&method==='GET')return json(await siteSession(request,env));
   if(path==='view/account')return json(await memberRoute(request,env,path,method,null,body));
