@@ -23,7 +23,7 @@ export async function sha256(value) {
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
   return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
 }
-export async function bunnyRequest(env, videoId = '', method = 'GET', data) {
+export async function bunnyRequest(env, videoId = '', method = 'GET', data, options = {}) {
   configured(env);
   if (videoId && !uuid.test(videoId)) throw new HttpError(400, 'invalid_bunny_id');
   let response;
@@ -35,7 +35,7 @@ export async function bunnyRequest(env, videoId = '', method = 'GET', data) {
     ...(data ? {body: JSON.stringify(data)} : {})
   });} catch(cause) {const error=new HttpError(502,['TimeoutError','AbortError'].includes(cause?.name)?'bunny_timeout':'bunny_network_error');error.errorKind=['TypeError','TimeoutError','AbortError'].includes(cause?.name)?cause.name:'Error';throw error}
   if(response.status>=300&&response.status<400){const error=new HttpError(502,'bunny_redirect_blocked');error.upstreamStatus=response.status;throw error}
-  if (method === 'DELETE' && response.status === 404) return {success: true};
+  if (method === 'DELETE' && response.status === 404 && options.allowMissing !== false) return {success: true};
   if (!response.ok) {
     const code=({401:'bunny_auth_failed',403:'bunny_forbidden',404:'bunny_library_or_video_not_found',429:'bunny_rate_limited'})[response.status]||(response.status>=500?'bunny_unavailable':'bunny_request_rejected');
     const error=new HttpError(502,code);error.upstreamStatus=response.status;throw error;

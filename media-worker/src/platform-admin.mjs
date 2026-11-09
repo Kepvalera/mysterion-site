@@ -11,7 +11,37 @@ async function updateResult(statement){const result=await statement.run();if(!re
 export async function platformAdmin(request,env,path,method){
  const db=env.MEDIA_DB,staff=await staffIdentity(request,env);if(method!=='GET')csrf(request,env);
  if(path==='me'&&method==='GET'){let uploadConfigured=false;try{bunny.configured(env);uploadConfigured=true}catch{}return {role:staff.role,canPublish:staff.role!=='uploader',owner:staff.role==='owner',uploadConfigured,paidEnabled:env.MEDIA_PAID_ENABLED==='true'}}
- if(path==='videos'&&method==='GET')return {items:(await rows(db.prepare("SELECT * FROM videos WHERE state!='deleted' AND (?!='uploader' OR (created_by=? AND state='draft')) ORDER BY updated_at DESC LIMIT 200").bind(staff.role,staff.sub))).map(decode)};
+ if(path==='videos'&&method==='GET')return {items:(await rows(db.prepare("SELECT * FROM videos WHERE (state!='deleted' OR (?='owner' AND bunny_delete_pending=1)) AND (?!='uploader' OR (created_by=? AND state='draft')) ORDER BY updated_at DESC LIMIT 200").bind(staff.role,staff.role,staff.sub))).map(decode)};
+ const fullDelete=path.match(/^videos\/([a-f0-9-]{36})\/delete-bunny$/);
+ if(fullDelete&&method==='POST'){
+  requireOwner(staff);const d=await input(request,['revision']),expected=revision(d.revision),id=fullDelete[1];
+  const existing=await db.prepare('SELECT * FROM videos WHERE id=?').bind(id).first();if(!existing)deny(404,'video_not_found');
+  if(existing.source_type!=='bunny')deny(409,'bunny_required');bunny.boundVideo(env,existing);
+  return bunny.withLease(env,id,async()=>{
+   let current=await db.prepare('SELECT * FROM videos WHERE id=?').bind(id).first();if(!current)deny(404,'video_not_found');
+   if(current.source_type!=='bunny')deny(409,'bunny_required');bunny.boundVideo(env,current);
+   if(current.revision!==expected)deny(409,'revision_conflict');
+   if(current.state==='deleted'){
+    if(current.bunny_delete_pending!==1)deny(409,'video_not_pending_deletion');
+   }else{
+    const mutation=crypto.randomUUID(),now=new Date().toISOString(),at=time();
+    const result=await db.batch([
+     db.prepare("UPDATE videos SET state='deleted',bunny_delete_pending=1,revision=revision+1,mutation_id=?,updated_at=? WHERE id=? AND revision=? AND state!='deleted' AND source_type='bunny' AND bunny_library_id=? AND source_ref=?").bind(mutation,now,id,expected,env.BUNNY_LIBRARY_ID,current.source_ref),
+     db.prepare('INSERT INTO platform_audit SELECT ?,?,?,?,? FROM videos WHERE id=? AND mutation_id=?').bind(crypto.randomUUID(),staff.sub,'video.full_delete_started',id,at,id,mutation)
+    ]);
+    if(!result[0].meta.changes)deny(409,'revision_conflict');
+    current=await db.prepare('SELECT * FROM videos WHERE id=?').bind(id).first();
+   }
+   await bunny.bunnyRequest(env,current.source_ref,'DELETE',undefined,{allowMissing:false});
+   const mutation=crypto.randomUUID(),now=new Date().toISOString(),at=time();
+   const result=await db.batch([
+    db.prepare("UPDATE videos SET bunny_delete_pending=0,revision=revision+1,mutation_id=?,updated_at=? WHERE id=? AND state='deleted' AND bunny_delete_pending=1 AND bunny_library_id=? AND source_ref=?").bind(mutation,now,id,env.BUNNY_LIBRARY_ID,current.source_ref),
+    db.prepare('INSERT INTO platform_audit SELECT ?,?,?,?,? FROM videos WHERE id=? AND mutation_id=?').bind(crypto.randomUUID(),staff.sub,'video.bunny_deleted',id,at,id,mutation)
+   ]);
+   if(!result[0].meta.changes)deny(409,'revision_conflict');
+   return {ok:true};
+  });
+ }
  const vm=path.match(/^videos\/([a-f0-9-]{36})(?:\/(upload|status|resume|cover))?$/);
  if(path==='videos'&&method==='POST'||vm&&!vm[2]&&method==='PUT'){
   const d=await input(request,['id','title','description','category','year','source_type','source_ref','access','price_minor','currency','state','revision']);
@@ -48,7 +78,7 @@ export async function platformAdmin(request,env,path,method){
    const signature=mime==='image/png'?bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71:mime==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP';if(!signature)deny(400,'invalid_cover');
    await db.batch([db.prepare('INSERT INTO media_covers VALUES (?,?,?) ON CONFLICT(video_id) DO UPDATE SET mime=excluded.mime,bytes=excluded.bytes').bind(video.id,mime,bytes),db.prepare("UPDATE videos SET cover_key='d1',cover_type=? WHERE id=?").bind(mime,video.id)]);await audit(db,staff.sub,'video.cover',video.id);return {ok:true,url:coverURL(video.id)};
   }
-  if(method==='DELETE'&&!vm[2]){requireOwner(staff);const d=await input(request,['revision']);await updateResult(db.prepare("UPDATE videos SET state='deleted',revision=revision+1,bunny_delete_pending=CASE WHEN source_type='bunny' AND source_ref!='' THEN 1 ELSE 0 END WHERE id=? AND revision=? AND NOT EXISTS(SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>?)").bind(video.id,revision(d.revision),time()));await audit(db,staff.sub,'video.hidden_deleted',video.id);return {ok:true,providerRemovalPending:video.source_type==='bunny'&&!!video.source_ref}}
+  if(method==='DELETE'&&!vm[2]){requireOwner(staff);const d=await input(request,['revision']);await updateResult(db.prepare("UPDATE videos SET state='deleted',bunny_delete_pending=0,revision=revision+1,mutation_id=?,updated_at=? WHERE id=? AND revision=? AND state!='deleted' AND NOT EXISTS(SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>?)").bind(crypto.randomUUID(),new Date().toISOString(),video.id,revision(d.revision),time()));await audit(db,staff.sub,'video.hidden_deleted',video.id);return {ok:true}}
   if(method==='POST'&&vm[2]==='upload'){
    if(video.state!=='draft'||video.source_type!=='bunny')deny(409,'bunny_draft_required');bunny.configured(env);
    return bunny.withLease(env,video.id,async()=>{
