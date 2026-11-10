@@ -1,7 +1,7 @@
 /* Same-origin APIs only. No session tokens or credentials are persisted here. */
 window.MysterionPlatform={
  async request(path,method='GET',data){
-  if(!/^[a-z0-9_\/-]+$/i.test(path))throw Error('invalid_path');const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+  if(typeof path!=='string'||path.length>512||!/^[a-z0-9_\/-]+(?:\?[a-z0-9_=&+.%-]+)?$/i.test(path))throw Error('invalid_path');const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
   try{const r=await fetch('/api/platform/'+path,{method,credentials:'same-origin',cache:'no-store',redirect:'error',signal:controller.signal,headers:method==='GET'?{}:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},...(data===undefined?{}:{body:JSON.stringify(data)})});let v;try{v=await r.json()}catch{throw Error('invalid_response')}if(!r.ok){const e=Error(v.error||'request_failed');e.status=r.status;e.retryAfter=Number(r.headers.get('Retry-After'))||0;throw e}return v}finally{clearTimeout(timer)}
  },
  node(tag,value,cls){const n=document.createElement(tag);if(value!==undefined)n.textContent=value;if(cls)n.className=cls;return n},

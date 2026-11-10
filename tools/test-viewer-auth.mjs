@@ -5,7 +5,7 @@ import {argon2idAsync} from '../media-worker/vendor/noble-hashes/argon2.js';
 import {deliver} from '../media-worker/src/viewer-mail.mjs';
 const db=new DatabaseSync(':memory:');for(const f of ['0001_media.sql','0002_bunny_stream.sql','0003_media_members.sql'])db.exec(await fs.readFile('media-worker/migrations/'+f,'utf8'));
 db.exec("INSERT INTO users VALUES ('LOCAL_ADMIN','LOCAL_ACCESS_SUB','admin',1)");const old=JSON.stringify(db.prepare('SELECT * FROM users').all());
-for(const f of ['0004_viewer_accounts.sql','0005_viewer_sessions.sql'])db.exec(await fs.readFile('media-worker/migrations/'+f,'utf8'));
+for(const f of ['0004_viewer_accounts.sql','0005_viewer_sessions.sql','0008_viewer_login_history.sql'])db.exec(await fs.readFile('media-worker/migrations/'+f,'utf8'));
 function prepare(sql){return {bind(...args){this.args=args;return this},first(){return db.prepare(sql).get(...(this.args||[]))||null},all(){return {results:db.prepare(sql).all(...(this.args||[]))}},run(){return {meta:{changes:Number(db.prepare(sql).run(...(this.args||[])).changes)}}}}}
 const mails=[],env={VIEWER_AUTH_ENABLED:'true',VIEWER_RATE_KEY:crypto.randomUUID(),MEDIA_PUBLIC_ORIGIN:'https://local.invalid',MEDIA_DB:{prepare,batch(stmts){db.exec('BEGIN');try{const r=stmts.map(s=>s.run());db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}},VIEWER_MAILER:{async fetch(request){mails.push(await request.json());return Response.json({ok:true})}}};
 let tests=0,serial=0;const pass='Local8!?',other='LOCAL Replacement 2026!';

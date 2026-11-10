@@ -2,7 +2,7 @@
 import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs/promises';
 export async function platformFixture(){
  const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');
- for(const name of (await fs.readdir('media-worker/migrations')).filter(f=>/^000[1-7]_/.test(f)).sort()){db.exec('BEGIN');try{db.exec(await fs.readFile('media-worker/migrations/'+name,'utf8'));db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}}
+ for(const name of (await fs.readdir('media-worker/migrations')).filter(f=>/^000[1-8]_/.test(f)).sort()){db.exec('BEGIN');try{db.exec(await fs.readFile('media-worker/migrations/'+name,'utf8'));db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}}
  const prepare=sql=>({args:[],bind(...args){this.args=args;return this},first(){return db.prepare(sql).get(...this.args)||null},all(){return {results:db.prepare(sql).all(...this.args)}},run(){return {meta:{changes:Number(db.prepare(sql).run(...this.args).changes)}}}});
  const env={MEDIA_ENABLED:'true',VIEWER_AUTH_ENABLED:'true',VIEWER_PLATFORM_ENABLED:'true',MEDIA_PAID_ENABLED:'false',MEDIA_PUBLIC_ORIGIN:'https://local.invalid',VIEWER_RATE_KEY:'LOCAL_PLATFORM_FIXTURE_RATE_KEY_NOT_A_SECRET',MEDIA_ACCESS_ISSUER:'https://platform-test.cloudflareaccess.com',MEDIA_ACCESS_AUD:'local-platform-only',MEDIA_DB:{prepare,batch(statements){db.exec('BEGIN');try{const result=statements.map(s=>s.run());db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e}}}};
  const pair=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);const jwk={...await crypto.subtle.exportKey('jwk',pair.publicKey),kid:'local-platform'};

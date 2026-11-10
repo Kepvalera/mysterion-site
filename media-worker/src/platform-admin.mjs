@@ -3,11 +3,25 @@ import {csrf,input,text,translations,revision,expiry,product} from './platform-h
 import {vkEmbed,youtubeId} from './video-source.mjs';
 import * as bunny from './bunny.mjs';
 const categories=['sermon','testimony','conference','school'];
+const loginHistoryRetention=90*86400,participantPageSize=25,historyPageSize=20;
 function money(d){if(!['free','paid'].includes(d.access)||!Number.isSafeInteger(d.price_minor)||d.price_minor<0||d.price_minor>100000000||!['EUR','USD','RUB'].includes(d.currency)||(d.access==='free'&&d.price_minor!==0)||(d.access==='paid'&&d.price_minor===0))deny(400,'invalid_price')}
 function mergeTranslation(value,previous,max,required=false){const next=JSON.parse(translations(value,max,required));if(previous){try{const old=JSON.parse(previous);if(typeof old.de==='string')next.de=old.de}catch{}}return JSON.stringify(next)}
 function coverURL(id){return '/api/platform/covers/'+id}
 async function videoRow(db,id){const row=await db.prepare("SELECT * FROM videos WHERE id=? AND state!='deleted'").bind(id).first();if(!row)deny(404,'not_found');return row}
 async function updateResult(statement){const result=await statement.run();if(!result.meta.changes)deny(409,'revision_conflict');return {ok:true}}
+function queryPage(request,allowed){
+ const params=new URL(request.url).searchParams;
+ for(const key of params.keys())if(!allowed.includes(key))deny(400,'invalid_query');
+ const raw=params.get('page')||'1';if(!/^\d{1,6}$/.test(raw)||Number(raw)<1)deny(400,'invalid_query');
+ return {params,page:Number(raw)};
+}
+function participantSearchSQL(query){
+ if(!query)return {sql:'',values:[]};
+ const title=query[0]?.toUpperCase()+query.slice(1).toLowerCase();
+ const variants=[...new Set([query,query.toLowerCase(),query.toUpperCase(),title])];
+ return {sql:' AND ('+variants.map(()=>'(instr(a.first_name,?)>0 OR instr(a.last_name,?)>0 OR instr(a.email,?)>0 OR instr(a.first_name||\' \'||a.last_name,?)>0)').join(' OR ')+')',
+  values:variants.flatMap(value=>[value,value,value,value])};
+}
 export async function platformAdmin(request,env,path,method){
  const db=env.MEDIA_DB,staff=await staffIdentity(request,env);if(method!=='GET')csrf(request,env);
  if(path==='me'&&method==='GET'){let uploadConfigured=false;try{bunny.configured(env);uploadConfigured=true}catch{}return {role:staff.role,canPublish:staff.role!=='uploader',owner:staff.role==='owner',uploadConfigured,paidEnabled:env.MEDIA_PAID_ENABLED==='true'}}
@@ -105,7 +119,23 @@ export async function platformAdmin(request,env,path,method){
  // Every non-video administrative operation is owner-only, including lists.
  requireOwner(staff);
  if(path==='overview'&&method==='GET')return {participants:(await db.prepare('SELECT COUNT(*) n FROM viewer_accounts').first()).n,videos:(await db.prepare("SELECT COUNT(*) n FROM videos WHERE state!='deleted'").first()).n,courses:(await db.prepare("SELECT COUNT(*) n FROM platform_courses WHERE state!='archived'").first()).n,orders:(await db.prepare("SELECT COUNT(*) n FROM viewer_orders WHERE status='in_review'").first()).n};
- if(path==='participants'&&method==='GET')return {items:await rows(db.prepare('SELECT id,email,first_name,last_name,status,email_verified_at,created_at FROM viewer_accounts ORDER BY created_at DESC LIMIT 200'))};
+ if(path==='participants'&&method==='GET'){
+  const {params,page:requestedPage}=queryPage(request,['q','page']),query=text(params.get('q')||'',100);
+  const search=participantSearchSQL(query),where=' FROM viewer_accounts a WHERE 1=1'+search.sql;
+  const total=(await db.prepare('SELECT COUNT(*) AS n'+where).bind(...search.values).first()).n,pages=Math.max(1,Math.ceil(total/participantPageSize)),page=Math.min(requestedPage,pages);
+  const items=await rows(db.prepare('SELECT a.id,a.email,a.first_name,a.last_name,a.status,a.email_verified_at,a.created_at'+where+' ORDER BY a.created_at DESC,a.id DESC LIMIT ? OFFSET ?').bind(...search.values,participantPageSize,(page-1)*participantPageSize));
+  return {items,page,pageSize:participantPageSize,total,pages};
+ }
+ const history=path.match(/^participants\/([a-f0-9-]{8}-[a-f0-9-]{27})\/login-history$/);
+ if(history&&method==='GET'){
+  const accountId=history[1],{page:requestedPage}=queryPage(request,['page']),cutoff=time()-loginHistoryRetention;
+  if(!await db.prepare('SELECT id FROM viewer_accounts WHERE id=?').bind(accountId).first())deny(404,'participant_not_found');
+  await db.prepare('DELETE FROM viewer_login_history WHERE logged_in_at<?').bind(cutoff).run();
+  const total=(await db.prepare('SELECT COUNT(*) AS n FROM viewer_login_history WHERE account_id=? AND logged_in_at>=?').bind(accountId,cutoff).first()).n;
+  const pages=Math.max(1,Math.ceil(total/historyPageSize)),page=Math.min(requestedPage,pages);
+  const items=await rows(db.prepare('SELECT id,logged_in_at,ip_address,country,device,browser FROM viewer_login_history WHERE account_id=? AND logged_in_at>=? ORDER BY logged_in_at DESC,id DESC LIMIT ? OFFSET ?').bind(accountId,cutoff,historyPageSize,(page-1)*historyPageSize));
+  return {items,page,pageSize:historyPageSize,total,pages};
+ }
  const participant=path.match(/^participants\/([a-f0-9-]{36})$/);
  if(participant&&method==='PUT'){
   const d=await input(request,['first_name','last_name','status']);if(!['active','disabled'].includes(d.status))deny(400,'invalid_account_status');

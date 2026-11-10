@@ -5,7 +5,7 @@ import {handleViewer} from '../media-worker/src/viewer-auth.mjs';
 import {hashPassword} from '../media-worker/src/viewer-password.mjs';
 import {admitViewerOperation,admitViewerKdf,reserveViewerPassword,viewerClientIP} from '../media-worker/src/viewer-rate-limit.mjs';
 
-const migrations=await Promise.all(['0004_viewer_accounts.sql','0005_viewer_sessions.sql'].map(n=>fs.readFile('media-worker/migrations/'+n,'utf8')));
+const migrations=await Promise.all(['0004_viewer_accounts.sql','0005_viewer_sessions.sql','0008_viewer_login_history.sql'].map(n=>fs.readFile('media-worker/migrations/'+n,'utf8')));
 const password='Local8!?',encoded=await hashPassword(password),origin='https://local.invalid',address='local@example.invalid';
 let checks=0,clock=1800000000;const realNow=Date.now,realWarn=console.warn;Date.now=()=>clock*1000;const logs=[];console.warn=value=>logs.push(String(value));
 const request=(route='login',ip='192.0.2.1',data={email:address,password},cookie)=>new Request(origin+'/api/viewer/'+route,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest',...(ip?{'CF-Connecting-IP':ip}:{}),...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(data)});

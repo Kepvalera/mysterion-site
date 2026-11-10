@@ -5,6 +5,7 @@ import {mailConfigured,deliver} from './viewer-mail.mjs';
 import {admitViewerOperation,admitViewerKdf,reserveViewerPassword,ViewerRateLimitError} from './viewer-rate-limit.mjs';
 import {viewerLibrary} from './platform-data.mjs';
 const cookieName='__Host-mysterion_viewer',day=86400,idle=43200;
+const loginHistoryRetention=90*day;
 const now=()=>Math.floor(Date.now()/1000),random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('');
 const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),x=>x.toString(16).padStart(2,'0')).join('');
 const reply=(data,status=200,cookie)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',...(cookie?{'Set-Cookie':cookie}:{})}});
@@ -19,6 +20,17 @@ async function input(request,allowed){
  if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).some(k=>!allowed.includes(k)))fail(400,'invalid_fields');return data;
 }
 async function audit(db,id,action){await db.prepare('INSERT INTO viewer_auth_events VALUES (?,?,?,?)').bind(crypto.randomUUID(),id,action,now()).run()}
+function loginMetadata(request){
+ const address=request.headers.get('CF-Connecting-IP')?.trim()||'';
+ const ip=/^[\da-f:.]{1,45}$/i.test(address)?address:null;
+ const country=/^[A-Z]{2}$/.test(request.cf?.country||'')?request.cf.country:null;
+ const agent=request.headers.get('User-Agent')||'';
+ const device=/iPad|Tablet|PlayBook|Silk/i.test(agent)?'Tablet':/Mobile|Android|iPhone|iPod/i.test(agent)?'Mobile':agent?'Desktop':'Unknown';
+ const match=agent.match(/(Edg|Edge|OPR|Opera|SamsungBrowser|Firefox|Chrome|Chromium)\/(\d+)/i),safari=agent.match(/Version\/(\d+).*Safari/i);
+ const family=match?.[1].toLowerCase(),name=family==='edg'||family==='edge'?'Edge':family==='opr'||family==='opera'?'Opera':family==='samsungbrowser'?'Samsung Internet':family==='firefox'?'Firefox':family==='chrome'||family==='chromium'?'Chrome':safari?'Safari':agent?'Other':'Unknown';
+ const browser=name+(match?.[2]||safari?.[1]?' '+(match?.[2]||safari[1]):'');
+ return {ip,country,device,browser};
+}
 async function sendToken(env,account,purpose,context){
  const token=random(),hash=await digest(token),time=now();await env.MEDIA_DB.batch([
   env.MEDIA_DB.prepare('UPDATE viewer_email_tokens SET consumed_at=? WHERE account_id=? AND purpose=? AND consumed_at IS NULL').bind(time,account.id,purpose),
@@ -93,8 +105,13 @@ export async function handleViewer(request,env,context){
    if(!account||account.status!=='active'||!account.email_verified_at)fail(401,'invalid_credentials');
    phase='session_store';const token=random(),hash=await digest(token),time=now();
    // Primary-key replacement is atomic. Guard against password-reset/disable races.
-   const result=await db.prepare(`INSERT INTO viewer_sessions(account_id,token_hash,credential_version,created_at,last_seen_at,idle_expires_at,expires_at) SELECT id,?,credential_version,?,?,?,? FROM viewer_accounts WHERE id=? AND credential_version=? AND status='active' AND email_verified_at IS NOT NULL ON CONFLICT(account_id) DO UPDATE SET token_hash=excluded.token_hash,credential_version=excluded.credential_version,created_at=excluded.created_at,last_seen_at=excluded.last_seen_at,idle_expires_at=excluded.idle_expires_at,expires_at=excluded.expires_at`).bind(hash,time,time,time+idle,time+7*day,account.id,account.credential_version).run();
-   if(!result.meta.changes)fail(401,'invalid_credentials');await audit(db,account.id,'login');return reply({ok:true},200,`${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7*day}`);
+   const metadata=loginMetadata(request),result=await db.batch([
+    db.prepare('DELETE FROM viewer_login_history WHERE logged_in_at<?').bind(time-loginHistoryRetention),
+    db.prepare(`INSERT INTO viewer_sessions(account_id,token_hash,credential_version,created_at,last_seen_at,idle_expires_at,expires_at) SELECT id,?,credential_version,?,?,?,? FROM viewer_accounts WHERE id=? AND credential_version=? AND status='active' AND email_verified_at IS NOT NULL ON CONFLICT(account_id) DO UPDATE SET token_hash=excluded.token_hash,credential_version=excluded.credential_version,created_at=excluded.created_at,last_seen_at=excluded.last_seen_at,idle_expires_at=excluded.idle_expires_at,expires_at=excluded.expires_at`).bind(hash,time,time,time+idle,time+7*day,account.id,account.credential_version),
+    db.prepare('INSERT INTO viewer_login_history(id,account_id,logged_in_at,ip_address,country,device,browser) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),account.id,time,metadata.ip,metadata.country,metadata.device,metadata.browser),
+    db.prepare('INSERT INTO viewer_auth_events VALUES (?,?,?,?)').bind(crypto.randomUUID(),account.id,'login',time)
+   ]);
+   if(!result[1].meta.changes)fail(401,'invalid_credentials');return reply({ok:true},200,`${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7*day}`);
    }finally{await attempt.finish(false)}
   }
   if(!/^[a-f0-9]{64}$/.test(data.token||''))fail(400,'invalid_or_expired_token');

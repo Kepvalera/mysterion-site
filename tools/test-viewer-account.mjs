@@ -1,7 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs/promises';import assert from 'node:assert/strict';
 import {handleViewer} from '../media-worker/src/viewer-auth.mjs';
 import {hashPassword} from '../media-worker/src/viewer-password.mjs';
-const db=new DatabaseSync(':memory:');for(const name of ['0004_viewer_accounts.sql','0005_viewer_sessions.sql'])db.exec(await fs.readFile('media-worker/migrations/'+name,'utf8'));
+const db=new DatabaseSync(':memory:');for(const name of ['0004_viewer_accounts.sql','0005_viewer_sessions.sql','0008_viewer_login_history.sql'])db.exec(await fs.readFile('media-worker/migrations/'+name,'utf8'));
 const password='Local8!?',encoded=await hashPassword(password),time=Math.floor(Date.now()/1000);
 for(const [id,email] of [['A','first@example.invalid'],['B','second@example.invalid']])db.prepare("INSERT INTO viewer_accounts(id,email,password_hash,email_verified_at,status,locale,created_at,updated_at) VALUES (?,?,?,?,'active','en',?,?)").run(id,email,encoded,time,time,time);
 const queries=[],prepare=sql=>{queries.push(sql);return {bind(...args){this.args=args;return this},first(){return db.prepare(sql).get(...(this.args||[]))||null},run(){return {meta:{changes:Number(db.prepare(sql).run(...(this.args||[])).changes)}}}}};
