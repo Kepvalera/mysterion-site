@@ -34,7 +34,7 @@ export function validate(data,env={}) {
 }
 const visible=value=>{const parsed=JSON.parse(value);return {ru:parsed.ru||'',en:parsed.en||''}};
 const decodeRow=row=>({...row,title:visible(row.title),description:visible(row.description)});
-const publicColumns="id,title,description,category,year,access,price_minor,currency,publish_at,(cover_key IS NOT NULL OR (source_type='bunny' AND bunny_thumbnail IS NOT NULL)) AS has_cover";
+const publicColumns="id,title,description,category,year,access,price_minor,currency,publish_at,(cover_key IS NOT NULL OR (source_type='bunny' AND bunny_thumbnail IS NOT NULL)) AS has_cover,CASE WHEN source_type='youtube' THEN source_ref END AS youtube_ref";
 const noLease=" AND NOT EXISTS (SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>unixepoch())";
 function sameOrigin(request,env){if(request.headers.get('Origin')!==env.MEDIA_PUBLIC_ORIGIN || request.headers.get('Sec-Fetch-Site')==='cross-site')fail(403,'invalid_origin')}
 async function published(env,id) { const row=await env.MEDIA_DB.prepare("SELECT * FROM videos WHERE id=? AND state='published' AND publish_at<=?").bind(id,new Date().toISOString()).first(); if(!row) fail(404,'not_found'); return row; }

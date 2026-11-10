@@ -61,7 +61,7 @@ try{
  assert.equal((await expect(200,'videos')).items.length,0);
  await expect(200,'admin/videos/'+id,'PUT',{...record,revision:1,state:'published'});
  await expect(409,'admin/videos/'+id,'PUT',{...record,revision:1});
- const catalog=await expect(200,'videos?q=TEST');assert.equal(catalog.items.length,1);assert.ok(!JSON.stringify(catalog).includes('abcdefghijk'));assert.ok(!('source_ref' in catalog.items[0]));
+ const catalog=await expect(200,'videos?q=TEST');assert.equal(catalog.items.length,1);assert.equal(catalog.items[0].youtube_ref,'abcdefghijk');assert.ok(!('source_ref' in catalog.items[0]));
  await expect(200,'videos/'+id+'/play','GET',undefined,null);
  await expect(400,'videos?category=unknown');assert.equal((await expect(200,'videos?q=%27%20OR%201%3D1--')).items.length,0);
  await expect(415,'admin/videos/'+id+'/cover','PUT','<svg onload="bad"/>');
