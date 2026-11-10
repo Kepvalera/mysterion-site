@@ -5,7 +5,7 @@ import {admitViewerOperation,ViewerRateLimitError} from './viewer-rate-limit.mjs
 import {deny,time,rows,decode,localized,courseAccess,videoAccess} from './platform-data.mjs';
 import {csrf,input,text,revision,product,json} from './platform-http.mjs';
 import {platformAdmin} from './platform-admin.mjs';
-import {vkEmbed,youtubeId} from './video-source.mjs';
+import {vkEmbed,youtubeId,rutubeId} from './video-source.mjs';
 import * as bunny from './bunny.mjs';
 export async function handlePlatform(request,env){
  const requestId=crypto.randomUUID();
@@ -28,6 +28,9 @@ export async function handlePlatform(request,env){
     const viewer=await requireViewerSession(request,env),grant=await videoAccess(db,viewer.id,video.id);if(!grant?.expires_at)deny(403,'viewing_right_required');
     if(env.MEDIA_PAID_ENABLED!=='true')deny(503,'paid_playback_disabled');maxExpiry=Math.min(maxExpiry,grant.expires_at,viewer.expires_at);
    }
+   if(video.access==='free'&&video.youtube_ref)return json({type:'youtube',id:youtubeId(video.youtube_ref)});
+   if(video.access==='free'&&video.vk_ref)return json({type:'vk',url:vkEmbed(video.vk_ref)});
+   if(video.access==='free'&&video.rutube_ref)return json({type:'rutube',id:rutubeId(video.rutube_ref)});
    if(video.source_type==='youtube'&&video.access==='free')return json({type:'youtube',id:youtubeId(video.source_ref)});
    if(video.source_type==='vk'&&video.access==='free')return json({type:'vk',url:vkEmbed(video.source_ref)});
    if(video.source_type==='r2'&&video.access==='free')return json({type:'r2',url:'/api/media/videos/'+video.id+'/stream'});

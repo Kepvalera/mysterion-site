@@ -7,17 +7,18 @@ import {createRequire} from 'node:module';
 
 const require=createRequire(import.meta.url);
 const puppeteer=require(require.resolve('puppeteer-core',{paths:[path.resolve('output/audit-tools/lighthouse')]}));
-const root=process.cwd(),ids=['abcdefghijk','lmnopqrstuv'],bunnyId='00000000-0000-4000-8000-000000000003',bunnyUrl='https://player.mediadelivery.net/embed/803179/00000000-0000-4000-8000-000000000004?token='+('a'.repeat(64))+'&expires=2000000000',errors=[],requests=[];
+const root=process.cwd(),ids=['abcdefghijk','lmnopqrstuv'],bunnyId='00000000-0000-4000-8000-000000000003',rutubeVideoId='00000000-0000-4000-8000-000000000004',rutubeId='4aac9bdff052c90373852bd914dff1f6',bunnyUrl='https://player.mediadelivery.net/embed/803179/00000000-0000-4000-8000-000000000004?token='+('a'.repeat(64))+'&expires=2000000000',errors=[],requests=[];
 const videos=ids.map((youtube_ref,index)=>({id:`00000000-0000-4000-8000-${String(index+1).padStart(12,'0')}`,title:{ru:`Local thumb test ${index+1}`,en:`Local thumbnail test ${index+1}`},description:{ru:'Local browser fixture',en:'Local browser fixture'},category:'sermon',year:2026,access:'free',price_minor:0,currency:'EUR',youtube_ref}));
+videos.push({id:rutubeVideoId,title:{ru:'Rutube test',en:'Rutube test'},description:{ru:'Local browser fixture',en:'Local browser fixture'},category:'sermon',year:2026,access:'free',price_minor:0,currency:'EUR',rutube_ref:rutubeId});
 const svg=(width,height)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="#d4b778"/></svg>`;
 const contentTypes={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
-const policy="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://i.ytimg.com; connect-src 'self'; frame-src https://www.youtube-nocookie.com https://player.mediadelivery.net https://vk.com https://vkvideo.ru; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
+const policy="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://i.ytimg.com; connect-src 'self'; frame-src https://www.youtube-nocookie.com https://player.mediadelivery.net https://vk.com https://vkvideo.ru https://rutube.ru; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
 const server=http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://127.0.0.1');
   if(url.pathname==='/api/platform/catalog'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({courses:[],videos}));return}
   const play=url.pathname.match(/^\/api\/platform\/play\/([a-f0-9-]+)$/);
-  if(play){const video=videos.find(item=>item.id===play[1]),data=play[1]===bunnyId?{type:'bunny',url:bunnyUrl}:video?{type:'youtube',id:video.youtube_ref}:null;requests.push(url.pathname);res.writeHead(data?200:404,{'Content-Type':'application/json'});res.end(JSON.stringify(data||{error:'not_found'}));return}
+  if(play){const video=videos.find(item=>item.id===play[1]),data=play[1]===bunnyId?{type:'bunny',url:bunnyUrl}:play[1]===rutubeVideoId?{type:'rutube',id:rutubeId}:video?.youtube_ref?{type:'youtube',id:video.youtube_ref}:null;requests.push(url.pathname);res.writeHead(data?200:404,{'Content-Type':'application/json'});res.end(JSON.stringify(data||{error:'not_found'}));return}
   const file=url.pathname==='/catalog'||url.pathname==='/catalog.html'?'catalog.html':url.pathname.slice(1);
   if(!['catalog.html','catalog.js','platform-client.js','platform.css'].includes(file)){res.writeHead(404);res.end();return}
   const headers={'Content-Type':contentTypes[path.extname(file)]||'application/octet-stream'};
@@ -43,6 +44,7 @@ try{
    return request.respond({status:404,contentType:'text/plain',body:'missing thumbnail fixture'});
   }
   if(url.hostname==='www.youtube-nocookie.com')return request.respond({status:200,contentType:'text/html',body:'<!doctype html><title>Local mocked player</title>'});
+  if(url.hostname==='rutube.ru')return request.respond({status:200,contentType:'text/html',body:'<!doctype html><title>Local mocked Rutube player</title>'});
   return request.continue();
  });
 
@@ -77,6 +79,8 @@ try{
  assert.equal(bunny.src,bunnyUrl);
  assert.equal(bunny.allow,'fullscreen; picture-in-picture');
  checks+=2;
+ const rutube=await page.evaluate(async({id})=>{const slot=document.createElement('div');document.body.append(slot);await window.MysterionPlatform.play(id,slot,'Rutube fixture');return slot.querySelector('iframe')?.src},{id:rutubeVideoId});
+ assert.equal(rutube,'https://rutube.ru/play/embed/'+rutubeId);checks++;
  assert.deepEqual(errors,[]);
  assert.equal(requests.filter(path=>path.endsWith(videos[0].id)).length,4);
  console.log(JSON.stringify({checks,viewports:['desktop','mobile'],maxresAndHqPlaceholdersDetected:true,mqFallbackLoaded:true,allSizesUnavailableShowsBrandFallback:true,thumbnailAndWatchOpenSamePlayer:true,youtubeAutoplayRequested:true,bunnyUnchanged:true,cspErrors:errors.length,playRequests:requests.length}));

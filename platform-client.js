@@ -12,6 +12,7 @@ window.MysterionPlatform={
   if(d.type==='youtube'&&/^[\w-]{11}$/.test(d.id))url='https://www.youtube-nocookie.com/embed/'+d.id+(autoplay?'?autoplay=1&playsinline=1':'');
   if(d.type==='bunny'&&/^https:\/\/player\.mediadelivery\.net\/embed\/\d+\/[a-f0-9-]{36}\?token=[a-f0-9]{64}&expires=\d+$/.test(d.url))url=d.url;
   if(d.type==='vk'){const u=new URL(d.url);if(['https://vk.com','https://vkvideo.ru'].includes(u.origin)&&u.pathname==='/video_ext.php'&&!u.username&&!u.password)url=u.href}
+  if(d.type==='rutube'&&/^[a-f0-9]{32}$/i.test(d.id))url='https://rutube.ru/play/embed/'+d.id.toLowerCase();
   if(!url)throw Error('invalid_player');const frame=this.node('iframe');frame.src=url;frame.title=title;frame.allow=(autoplay&&d.type==='youtube'?'autoplay; ':'')+'fullscreen; picture-in-picture';frame.allowFullscreen=true;frame.referrerPolicy='strict-origin-when-cross-origin';slot.replaceChildren(frame);
  }
 };

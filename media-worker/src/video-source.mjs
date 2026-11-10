@@ -42,3 +42,11 @@ export function youtubeId(value){
  const id=url.hostname==='youtu.be'?url.pathname.match(/^\/([\w-]{11})\/?$/)?.[1]:url.pathname==='/watch'?url.searchParams.get('v'):url.pathname.match(/^\/(?:embed|shorts)\/([\w-]{11})$/)?.[1];
  if(!/^[\w-]{11}$/.test(id||''))throw new HttpError(400,'invalid_youtube_id');return id;
 }
+export function rutubeId(value){
+ if(typeof value!=='string')throw new HttpError(400,'invalid_rutube_id');
+ if(/^[a-f0-9]{32}$/i.test(value))return value.toLowerCase();
+ let url;try{url=new URL(value)}catch{throw new HttpError(400,'invalid_rutube_id')}
+ if(url.protocol!=='https:'||url.username||url.password||url.port||url.hash||!['rutube.ru','www.rutube.ru'].includes(url.hostname))throw new HttpError(400,'invalid_rutube_id');
+ const id=url.pathname.match(/^\/(?:video|play\/embed)\/([a-f0-9]{32})\/?$/i)?.[1];
+ if(!id)throw new HttpError(400,'invalid_rutube_id');return id.toLowerCase();
+}

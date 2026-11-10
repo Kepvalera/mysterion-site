@@ -13,20 +13,22 @@
   window.addEventListener('pagehide',clear);
   async function open(item,selectedSource){
    clear();lastFocus=document.activeElement;const requestVersion=version;controller=new AbortController();
-   const sources={youtube:/^[\w-]{11}$/.test(item.youtube_ref||'')?'youtube':null,vk:typeof item.vk_ref==='string'&&item.vk_ref?'vk':null};
-   if(item.access==='free'&&sources.youtube&&sources.vk){
+   const sources=['youtube','vk','rutube'].filter(source=>source==='youtube'?/^[\w-]{11}$/.test(item.youtube_ref||''):source==='vk'?typeof item.vk_ref==='string'&&item.vk_ref:/^[a-f0-9]{32}$/i.test(item.rutube_ref||''));
+   const defaultSource=sources.includes('youtube')?'youtube':sources[0],activeSource=sources.includes(selectedSource)?selectedSource:defaultSource;
+   if(item.access==='free'&&sources.length>1){
     sourceSwitcher.hidden=false;
-    for(const source of ['youtube','vk']){const button=node('button',source==='youtube'?'YouTube':'VK Видео');button.type='button';button.setAttribute('aria-pressed',String((selectedSource||'youtube')===source));button.addEventListener('click',()=>open(item,source));sourceSwitcher.append(button)}
+    for(const source of sources){const button=node('button',source==='youtube'?'YouTube':source==='vk'?'VK Видео':'Rutube');button.type='button';button.setAttribute('aria-pressed',String(activeSource===source));button.addEventListener('click',()=>open(item,source));sourceSwitcher.append(button)}
    }
    title.textContent=local(item.title);if(!dialog.open)dialog.showModal();slot.append(node('p',t('loading')));
    try{
     if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(item.id))throw Error('invalid_video');
-    const paid=item.access==='paid',playURL=paid?`/api/media/view/play/${item.id}`:`/api/media/videos/${item.id}/play${selectedSource&&sources[selectedSource]?`?source=${selectedSource}`:''}`,response=await(window.mysterionAuthenticatedFetch||fetch)(playURL,{...(paid?{method:'POST'}:{}),credentials:'same-origin',redirect:'error',cache:'no-store',signal:controller.signal});
+    const paid=item.access==='paid',playSource=sources.length>1?activeSource:null,playURL=paid?`/api/media/view/play/${item.id}`:`/api/media/videos/${item.id}/play${playSource?`?source=${playSource}`:''}`,response=await(window.mysterionAuthenticatedFetch||fetch)(playURL,{...(paid?{method:'POST'}:{}),credentials:'same-origin',redirect:'error',cache:'no-store',signal:controller.signal});
     if(!response.ok)throw Error('viewing_unavailable');const data=await response.json();
     if(requestVersion!==version||!dialog.open)return;
     let player;
     if(data.type==='youtube'&&/^[\w-]{11}$/.test(data.id)){player=node('iframe');player.src='https://www.youtube-nocookie.com/embed/'+data.id}
     else if(data.type==='vk'&&typeof data.url==='string'){const u=new URL(data.url);if(!['https://vk.com','https://vkvideo.ru'].includes(u.origin)||u.pathname!=='/video_ext.php'||u.username||u.password)throw Error('invalid_player');player=node('iframe');player.src=u.href}
+    else if(data.type==='rutube'&&/^[a-f0-9]{32}$/i.test(data.id)){player=node('iframe');player.src='https://rutube.ru/play/embed/'+data.id.toLowerCase()}
     else if(data.type==='bunny'&&typeof data.url==='string'&&/^https:\/\/player\.mediadelivery\.net\/embed\/\d+\/[a-f0-9-]{36}\?token=[a-f0-9]{64}&expires=\d+$/.test(data.url)){player=node('iframe');player.src=data.url}
     else if(data.type==='r2'&&data.url===`/api/media/videos/${item.id}/stream`){player=node('video');player.controls=true;player.preload='metadata';player.src=data.url}
     else throw Error('invalid_player');

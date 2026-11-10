@@ -2,7 +2,7 @@ import {HttpError,administrator,entitledViewer,siteSession} from './auth.mjs';
 import * as bunny from './bunny.mjs';
 import {requireMediaOrigin} from './origin.mjs';
 import {memberRoute} from './members.mjs';
-import {vkEmbed,vkThumbnail} from './video-source.mjs';
+import {vkEmbed,vkThumbnail,rutubeId} from './video-source.mjs';
 const categories=['sermon','testimony','conference','school'];
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 const fail=(status,code)=>{throw new HttpError(status,code)};
@@ -34,7 +34,7 @@ export function validate(data,env={}) {
 }
 const visible=value=>{const parsed=JSON.parse(value);return {ru:parsed.ru||'',en:parsed.en||''}};
 const decodeRow=row=>({...row,title:visible(row.title),description:visible(row.description)});
-const publicColumns="id,title,description,category,year,access,price_minor,currency,publish_at,(cover_key IS NOT NULL OR (source_type='bunny' AND bunny_thumbnail IS NOT NULL)) AS has_cover,CASE WHEN access='free' AND source_type!='bunny' THEN COALESCE(youtube_ref,CASE WHEN source_type='youtube' THEN source_ref END) END AS youtube_ref,CASE WHEN access='free' AND source_type!='bunny' THEN COALESCE(vk_ref,CASE WHEN source_type='vk' THEN source_ref END) END AS vk_ref";
+const publicColumns="id,title,description,category,year,access,price_minor,currency,publish_at,(cover_key IS NOT NULL OR (source_type='bunny' AND bunny_thumbnail IS NOT NULL)) AS has_cover,CASE WHEN access='free' AND source_type!='bunny' THEN COALESCE(youtube_ref,CASE WHEN source_type='youtube' AND rutube_ref IS NULL THEN source_ref END) END AS youtube_ref,CASE WHEN access='free' AND source_type!='bunny' THEN COALESCE(vk_ref,CASE WHEN source_type='vk' AND rutube_ref IS NULL THEN source_ref END) END AS vk_ref,CASE WHEN access='free' AND source_type!='bunny' THEN rutube_ref END AS rutube_ref";
 const noLease=" AND NOT EXISTS (SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>unixepoch())";
 function sameOrigin(request,env){if(request.headers.get('Origin')!==env.MEDIA_PUBLIC_ORIGIN || request.headers.get('Sec-Fetch-Site')==='cross-site')fail(403,'invalid_origin')}
 async function published(env,id) { const row=await env.MEDIA_DB.prepare("SELECT * FROM videos WHERE id=? AND state='published' AND publish_at<=?").bind(id,new Date().toISOString()).first(); if(!row) fail(404,'not_found'); return row; }
@@ -104,13 +104,16 @@ export async function handle(request,env) {
    if(kind==='play'){
     const selected=url.searchParams.get('source');
     if(selected!==null){
-     if(!['youtube','vk'].includes(selected))fail(400,'invalid_source');
-     const ref=selected==='youtube'?(row.youtube_ref||(row.source_type==='youtube'?row.source_ref:null)):(row.vk_ref||(row.source_type==='vk'?row.source_ref:null));
-     if(!ref)fail(404,'not_found');return json(selected==='youtube'?{type:'youtube',id:ref}:{type:'vk',url:vkEmbed(ref)});
+     if(!['youtube','vk','rutube'].includes(selected))fail(400,'invalid_source');
+     const ref=selected==='youtube'?(row.youtube_ref||(row.source_type==='youtube'?row.source_ref:null)):selected==='vk'?(row.vk_ref||(row.source_type==='vk'?row.source_ref:null)):(row.rutube_ref||(row.source_type==='rutube'?row.source_ref:null));
+     if(!ref)fail(404,'not_found');return json(selected==='youtube'?{type:'youtube',id:ref}:selected==='vk'?{type:'vk',url:vkEmbed(ref)}:{type:'rutube',id:rutubeId(ref)});
     }
     if(row.source_type==='bunny'){if(row.bunny_status!==4)fail(409,'video_not_ready');return json(await bunny.playback(env,row))}
-    if(row.source_type==='vk')return json({type:'vk',url:vkEmbed(row.vk_ref||row.source_ref)});
-    if(row.source_type==='youtube')return json({type:'youtube',id:row.youtube_ref||row.source_ref});
+    if(row.youtube_ref)return json({type:'youtube',id:row.youtube_ref});
+    if(row.vk_ref)return json({type:'vk',url:vkEmbed(row.vk_ref)});
+    if(row.rutube_ref)return json({type:'rutube',id:rutubeId(row.rutube_ref)});
+    if(row.source_type==='vk')return json({type:'vk',url:vkEmbed(row.source_ref)});
+    if(row.source_type==='youtube')return json({type:'youtube',id:row.source_ref});
     return json({type:'r2',url:`/api/media/videos/${row.id}/stream`});
    }
    if(row.source_type!=='r2' || !env.MEDIA_BUCKET) fail(404,'not_found');
