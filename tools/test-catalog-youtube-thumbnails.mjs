@@ -60,7 +60,7 @@ try{
  const api={
   node(tag,value,cls){const node=new Element(tag);if(value!==undefined)node.textContent=value;if(cls)node.className=cls;return node},
   async request(path){assert.equal(path,'catalog');return {courses:[],videos:catalog.videos}},
-  async play(id,slot,title){played.push({id,title});slot.append(new Element('iframe'))}
+  async play(id,slot,title,options){played.push({id,title,options});slot.append(new Element('iframe'))}
  };
  const window={MysterionPlatform:api,addEventListener(){}},storage={getItem(){return 'ru'},setItem(){}};
  vm.runInNewContext(await fs.readFile(new URL('../catalog.js',import.meta.url),'utf8'),{window,document,localStorage:storage,URL});
@@ -75,6 +75,7 @@ try{
   assert.equal(watch.textContent,'Смотреть');
   await preview.click();await watch.click();
   assert.deepEqual(played.slice(-2).map(entry=>entry.id),[ids[index],ids[index]]);
+  assert.deepEqual(played.slice(-2).map(entry=>entry.options?.autoplay),[true,true]);
   checks.ui+=3;
  }
  const preview=youtubeRows[0].children[0].children.find(child=>child.className==='youtube-preview'),image=preview.children[0];

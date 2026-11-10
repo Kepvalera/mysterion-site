@@ -7,7 +7,7 @@ import {createRequire} from 'node:module';
 
 const require=createRequire(import.meta.url);
 const puppeteer=require(require.resolve('puppeteer-core',{paths:[path.resolve('output/audit-tools/lighthouse')]}));
-const root=process.cwd(),ids=['abcdefghijk','lmnopqrstuv'],errors=[],requests=[];
+const root=process.cwd(),ids=['abcdefghijk','lmnopqrstuv'],bunnyId='00000000-0000-4000-8000-000000000003',bunnyUrl='https://player.mediadelivery.net/embed/803179/00000000-0000-4000-8000-000000000004?token='+('a'.repeat(64))+'&expires=2000000000',errors=[],requests=[];
 const videos=ids.map((youtube_ref,index)=>({id:`00000000-0000-4000-8000-${String(index+1).padStart(12,'0')}`,title:{ru:`Local thumb test ${index+1}`,en:`Local thumbnail test ${index+1}`},description:{ru:'Local browser fixture',en:'Local browser fixture'},category:'sermon',year:2026,access:'free',price_minor:0,currency:'EUR',youtube_ref}));
 const svg=(width,height)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="#d4b778"/></svg>`;
 const contentTypes={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
@@ -17,7 +17,7 @@ const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://127.0.0.1');
   if(url.pathname==='/api/platform/catalog'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({courses:[],videos}));return}
   const play=url.pathname.match(/^\/api\/platform\/play\/([a-f0-9-]+)$/);
-  if(play){const video=videos.find(item=>item.id===play[1]);requests.push(url.pathname);res.writeHead(video?200:404,{'Content-Type':'application/json'});res.end(JSON.stringify(video?{type:'youtube',id:video.youtube_ref}:{error:'not_found'}));return}
+  if(play){const video=videos.find(item=>item.id===play[1]),data=play[1]===bunnyId?{type:'bunny',url:bunnyUrl}:video?{type:'youtube',id:video.youtube_ref}:null;requests.push(url.pathname);res.writeHead(data?200:404,{'Content-Type':'application/json'});res.end(JSON.stringify(data||{error:'not_found'}));return}
   const file=url.pathname==='/catalog'||url.pathname==='/catalog.html'?'catalog.html':url.pathname.slice(1);
   if(!['catalog.html','catalog.js','platform-client.js','platform.css'].includes(file)){res.writeHead(404);res.end();return}
   const headers={'Content-Type':contentTypes[path.extname(file)]||'application/octet-stream'};
@@ -66,15 +66,20 @@ try{
   await page.waitForSelector('#catalog-detail-body iframe');
   const fromWatch=await page.$eval('#catalog-detail-body iframe',frame=>frame.getAttribute('src'));
   assert.equal(fromThumbnail,fromWatch);
-  assert.match(fromWatch,/youtube-nocookie\.com\/embed\/abcdefghijk$/);
+  assert.match(fromWatch,/youtube-nocookie\.com\/embed\/abcdefghijk\?autoplay=1&playsinline=1$/);
+  assert.match(await page.$eval('#catalog-detail-body iframe',frame=>frame.allow),/\bautoplay\b/);
   const layout=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth}));
   assert.ok(layout.scrollWidth<=layout.width,`${viewport.name} layout overflows horizontally`);
   checks+=4;
   await page.locator('#catalog-close').click();
  }
+ const bunny=await page.evaluate(async({id})=>{const slot=document.createElement('div');document.body.append(slot);await window.MysterionPlatform.play(id,slot,'Bunny fixture',{autoplay:true});const frame=slot.querySelector('iframe');return {src:frame.src,allow:frame.allow}},{id:bunnyId});
+ assert.equal(bunny.src,bunnyUrl);
+ assert.equal(bunny.allow,'fullscreen; picture-in-picture');
+ checks+=2;
  assert.deepEqual(errors,[]);
  assert.equal(requests.filter(path=>path.endsWith(videos[0].id)).length,4);
- console.log(JSON.stringify({checks,viewports:['desktop','mobile'],maxresAndHqPlaceholdersDetected:true,mqFallbackLoaded:true,allSizesUnavailableShowsBrandFallback:true,thumbnailAndWatchOpenSamePlayer:true,cspErrors:errors.length,playRequests:requests.length}));
+ console.log(JSON.stringify({checks,viewports:['desktop','mobile'],maxresAndHqPlaceholdersDetected:true,mqFallbackLoaded:true,allSizesUnavailableShowsBrandFallback:true,thumbnailAndWatchOpenSamePlayer:true,youtubeAutoplayRequested:true,bunnyUnchanged:true,cspErrors:errors.length,playRequests:requests.length}));
 }finally{
  if(browser)await browser.close();
  await new Promise(resolve=>server.close(resolve));
