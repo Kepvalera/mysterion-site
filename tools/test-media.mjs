@@ -242,6 +242,12 @@ try{
  const domainRequest=(origin,path='/api/media/admin/me',identity=admin,extra={})=>new Request(origin+path,{headers:{...(identity?{'Cf-Access-Jwt-Assertion':identity}:{}),...extra}});
  assert.equal((await handle(domainRequest(canonical),domainEnv)).status,200);tests++;
  assert.equal((await handle(domainRequest(legacy),domainEnv)).status,200);tests++;
+ const automaticBackupEnv={...env,MEDIA_PUBLIC_ORIGIN:canonical};
+ assert.equal((await handle(domainRequest(canonical,undefined,admin),automaticBackupEnv)).status,200);tests++;
+ assert.equal((await handle(domainRequest(legacy,undefined,admin),automaticBackupEnv)).status,200);tests++;
+ assert.equal((await handle(domainRequest(legacy,undefined,admin),{...automaticBackupEnv,MEDIA_ALLOWED_ORIGINS:''})).status,200);tests++;
+ const rollbackEnv={...env,MEDIA_PUBLIC_ORIGIN:legacy};
+ assert.equal((await handle(domainRequest(canonical,undefined,admin),rollbackEnv)).status,200);tests++;
  assert.equal((await handle(domainRequest(legacy,'/api/media/videos',null),domainEnv)).status,200);tests++;
  assert.equal((await handle(domainRequest(canonical),{...domainEnv,MEDIA_ALLOWED_ORIGINS:canonical+',https://legacy.invalid/path'})).status,503);tests++;
  const platformRequest=(origin,headers={})=>new Request(origin+'/api/platform/profile',{method:'PUT',headers:{Origin:origin,'X-Requested-With':'XMLHttpRequest',...headers}});
@@ -325,5 +331,5 @@ try{
   assert.ok(warnings.every(line=>!line.includes(admin)&&!line.includes('PRIVATE_EXCEPTION_MARKER')));
   assert.ok(warnings.map(line=>JSON.parse(line)).every(entry=>entry.event==='mysterion_media_unavailable'&&Object.keys(entry).sort().join(',')==='code,event,phase'));tests++;
  }finally{console.warn=warnOriginal}
- console.log(JSON.stringify({passed:tests,sqlite:'in-memory only; populated migration preserves relations',bunny:'mock API only; SHA256 and HMAC signatures independently checked',paidPlayback:'JWT + active user + paid purchase + current entitlement',domain:'canonical origin + explicit pages.dev backup; preview, mismatched Origin and malformed allowlist rejected',protectedHTML:'JWT checked before serving template on both configured origins; safe diagnostics distinguish configuration, identity and D1 failures',productionMigrations:0,realBunnyResources:0}));
+ console.log(JSON.stringify({passed:tests,sqlite:'in-memory only; populated migration preserves relations',bunny:'mock API only; SHA256 and HMAC signatures independently checked',paidPlayback:'JWT + active user + paid purchase + current entitlement',domain:'canonical origin + automatic/explicit pages.dev backup; preview, mismatched Origin and malformed allowlist rejected',protectedHTML:'JWT checked before serving template on both configured origins; safe diagnostics distinguish configuration, identity and D1 failures',productionMigrations:0,realBunnyResources:0}));
 }finally{globalThis.fetch=fetchOriginal;sql.close()}

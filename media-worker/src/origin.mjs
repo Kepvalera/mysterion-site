@@ -1,6 +1,10 @@
 import {HttpError} from './auth.mjs';
 
 const localHosts = new Set(['localhost', '127.0.0.1', '[::1]']);
+const productionOrigins = new Set([
+  'https://mysterion-international.com',
+  'https://mysterion-international.pages.dev'
+]);
 
 function normalizedOrigin(value) {
   if (typeof value !== 'string') return null;
@@ -19,7 +23,9 @@ function configuredOrigins(env) {
   const primary = normalizedOrigin(env.MEDIA_PUBLIC_ORIGIN);
   if (!primary) return null;
   const allowed = new Set([primary]);
-  if (env.MEDIA_ALLOWED_ORIGINS === undefined || env.MEDIA_ALLOWED_ORIGINS === '') return allowed;
+  if (productionOrigins.has(primary)) for (const origin of productionOrigins) allowed.add(origin);
+  if (env.MEDIA_ALLOWED_ORIGINS === undefined) return allowed;
+  if (env.MEDIA_ALLOWED_ORIGINS === '') return allowed;
   if (typeof env.MEDIA_ALLOWED_ORIGINS !== 'string') return null;
   const additional = env.MEDIA_ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
   if (additional.some(origin => !origin)) return null;
