@@ -16,6 +16,10 @@ for(const file of removed)assert.ok(!files.includes(file));
 for(const file of files.filter(f=>/\.(js|html|css)$/.test(f))){const text=await fs.readFile(path.join(target,file),'utf8');for(const gone of removed)assert.ok(!text.includes(gone),file)}
 validateMediaRoutes(JSON.parse(await fs.readFile(path.join(target,'_routes.json'),'utf8')));
 const workerFiles=files.filter(file=>file.startsWith('_worker.js/')).sort((a,b)=>Number(b.endsWith('/index.js'))-Number(a.endsWith('/index.js')));assert.equal(workerFiles.length,3);
+const workerCode=await fs.readFile(path.join(target,'_worker.js/index.js'),'utf8');
+assert.ok(!workerCode.includes('node:'),'Unexpected Node builtin import/dependency');
+assert.ok(!workerCode.includes('unenv'),'Unexpected Node polyfill');
+assert.ok(!/\bstatic\s*\{/.test(workerCode),'Class static blocks must be lowered before Pages re-bundles');
 const modules=await Promise.all(workerFiles.map(async file=>({type:file.endsWith('.wasm')?'CompiledWasm':'ESModule',path:path.join(target,file),contents:file.endsWith('.wasm')?await fs.readFile(path.join(target,file)):await fs.readFile(path.join(target,file),'utf8')})));
 let mail;const origin='https://local.invalid';
 const mf=new Miniflare(convertV4MiniflareOptions({modules,compatibilityDate:'2026-11-08',assets:{directory:target,binding:'ASSETS',run_worker_first:true,routerConfig:{has_user_worker:true},assetConfig:{not_found_handling:'404-page'}},d1Databases:{MEDIA_DB:'isolated-local-release-test'},serviceBindings:{VIEWER_MAILER:async request=>{mail=await request.json();return new Response('{}')}},bindings:{MEDIA_PUBLIC_ORIGIN:origin,MEDIA_ENABLED:'true',VIEWER_AUTH_ENABLED:'true',VIEWER_PLATFORM_ENABLED:'true',MEDIA_PAID_ENABLED:'false',VIEWER_RATE_KEY:'LOCAL_RELEASE_TEST_RATE_KEY_NOT_A_SECRET',MEDIA_ACCESS_ISSUER:'https://local.cloudflareaccess.com',MEDIA_ACCESS_AUD:'LOCAL_RELEASE_TEST_AUD'}}));
