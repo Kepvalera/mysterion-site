@@ -1,12 +1,12 @@
-# Подготовка mysterion-international.com
+# Основной домен mysterion-international.com
 
-Домен указан только в **неактивном шаблоне** wrangler.production.example.jsonc и этой инструкции. Production-origin, DNS, Access, bindings, секреты и платный просмотр кодом не переключаются. Пока владелец не завершит настройку, защищённые страницы/API остаются закрыты.
+Канонический адрес — `https://mysterion-international.com`. Старый `https://mysterion-international.pages.dev` можно временно сохранить как резервный точный origin через `MEDIA_ALLOWED_ORIGINS`; preview, `www`, произвольные поддомены и forwarded-host не разрешаются. Само подключение домена к Pages не меняет серверный `MEDIA_PUBLIC_ORIGIN`.
 
 ## Что проверяет код
 
-MEDIA_PUBLIC_ORIGIN — единственный точный канонический origin. Нет автоматической подстановки pages.dev, preview или Host/X-Forwarded-Host. Разрешён HTTPS; HTTP допускается только для loopback локальных тестов. Нельзя указывать путь, query, credentials или завершающий слеш.
+`MEDIA_PUBLIC_ORIGIN` — единственный канонический origin для ссылок в письмах и исходящих запросов. `MEDIA_ALLOWED_ORIGINS` — необязательный список дополнительных точных HTTPS-origin, разделённых запятыми. Каждый URL строго проверяется; HTTP допускается только для loopback локальных тестов. Нельзя указывать путь, query, credentials или завершающий слеш. Входящий host принимается только из фактического URL, никогда из `Host`/`X-Forwarded-Host`.
 
-После установки https://mysterion-international.com любой API-запрос через production pages.dev, preview, www или другой порт получает отказ 421, даже с валидным JWT и подставленным Origin. Редиректов с переносом credentials API не делает. Если нужно www — сначала подключите его и настройте отдельный Cloudflare redirect на канонический apex; он не является вторым разрешённым API-origin.
+Для сохранения резервного адреса явно задайте `MEDIA_ALLOWED_ORIGINS=https://mysterion-international.com,https://mysterion-international.pages.dev`. Запросы с другого домена или с несовпадающим `Origin` получают отказ; CSRF и проверка прав не ослабляются. Пока `pages.dev` остаётся резервом, не перенаправляйте его целиком: это сохранило бы независимый API/cookie origin и могло бы оборвать сессии.
 
 HTML /admin-media, /admin-media.html и /media-login, /media-login.html теперь проходит Pages Functions middleware. До выдачи HTML проверяются origin и JWT; для админ-страниц также активная роль admin/editor в D1. Неаутентифицированный запрос, неверный AUD и неподготовленная конфигурация не получают административную форму. Сам API независимо повторяет авторизацию. Ответы защищённых страниц — private, no-store; CSP выставляется из middleware, поскольку статические _headers не защищают ответы Functions.
 
@@ -16,19 +16,24 @@ _routes.json включает только API и защищённые стра�
 
 ## Действия владельца после покупки домена
 
-1. В Cloudflare добавьте домен в свой аккаунт и завершите DNS-настройку у регистратора по указаниям Cloudflare. В Workers & Pages → mysterion-international → Custom domains добавьте mysterion-international.com. Дождитесь Active и рабочего HTTPS. **До этого не меняйте MEDIA_PUBLIC_ORIGIN и не добавляйте принудительный redirect.**
-2. В Zero Trust создайте Admin application с единым AUD для /admin-media, /admin-media.html и /api/media/admin/*. Политика — конкретные администраторы, IdP и MFA, без Bypass/Everyone. Добавьте нужные варианты со слешем. Создайте отдельное Viewer application/AUD для /media-login, /media-login.html и /api/media/view/*. См. подробную инструкцию владельцу.
-3. Для D1 подготовьте отдельный staging и binding MEDIA_DB. Проверьте backup/историю миграций. Применение 0001/0002 к production — **только после отдельного согласования**, текущая задача их не запускает.
-4. В Pages Production Variables and Secrets укажите MEDIA_PUBLIC_ORIGIN=https://mysterion-international.com, проверенные MEDIA_ACCESS_ISSUER, MEDIA_ACCESS_AUD и отдельный MEDIA_VIEWER_ACCESS_AUD. Переключение переменных/новый deployment — только после шагов 1–3. Не копируйте production D1/ключи в preview; там нужны отдельные ресурсы/origin/AUD либо MEDIA_ENABLED=false.
-5. В Access настройте защиту/закрытие preview и альтернативного pages.dev. Серверная origin-проверка дополнительно запрещает там API и защищённые HTML, даже если edge-политика забыта. Публичные страницы старого адреса пока можно оставить доступными; общий redirect можно отдельно настроить после подключения домена. Проверьте обе формы URL и прямые обращения к API.
-6. В Bunny Library/Pull Zone добавьте mysterion-international.com в Allowed Domains без схемы. Подготовьте серверные BUNNY_API_KEY, BUNNY_TOKEN_KEY, BUNNY_CDN_TOKEN_KEY как encrypted secrets Pages, Library ID и CDN hostname. Проверьте embed tokens, закрытость прямых файлов/оригиналов/MP4, CDN-обложки и TUS CORS. Ключи не передавайте в чат/Git.
-7. Сохраните MEDIA_PAID_ENABLED=false. BUNNY_ENABLED и BUNNY_SECURITY_CONFIRMED также не включайте до реальной проверки библиотеки и staging. Подключение платежей и активация платного просмотра — отдельный этап, автоматически они не выполняются.
+1. Домен и TLS уже подключены по подтверждению владельца. В Pages → `mysterion-international` → Settings → Variables and Secrets → Production установите `MEDIA_PUBLIC_ORIGIN=https://mysterion-international.com` и `MEDIA_ALLOWED_ORIGINS=https://mysterion-international.com,https://mysterion-international.pages.dev`, затем создайте deployment из актуального `main`. Не меняйте Preview variables.
+2. В Cloudflare Zero Trust защитите админку и соответствующие API на новом hostname; оставьте действующие политики на `pages.dev`, если он нужен как резерв. JWT issuer, audience, роли и MFA должны быть корректными для обоих origin. Если hostname требует отдельный Access AUD, нельзя просто подставить его в запрос: сначала требуется безопасное серверное разрешение нескольких ожидаемых AUD и тесты. Не используйте Bypass/Everyone.
+3. Сохраните текущие D1 binding, UUID, историю миграций и записи без изменений. Не создавайте базу, не применяйте миграции и не меняйте права доступа ради смены домена.
+4. Не меняя секреты, проверьте в Production значения существующих `MEDIA_DB`, viewer/Access bindings и функций авторизации. Доменная переменная не должна менять D1 UUID, а вся проверка владельца/участника остаётся серверной.
+5. Не включайте перенаправление со старого `pages.dev`, пока он используется как резервный origin. После отдельного решения вывести резерв из эксплуатации сначала удалите его из `MEDIA_ALLOWED_ORIGINS`, проверьте новый сайт/API, затем настраивайте безопасный redirect только для публичной навигации.
+6. В Bunny Stream Library 803179 добавьте `mysterion-international.com` в Allowed Domains, сохранив `mysterion-international.pages.dev`, если библиотека должна работать на обоих origin. Не меняйте Library ID, токены, ключи или правила платного доступа; проверьте embed, CDN cover, TUS и прямой отказ на обоих доменах.
+7. Письма Resend формируют ссылки из `MEDIA_PUBLIC_ORIGIN`, поэтому после смены переменной новые подтверждения ведут на канонический домен. Отправитель должен оставаться на подтверждённом домене Resend; если его нет, сначала добавьте/подтвердите домен и DNS в Resend. Не меняйте ключ Resend и не включайте неподтверждённый адрес.
+8. Сохраните `MEDIA_PAID_ENABLED` и текущие флаги Bunny как есть. Настройка домена не должна активировать платный просмотр или платежи.
+
+Сессионные cookies имеют префикс `__Host-` и намеренно остаются привязанными к hostname. Поэтому браузер запросит новый вход на новом домене; аккаунты, пароли, права и D1-сессии не пересоздаются. В D1 остаётся одна активная сессия на пользователя: вход на новом адресе штатно заменит текущую сессию, как и новый вход на том же адресе.
 
 ## Контроль перед открытием
 
 - Канонический домен/TLS работает, меню и относительные ссылки остаются на нём.
+- `/api/media/videos` и `/api/viewer/session` отвечают штатно на обоих точных разрешённых origin; API не отражает произвольный `Origin` и не выдаёт CORS-разрешения.
+- Ссылки подтверждения Resend ведут на новый канонический домен; проверены отправитель и доставка по внешнему адресу, не только общий HTTP 202.
 - Админ проходит Access и роль D1; anonymous/viewer/disabled/поддельный JWT получают отказ на HTML и API.
-- На pages.dev и preview даже валидный production JWT не открывает панель/API.
+- На `pages.dev` работают только явно сохранённые резервные маршруты; preview и посторонние origin получают отказ даже с подставленным `Host`/`X-Forwarded-Host`.
 - Прямые файлы Bunny и неподписанный embed закрыты; платное разрешение не выдаётся без всех флагов, секретов, личности, покупки и права.
 - Реальные загрузка/CORS/обработка/обложка/длинный урок и iPhone Safari проверены отдельно. Локальный Chrome их не заменяет.
 - Откат: отключить MEDIA_ENABLED/BUNNY_ENABLED, платный флаг оставить false, при необходимости отозвать доступ Bunny. Отзыв права D1 не аннулирует ранее выданный краткоживущий URL мгновенно.

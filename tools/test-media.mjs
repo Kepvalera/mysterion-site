@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {handle} from '../media-worker/src/worker.mjs';
 import {withLease} from '../media-worker/src/bunny.mjs';
 import {HttpError} from '../media-worker/src/auth.mjs';
+import {csrf} from '../media-worker/src/platform-http.mjs';
 import {protectMediaPage} from '../media-worker/src/page-guard.mjs';
 import {validateMediaRoutes} from './check-media-routes.mjs';
 import {mediaTemplates} from '../media-worker/src/page-templates.mjs';
@@ -23,6 +24,7 @@ assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM audit_log').get().n,1);
 assert.deepEqual(sql.prepare('PRAGMA foreign_key_check').all(),[]);
 sql.exec('DELETE FROM audit_log;DELETE FROM entitlements;DELETE FROM purchases;DELETE FROM videos;DELETE FROM users;');
 sql.exec(await fs.readFile(new URL('../media-worker/migrations/0003_media_members.sql',import.meta.url),'utf8'));
+for(const f of ['0009_video_platform_sources.sql','0010_video_rutube_source.sql'])sql.exec(await fs.readFile(new URL('../media-worker/migrations/'+f,import.meta.url),'utf8'));
 const prepare=query=>({bind(...args){this.args=args;return this},first(){return sql.prepare(query).get(...(this.args||[]))||null},all(){return {results:sql.prepare(query).all(...(this.args||[]))}},run(){const result=sql.prepare(query).run(...(this.args||[]));return {meta:{changes:Number(result.changes)}}}});
 const objects=new Map();const env={MEDIA_ENABLED:'true',MEDIA_PUBLIC_ORIGIN:'http://localhost',MEDIA_ACCESS_ISSUER:'https://test-team.cloudflareaccess.com',MEDIA_ACCESS_AUD:'test-audience',MEDIA_DB:{prepare,batch(statements){sql.exec('BEGIN');try{const results=statements.map(s=>s.run());sql.exec('COMMIT');return results}catch(error){sql.exec('ROLLBACK');throw error}}},MEDIA_BUCKET:{head:async key=>objects.has(key)?{}:null,put:async(key,value)=>objects.set(key,value),delete:async key=>objects.delete(key),get:async key=>objects.has(key)?{body:objects.get(key),size:objects.get(key).length}:null}};
 const pair=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);const jwk=await crypto.subtle.exportKey('jwk',pair.publicKey);jwk.kid='local-test-key';
@@ -236,10 +238,20 @@ try{
  deleteFails=true;await expect(202,'admin/videos/'+created.id,'DELETE',undefined,admin,{'If-Match':String(row().revision)});assert.equal(row().bunny_delete_pending,1);await expect(404,'view/play/'+created.id,'POST',undefined,viewer);
  deleteFails=false;await expect(200,op+'delete','POST');assert.equal(provider.size,0);assert.equal(row().bunny_delete_pending,0);assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM purchases').get().n,1);assert.deepEqual(sql.prepare('PRAGMA foreign_key_check').all(),[]);
  const bucket=env.MEDIA_BUCKET;delete env.MEDIA_BUCKET;await expect(200,'videos');await expect(503,'admin/videos/'+paid.id+'/cover','PUT','TEST');env.MEDIA_BUCKET=bucket;
- const canonical='https://mysterion-international.com',domainEnv={...env,MEDIA_PUBLIC_ORIGIN:canonical};
+ const canonical='https://mysterion-international.com',legacy='https://mysterion-international.pages.dev',domainEnv={...env,MEDIA_PUBLIC_ORIGIN:canonical,MEDIA_ALLOWED_ORIGINS:canonical+','+legacy};
  const domainRequest=(origin,path='/api/media/admin/me',identity=admin,extra={})=>new Request(origin+path,{headers:{...(identity?{'Cf-Access-Jwt-Assertion':identity}:{}),...extra}});
  assert.equal((await handle(domainRequest(canonical),domainEnv)).status,200);tests++;
- for(const alternate of ['https://mysterion-international.pages.dev','https://preview.mysterion-international.pages.dev','https://www.mysterion-international.com','http://mysterion-international.com','https://mysterion-international.com:8443']){
+ assert.equal((await handle(domainRequest(legacy),domainEnv)).status,200);tests++;
+ assert.equal((await handle(domainRequest(legacy,'/api/media/videos',null),domainEnv)).status,200);tests++;
+ assert.equal((await handle(domainRequest(canonical),{...domainEnv,MEDIA_ALLOWED_ORIGINS:canonical+',https://legacy.invalid/path'})).status,503);tests++;
+ const platformRequest=(origin,headers={})=>new Request(origin+'/api/platform/profile',{method:'PUT',headers:{Origin:origin,'X-Requested-With':'XMLHttpRequest',...headers}});
+ assert.doesNotThrow(()=>csrf(platformRequest(legacy),domainEnv));tests++;
+ assert.throws(()=>csrf(platformRequest(legacy,{Origin:canonical}),domainEnv),error=>error.status===403);tests++;
+ const legacyMutation=await handle(new Request(legacy+'/api/media/admin/videos',{method:'POST',headers:{'Cf-Access-Jwt-Assertion':admin,Origin:legacy,'Content-Type':'application/json'},body:'{}'}),domainEnv);
+ assert.equal(legacyMutation.status,400);tests++;
+ const mismatchedOrigin=await handle(new Request(legacy+'/api/media/admin/videos',{method:'POST',headers:{'Cf-Access-Jwt-Assertion':admin,Origin:canonical,'Content-Type':'application/json'},body:'{}'}),domainEnv);
+ assert.equal(mismatchedOrigin.status,403);tests++;
+ for(const alternate of ['https://preview.mysterion-international.pages.dev','https://www.mysterion-international.com','http://mysterion-international.com','https://mysterion-international.com:8443']){
   const response=await handle(domainRequest(alternate,undefined,admin,{Origin:canonical,Host:'mysterion-international.com','X-Forwarded-Host':'mysterion-international.com'}),domainEnv);assert.equal(response.status,421);tests++;
  }
  for(const badOrigin of ['',canonical+'/',canonical+'/path',canonical+'?x=1','https://user:password@mysterion-international.com','http://external.invalid']){assert.equal((await handle(domainRequest(canonical),{...domainEnv,MEDIA_PUBLIC_ORIGIN:badOrigin})).status,503);tests++}
@@ -253,7 +265,7 @@ try{
  }
  for(const path of ['/admin-media','/admin-media.html','/admin-media/','/%61dmin-media']){
   await page(canonical,path,null,401);await page(canonical,path,await token('viewer-sub'),403);await page(canonical,path,admin,200);
-  await page('https://mysterion-international.pages.dev',path,admin,421);
+  await page(legacy,path,admin,200);
   await page('https://preview.mysterion-international.pages.dev',path,admin,421);
  }
  await page(canonical,'/admin-media',admin.slice(0,-8)+'invalid',401);
@@ -264,6 +276,7 @@ try{
  await page(canonical,'/media-login',null,401);
  await page(canonical,'/media-login',admin,200);
  await page(canonical,'/media-login',viewer,200);
+ await page(legacy,'/media-login.html',viewer,200);
  await page('https://preview.mysterion-international.pages.dev','/media-login.html',viewer,421);
  for(const lang of ['ru','en']){const response=await protectMediaPage({request:domainRequest(canonical,'/admin-media',null,{'Accept-Language':lang}),env:domainEnv,next:()=>{throw Error('Must not serve protected page')}});assert.ok((await response.text()).includes('lang="'+lang+'"'));tests++}
  const redirected=await protectMediaPage({request:domainRequest(canonical,'/admin-media.html',admin),env:domainEnv,next:()=>new Response(null,{status:308,headers:{Location:'/admin-media'}})});assert.equal(redirected.status,308);assert.equal(redirected.headers.get('Location'),'/admin-media');tests++;
@@ -312,5 +325,5 @@ try{
   assert.ok(warnings.every(line=>!line.includes(admin)&&!line.includes('PRIVATE_EXCEPTION_MARKER')));
   assert.ok(warnings.map(line=>JSON.parse(line)).every(entry=>entry.event==='mysterion_media_unavailable'&&Object.keys(entry).sort().join(',')==='code,event,phase'));tests++;
  }finally{console.warn=warnOriginal}
- console.log(JSON.stringify({passed:tests,sqlite:'in-memory only; populated migration preserves relations',bunny:'mock API only; SHA256 and HMAC signatures independently checked',paidPlayback:'JWT + active user + paid purchase + current entitlement',domain:'canonical URL pinned; pages.dev and preview rejected',protectedHTML:'JWT checked before serving template; safe diagnostics distinguish configuration, identity and D1 failures',productionMigrations:0,realBunnyResources:0}));
+ console.log(JSON.stringify({passed:tests,sqlite:'in-memory only; populated migration preserves relations',bunny:'mock API only; SHA256 and HMAC signatures independently checked',paidPlayback:'JWT + active user + paid purchase + current entitlement',domain:'canonical origin + explicit pages.dev backup; preview, mismatched Origin and malformed allowlist rejected',protectedHTML:'JWT checked before serving template on both configured origins; safe diagnostics distinguish configuration, identity and D1 failures',productionMigrations:0,realBunnyResources:0}));
 }finally{globalThis.fetch=fetchOriginal;sql.close()}

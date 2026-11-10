@@ -31,6 +31,11 @@ try{
  await expect(503,'register',{email:'local@example.invalid',password:pass},'',{},{...env,VIEWER_MAILER:undefined});
  await expect(403,'register',{email:'local@example.invalid',password:pass},'',{Origin:'https://other.invalid'});
  await expect(421,'session',undefined,'',{}, {...env,MEDIA_PUBLIC_ORIGIN:'https://other.invalid'});
+ const domainEnv={...env,MEDIA_PUBLIC_ORIGIN:'https://mysterion-international.com',MEDIA_ALLOWED_ORIGINS:'https://mysterion-international.com,https://mysterion-international.pages.dev'};
+ const legacyOrigin='https://mysterion-international.pages.dev';
+ const legacySession=await handleViewer(new Request(legacyOrigin+'/api/viewer/session'),domainEnv);assert.equal(legacySession.status,200);assert.equal((await legacySession.json()).authenticated,false);tests++;
+ const legacyPost=await handleViewer(new Request(legacyOrigin+'/api/viewer/register',{method:'POST',headers:{Origin:legacyOrigin,'X-Requested-With':'XMLHttpRequest','Content-Type':'application/json'},body:JSON.stringify({unexpected:true})}),domainEnv);assert.equal(legacyPost.status,400);assert.equal((await legacyPost.json()).error,'invalid_fields');tests++;
+ const mismatchedPost=await handleViewer(new Request(legacyOrigin+'/api/viewer/register',{method:'POST',headers:{Origin:domainEnv.MEDIA_PUBLIC_ORIGIN,'X-Requested-With':'XMLHttpRequest','Content-Type':'application/json'},body:JSON.stringify({unexpected:true})}),domainEnv);assert.equal(mismatchedPost.status,403);assert.equal((await mismatchedPost.json()).error,'invalid_origin');tests++;
  await expect(403,'register',{email:'local@example.invalid',password:pass},'',{'X-Requested-With':''});
  await expect(400,'register',{email:'local@example.invalid',password:pass,role:'admin'});
  await expect(400,'register',{email:'bad',password:pass});await expect(400,'register',{email:'local@example.invalid',password:'short'});

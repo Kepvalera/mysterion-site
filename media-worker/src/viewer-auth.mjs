@@ -1,5 +1,5 @@
 import {HttpError} from './auth.mjs';
-import {requireMediaOrigin} from './origin.mjs';
+import {isSameOriginMediaRequest,requireMediaOrigin} from './origin.mjs';
 import {hashPassword,verifyPassword,validPassword,dummyPasswordHash} from './viewer-password.mjs';
 import {mailConfigured,deliver} from './viewer-mail.mjs';
 import {admitViewerOperation,admitViewerKdf,reserveViewerPassword,ViewerRateLimitError} from './viewer-rate-limit.mjs';
@@ -77,7 +77,7 @@ export async function handleViewer(request,env,context){
   }
   const fields={register:['email','password','locale'],login:['email','password'],'verify-email':['token'],'resend-verification':['email'],'forgot-password':['email'],'reset-password':['token','password'],logout:[],'logout-all':[]};
   if(!Object.hasOwn(fields,route))fail(404,'not_found');if(method!=='POST')fail(405,'method_not_allowed');
-  if(request.headers.get('Origin')!==env.MEDIA_PUBLIC_ORIGIN||request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.get('X-Requested-With')!=='XMLHttpRequest')fail(403,'invalid_origin');
+  if(!isSameOriginMediaRequest(request,env)||request.headers.get('X-Requested-With')!=='XMLHttpRequest')fail(403,'invalid_origin');
   phase='input';const data=await input(request,fields[route]);
   if(route==='logout'||route==='logout-all'){
    const user=await session(request,env);if(user){if(route==='logout-all')await db.batch([db.prepare('UPDATE viewer_accounts SET credential_version=credential_version+1,updated_at=? WHERE id=? AND credential_version=?').bind(now(),user.id,user.credential_version),db.prepare('DELETE FROM viewer_sessions WHERE account_id=? AND token_hash=?').bind(user.id,user.hash)]);else await db.prepare('DELETE FROM viewer_sessions WHERE token_hash=?').bind(user.hash).run();await audit(db,user.id,route)}

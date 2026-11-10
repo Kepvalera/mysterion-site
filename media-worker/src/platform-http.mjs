@@ -1,5 +1,6 @@
 import {deny} from './platform-data.mjs';
-export function csrf(request,env){if(request.headers.get('Origin')!==env.MEDIA_PUBLIC_ORIGIN||request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.get('X-Requested-With')!=='XMLHttpRequest')deny(403,'invalid_origin')}
+import {isSameOriginMediaRequest} from './origin.mjs';
+export function csrf(request,env){if(!isSameOriginMediaRequest(request,env)||request.headers.get('X-Requested-With')!=='XMLHttpRequest')deny(403,'invalid_origin')}
 export async function input(request,allowed){
  if(!request.headers.get('Content-Type')?.startsWith('application/json'))deny(415,'json_required');
  const reader=request.body?.getReader();if(!reader)deny(400,'invalid_json');let bytes=0,chunks=[];

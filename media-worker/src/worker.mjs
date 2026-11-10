@@ -1,6 +1,6 @@
 import {HttpError,administrator,entitledViewer,siteSession} from './auth.mjs';
 import * as bunny from './bunny.mjs';
-import {requireMediaOrigin} from './origin.mjs';
+import {isSameOriginMediaRequest,requireMediaOrigin} from './origin.mjs';
 import {memberRoute} from './members.mjs';
 import {vkEmbed,vkThumbnail,rutubeId} from './video-source.mjs';
 const categories=['sermon','testimony','conference','school'];
@@ -36,7 +36,7 @@ const visible=value=>{const parsed=JSON.parse(value);return {ru:parsed.ru||'',en
 const decodeRow=row=>({...row,title:visible(row.title),description:visible(row.description)});
 const publicColumns="id,title,description,category,year,access,price_minor,currency,publish_at,(cover_key IS NOT NULL OR (source_type='bunny' AND bunny_thumbnail IS NOT NULL)) AS has_cover,CASE WHEN access='free' AND source_type!='bunny' THEN COALESCE(youtube_ref,CASE WHEN source_type='youtube' AND rutube_ref IS NULL THEN source_ref END) END AS youtube_ref,CASE WHEN access='free' AND source_type!='bunny' THEN COALESCE(vk_ref,CASE WHEN source_type='vk' AND rutube_ref IS NULL THEN source_ref END) END AS vk_ref,CASE WHEN access='free' AND source_type!='bunny' THEN rutube_ref END AS rutube_ref";
 const noLease=" AND NOT EXISTS (SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>unixepoch())";
-function sameOrigin(request,env){if(request.headers.get('Origin')!==env.MEDIA_PUBLIC_ORIGIN || request.headers.get('Sec-Fetch-Site')==='cross-site')fail(403,'invalid_origin')}
+function sameOrigin(request,env){if(!isSameOriginMediaRequest(request,env))fail(403,'invalid_origin')}
 async function published(env,id) { const row=await env.MEDIA_DB.prepare("SELECT * FROM videos WHERE id=? AND state='published' AND publish_at<=?").bind(id,new Date().toISOString()).first(); if(!row) fail(404,'not_found'); return row; }
 async function body(request) {
  if(!request.headers.get('content-type')?.startsWith('application/json')) fail(415,'json_required');
