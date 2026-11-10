@@ -78,12 +78,20 @@ try{
   checks.ui+=3;
  }
  const preview=youtubeRows[0].children[0].children.find(child=>child.className==='youtube-preview'),image=preview.children[0];
- await image.listeners.error();
+ image.naturalWidth=120;await image.listeners.load();
  assert.equal(image.src,'https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg');
  await image.listeners.error();
- assert.equal(preview.children[0].className,'youtube-preview-fallback');
- assert.equal(preview.children[0].textContent,'MYSTERION');
- checks.ui+=3;
+ assert.equal(image.src,'https://i.ytimg.com/vi/abcdefghijk/mqdefault.jpg');
+ image.naturalWidth=320;await image.listeners.load();
+ assert.equal(preview.children[0],image);
+ checks.ui+=4;
+ const unavailable=youtubeRows[1].children[0].children.find(child=>child.className==='youtube-preview'),unavailableImage=unavailable.children[0];
+ await unavailableImage.listeners.error();
+ await unavailableImage.listeners.error();
+ await unavailableImage.listeners.error();
+ assert.equal(unavailable.children[0].className,'youtube-preview-fallback');
+ assert.equal(unavailable.children[0].textContent,'MYSTERION');
+ checks.ui+=2;
  assert.ok(document.getElementById('catalog-items').children.some(row=>row.children[0].children.some(child=>child.tagName==='IMG'&&child.src.startsWith('/api/platform/covers/'))));
  const language=document.getElementById('catalog-language');
  assert.equal(language.textContent,'EN');
