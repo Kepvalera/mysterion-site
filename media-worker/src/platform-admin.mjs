@@ -58,27 +58,44 @@ export async function platformAdmin(request,env,path,method){
  }
  const vm=path.match(/^videos\/([a-f0-9-]{36})(?:\/(upload|status|resume|cover))?$/);
  if(path==='videos'&&method==='POST'||vm&&!vm[2]&&method==='PUT'){
-  const d=await input(request,['id','title','description','category','year','source_type','source_ref','access','price_minor','currency','state','revision']);
+  const d=await input(request,['id','title','description','category','year','source_type','source_ref','youtube_ref','vk_ref','access','price_minor','currency','state','revision']);
   if(d.id!==undefined&&(!idPattern.test(d.id)||vm&&d.id!==vm[1]))deny(400,'invalid_video');
   const old=vm?await videoRow(db,vm[1]):null;if(old)canEditVideo(staff,old);money(d);
   if(!categories.includes(d.category)||!Number.isInteger(d.year)||d.year<1900||d.year>2100||!['youtube','vk','bunny'].includes(d.source_type)||!['draft','published'].includes(d.state))deny(400,'invalid_video');
   if(staff.role==='uploader'&&d.state!=='draft')deny(403,'publisher_required');
-  if(d.access==='paid'&&d.source_type!=='bunny')deny(400,'protected_storage_required');
-  let ref=d.source_type==='bunny'?(old?.source_type==='bunny'?old.source_ref:''):text(d.source_ref,1024,true);
-  if(d.source_type==='youtube')ref=youtubeId(ref);if(d.source_type==='vk')ref=vkEmbed(ref);
-  if(old&&old.source_type==='bunny'&&old.source_ref&&d.source_type!=='bunny')deny(409,'bound_source_immutable');
+  const hasPlatformSources=Object.hasOwn(d,'youtube_ref')||Object.hasOwn(d,'vk_ref');
+  let sourceType=d.source_type,ref,youtubeRef=null,vkRef=null;
+  if(sourceType==='bunny'){
+   if(hasPlatformSources&&(text(d.youtube_ref||'',1024)||text(d.vk_ref||'',1024)))deny(400,'bunny_source_conflict');
+   ref=old?.source_type==='bunny'?old.source_ref:'';
+  }else{
+   const oldYoutube=old?.youtube_ref||(old?.source_type==='youtube'?old.source_ref:''),oldVk=old?.vk_ref||(old?.source_type==='vk'?old.source_ref:'');
+   if(hasPlatformSources){
+    const youtubeInput=text(d.youtube_ref||'',1024),vkInput=text(d.vk_ref||'',1024);
+    youtubeRef=youtubeInput?youtubeId(youtubeInput):null;vkRef=vkInput?vkEmbed(vkInput):null;
+   }else{
+    if(d.source_type==='youtube')youtubeRef=youtubeId(text(d.source_ref,1024,true));
+    else vkRef=vkEmbed(text(d.source_ref,1024,true));
+    if(d.source_type!=='youtube'&&oldYoutube)youtubeRef=youtubeId(oldYoutube);
+    if(d.source_type!=='vk'&&oldVk)vkRef=vkEmbed(oldVk);
+   }
+   if(!youtubeRef&&!vkRef)deny(400,'video_source_required');
+   sourceType=youtubeRef?'youtube':'vk';ref=youtubeRef||vkRef;
+  }
+  if(d.access==='paid'&&sourceType!=='bunny')deny(400,'protected_storage_required');
+  if(old&&old.source_type==='bunny'&&old.source_ref&&sourceType!=='bunny')deny(409,'bound_source_immutable');
   if(d.state==='published'){
    if(d.access==='paid'&&env.MEDIA_PAID_ENABLED!=='true')deny(503,'paid_publication_disabled');
-   if(d.source_type==='bunny'){bunny.boundVideo(env,old||{});const status=await bunny.syncVideo(env,old);if(!status.ready)deny(409,'video_not_ready')}
+   if(sourceType==='bunny'){bunny.boundVideo(env,old||{});const status=await bunny.syncVideo(env,old);if(!status.ready)deny(409,'video_not_ready')}
   }
   const title=mergeTranslation(d.title,old?.title,300,true),description=mergeTranslation(d.description,old?.description,6000),now=new Date().toISOString(),id=old?.id||d.id||crypto.randomUUID();
-  if(old)await updateResult(db.prepare('UPDATE videos SET title=?,description=?,category=?,year=?,source_type=?,source_ref=?,access=?,price_minor=?,currency=?,state=?,revision=revision+1,updated_at=?,mutation_id=? WHERE id=? AND revision=? AND NOT EXISTS(SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>?)').bind(title,description,d.category,d.year,d.source_type,ref,d.access,d.price_minor,d.currency,d.state,now,crypto.randomUUID(),id,revision(d.revision),time()));
+  if(old)await updateResult(db.prepare('UPDATE videos SET title=?,description=?,category=?,year=?,source_type=?,source_ref=?,youtube_ref=?,vk_ref=?,access=?,price_minor=?,currency=?,state=?,revision=revision+1,updated_at=?,mutation_id=? WHERE id=? AND revision=? AND NOT EXISTS(SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>?)').bind(title,description,d.category,d.year,sourceType,ref,youtubeRef,vkRef,d.access,d.price_minor,d.currency,d.state,now,crypto.randomUUID(),id,revision(d.revision),time()));
   else {
-   await db.prepare('INSERT INTO videos(id,title,description,category,year,source_type,source_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(id,title,description,d.category,d.year,d.source_type,ref,d.access,d.price_minor,d.currency,d.state,now,now,crypto.randomUUID(),staff.sub).run();
+   await db.prepare('INSERT INTO videos(id,title,description,category,year,source_type,source_ref,youtube_ref,vk_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(id,title,description,d.category,d.year,sourceType,ref,youtubeRef,vkRef,d.access,d.price_minor,d.currency,d.state,now,now,crypto.randomUUID(),staff.sub).run();
    const saved=await videoRow(db,id);if(saved.created_by!==staff.sub)deny(403,'draft_owner_required');
    // A stable client-chosen UUID makes an initial save safe to retry after a
    // lost response. It never overwrites an existing or concurrently edited row.
-   if(saved.title!==title||saved.description!==description||['category','year','source_type','access','price_minor','currency','state'].some(k=>saved[k]!==d[k])||d.source_type!=='bunny'&&saved.source_ref!==ref)deny(409,'revision_conflict');
+   if(saved.title!==title||saved.description!==description||['category','year','access','price_minor','currency','state'].some(k=>saved[k]!==d[k])||saved.source_type!==sourceType||saved.source_ref!==ref||saved.youtube_ref!==youtubeRef||saved.vk_ref!==vkRef)deny(409,'revision_conflict');
   }
   await audit(db,staff.sub,'video.saved',id);return decode(await videoRow(db,id));
  }

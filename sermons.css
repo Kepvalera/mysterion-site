@@ -12,4 +12,8 @@
 #video-player>p { padding:20px; color:#fff; }
 #video-player>a { display:inline-block; margin:0 20px 20px; color:#efcf8e; text-decoration:underline; }
 #video-player:has(>p) { min-height:180px; height:auto; aspect-ratio:auto; }
+.video-source-switcher { display:flex; justify-content:center; gap:8px; margin:12px 0; }
+.video-source-switcher[hidden] { display:none; }
+.video-source-switcher button { min-height:42px; padding:8px 18px; border:1px solid #d5bd91; border-radius:999px; background:transparent; color:inherit; font:inherit; cursor:pointer; }
+.video-source-switcher button[aria-pressed="true"] { background:#c9a96e; color:#252938; }
 @media(max-width:640px) { .library-page .video-info { padding:20px; } }

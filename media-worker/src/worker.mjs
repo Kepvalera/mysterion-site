@@ -2,7 +2,7 @@ import {HttpError,administrator,entitledViewer,siteSession} from './auth.mjs';
 import * as bunny from './bunny.mjs';
 import {requireMediaOrigin} from './origin.mjs';
 import {memberRoute} from './members.mjs';
-import {vkEmbed} from './video-source.mjs';
+import {vkEmbed,vkThumbnail} from './video-source.mjs';
 const categories=['sermon','testimony','conference','school'];
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 const fail=(status,code)=>{throw new HttpError(status,code)};
@@ -34,7 +34,7 @@ export function validate(data,env={}) {
 }
 const visible=value=>{const parsed=JSON.parse(value);return {ru:parsed.ru||'',en:parsed.en||''}};
 const decodeRow=row=>({...row,title:visible(row.title),description:visible(row.description)});
-const publicColumns="id,title,description,category,year,access,price_minor,currency,publish_at,(cover_key IS NOT NULL OR (source_type='bunny' AND bunny_thumbnail IS NOT NULL)) AS has_cover,CASE WHEN source_type='youtube' THEN source_ref END AS youtube_ref";
+const publicColumns="id,title,description,category,year,access,price_minor,currency,publish_at,(cover_key IS NOT NULL OR (source_type='bunny' AND bunny_thumbnail IS NOT NULL)) AS has_cover,CASE WHEN access='free' AND source_type!='bunny' THEN COALESCE(youtube_ref,CASE WHEN source_type='youtube' THEN source_ref END) END AS youtube_ref,CASE WHEN access='free' AND source_type!='bunny' THEN COALESCE(vk_ref,CASE WHEN source_type='vk' THEN source_ref END) END AS vk_ref";
 const noLease=" AND NOT EXISTS (SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>unixepoch())";
 function sameOrigin(request,env){if(request.headers.get('Origin')!==env.MEDIA_PUBLIC_ORIGIN || request.headers.get('Sec-Fetch-Site')==='cross-site')fail(403,'invalid_origin')}
 async function published(env,id) { const row=await env.MEDIA_DB.prepare("SELECT * FROM videos WHERE id=? AND state='published' AND publish_at<=?").bind(id,new Date().toISOString()).first(); if(!row) fail(404,'not_found'); return row; }
@@ -52,7 +52,7 @@ async function mutate(env,user,id,action,statement,mutation) {
 export async function handle(request,env) {
  try {
   const url=new URL(request.url), path=url.pathname.replace(/^\/api\/media\/?/,'').replace(/\/$/,''), method=request.method;
-  const publicRead=env.VIEWER_PLATFORM_ENABLED==='true'&&method==='GET'&&(['videos','collections','session'].includes(path)||/^videos\/[a-f0-9-]{36}\/(play|cover|stream)$/.test(path));
+  const publicRead=env.VIEWER_PLATFORM_ENABLED==='true'&&method==='GET'&&(['videos','collections','session'].includes(path)||/^videos\/[a-f0-9-]{36}\/(play|cover|vk-cover|stream)$/.test(path));
   ready(env,publicRead);
   requireMediaOrigin(request,env);
   if(!url.pathname.startsWith('/api/media')) fail(404,'not_found');
@@ -85,7 +85,7 @@ export async function handle(request,env) {
    const rows=await env.MEDIA_DB.prepare(`SELECT ${publicColumns} FROM videos WHERE ${where.join(' AND ')} ORDER BY publish_at DESC,id LIMIT 25 OFFSET ?`).bind(...values,(Math.floor(page)-1)*24).all();
    return json({items:rows.results.slice(0,24).map(decodeRow),hasMore:rows.results.length>24});
   }
-  const match=path.match(/^videos\/([a-f0-9-]{36})\/(play|stream|cover)$/);
+  const match=path.match(/^videos\/([a-f0-9-]{36})\/(play|stream|cover|vk-cover)$/);
   if(match && method==='GET') {
    const row=await published(env,match[1]),kind=match[2];
    if(kind==='cover') {
@@ -96,11 +96,23 @@ export async function handle(request,env) {
     }
     if(!row.cover_key && row.source_type==='bunny')return await bunny.thumbnail(env,row);if(!row.cover_key || !env.MEDIA_BUCKET) fail(404,'not_found');const object=await env.MEDIA_BUCKET.get(row.cover_key);if(!object)fail(404,'not_found');return new Response(object.body,{headers:{'Content-Type':row.cover_type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
    }
+   if(kind==='vk-cover'){
+    const ref=row.access==='free'&&(row.vk_ref||(row.source_type==='vk'?row.source_ref:null));if(!ref)fail(404,'not_found');return await vkThumbnail(ref);
+   }
    // Paid R2/YouTube and the legacy GET route can never issue a viewing grant.
    if(row.access!=='free') fail(402,'paid_playback_disabled');
-   if(kind==='play' && row.source_type==='bunny') {if(row.bunny_status!==4)fail(409,'video_not_ready');return json(await bunny.playback(env,row))}
-   if(kind==='play'&&row.source_type==='vk')return json({type:'vk',url:vkEmbed(row.source_ref)});
-   if(kind==='play') return json(row.source_type==='youtube'?{type:'youtube',id:row.source_ref}:{type:'r2',url:`/api/media/videos/${row.id}/stream`});
+   if(kind==='play'){
+    const selected=url.searchParams.get('source');
+    if(selected!==null){
+     if(!['youtube','vk'].includes(selected))fail(400,'invalid_source');
+     const ref=selected==='youtube'?(row.youtube_ref||(row.source_type==='youtube'?row.source_ref:null)):(row.vk_ref||(row.source_type==='vk'?row.source_ref:null));
+     if(!ref)fail(404,'not_found');return json(selected==='youtube'?{type:'youtube',id:ref}:{type:'vk',url:vkEmbed(ref)});
+    }
+    if(row.source_type==='bunny'){if(row.bunny_status!==4)fail(409,'video_not_ready');return json(await bunny.playback(env,row))}
+    if(row.source_type==='vk')return json({type:'vk',url:vkEmbed(row.vk_ref||row.source_ref)});
+    if(row.source_type==='youtube')return json({type:'youtube',id:row.youtube_ref||row.source_ref});
+    return json({type:'r2',url:`/api/media/videos/${row.id}/stream`});
+   }
    if(row.source_type!=='r2' || !env.MEDIA_BUCKET) fail(404,'not_found');
    const range=request.headers.get('Range'); if(range && !/^bytes=\d+-\d*$/.test(range)) fail(416,'invalid_range');
    const object=await env.MEDIA_BUCKET.get(row.source_ref,range?{range:request.headers}:undefined);if(!object)fail(404,'not_found');

@@ -4,18 +4,24 @@
  window.createMysterionMediaPlayer=({dialog,title,slot,closeButton,local,t})=>{
   let controller,lastFocus,version=0;
   const node=(tag,text)=>{const element=document.createElement(tag);if(text!==undefined)element.textContent=text;return element};
-  function clear(){version++;controller?.abort();slot.querySelector('video')?.pause();slot.replaceChildren()}
+  const sourceSwitcher=node('div');sourceSwitcher.className='video-source-switcher';sourceSwitcher.hidden=true;sourceSwitcher.setAttribute('role','group');sourceSwitcher.setAttribute('aria-label',document.documentElement.lang==='en'?'Video source':'Источник видео');slot.before(sourceSwitcher);
+  function clear(){version++;controller?.abort();slot.querySelector('video')?.pause();slot.replaceChildren();sourceSwitcher.replaceChildren();sourceSwitcher.hidden=true}
   function close(){clear();if(dialog.open)dialog.close()}
   closeButton.addEventListener('click',close);
   dialog.addEventListener('close',()=>{if(dialog.open)return;clear();lastFocus?.focus()});
   window.addEventListener('mysterion:session-expired',close);
   window.addEventListener('pagehide',clear);
-  async function open(item){
+  async function open(item,selectedSource){
    clear();lastFocus=document.activeElement;const requestVersion=version;controller=new AbortController();
+   const sources={youtube:/^[\w-]{11}$/.test(item.youtube_ref||'')?'youtube':null,vk:typeof item.vk_ref==='string'&&item.vk_ref?'vk':null};
+   if(item.access==='free'&&sources.youtube&&sources.vk){
+    sourceSwitcher.hidden=false;
+    for(const source of ['youtube','vk']){const button=node('button',source==='youtube'?'YouTube':'VK Видео');button.type='button';button.setAttribute('aria-pressed',String((selectedSource||'youtube')===source));button.addEventListener('click',()=>open(item,source));sourceSwitcher.append(button)}
+   }
    title.textContent=local(item.title);if(!dialog.open)dialog.showModal();slot.append(node('p',t('loading')));
    try{
     if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(item.id))throw Error('invalid_video');
-    const paid=item.access==='paid',response=await(window.mysterionAuthenticatedFetch||fetch)(paid?`/api/media/view/play/${item.id}`:`/api/media/videos/${item.id}/play`,{...(paid?{method:'POST'}:{}),credentials:'same-origin',redirect:'error',cache:'no-store',signal:controller.signal});
+    const paid=item.access==='paid',playURL=paid?`/api/media/view/play/${item.id}`:`/api/media/videos/${item.id}/play${selectedSource&&sources[selectedSource]?`?source=${selectedSource}`:''}`,response=await(window.mysterionAuthenticatedFetch||fetch)(playURL,{...(paid?{method:'POST'}:{}),credentials:'same-origin',redirect:'error',cache:'no-store',signal:controller.signal});
     if(!response.ok)throw Error('viewing_unavailable');const data=await response.json();
     if(requestVersion!==version||!dialog.open)return;
     let player;

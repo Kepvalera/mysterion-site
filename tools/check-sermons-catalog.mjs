@@ -3,7 +3,7 @@ import {DatabaseSync} from 'node:sqlite';
 import fs from 'node:fs/promises';import path from 'node:path';import http from 'node:http';import os from 'node:os';import assert from 'node:assert/strict';import {spawn} from 'node:child_process';import {createRequire} from 'node:module';
 import {handle} from '../media-worker/src/worker.mjs';
 const require=createRequire(import.meta.url),puppeteer=require(require.resolve('puppeteer-core',{paths:[path.resolve('output/audit-tools/lighthouse')]}));
-const db=new DatabaseSync(':memory:');for(const file of ['0001_media.sql','0002_bunny_stream.sql','0003_media_members.sql'])db.exec(await fs.readFile('media-worker/migrations/'+file,'utf8'));
+const db=new DatabaseSync(':memory:');for(const file of ['0001_media.sql','0002_bunny_stream.sql','0003_media_members.sql','0009_video_platform_sources.sql'])db.exec(await fs.readFile('media-worker/migrations/'+file,'utf8'));
 const prepare=sql=>({bind(...args){this.args=args;return this},first(){return db.prepare(sql).get(...(this.args||[]))||null},all(){return {results:db.prepare(sql).all(...(this.args||[]))}}});
 const env={MEDIA_ENABLED:'true',MEDIA_MEMBERS_ENABLED:'false',VIEWER_PLATFORM_ENABLED:'true',MEDIA_PAID_ENABLED:'false',MEDIA_ACCESS_ISSUER:'https://local.cloudflareaccess.com',MEDIA_ACCESS_AUD:'LOCAL_AUD',MEDIA_DB:{prepare},BUNNY_ENABLED:'true',BUNNY_SECURITY_CONFIRMED:'true',BUNNY_LIBRARY_ID:'803179',BUNNY_API_KEY:'LOCAL_API_ONLY',BUNNY_TOKEN_KEY:'LOCAL_TOKEN_ONLY'};
 let serial=0;const published=[];
