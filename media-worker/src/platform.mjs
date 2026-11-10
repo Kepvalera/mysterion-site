@@ -5,7 +5,7 @@ import {admitViewerOperation,ViewerRateLimitError} from './viewer-rate-limit.mjs
 import {deny,time,rows,decode,localized,courseAccess,videoAccess} from './platform-data.mjs';
 import {csrf,input,text,revision,product,json} from './platform-http.mjs';
 import {platformAdmin} from './platform-admin.mjs';
-import {vkEmbed} from './video-source.mjs';
+import {vkEmbed,youtubeId} from './video-source.mjs';
 import * as bunny from './bunny.mjs';
 export async function handlePlatform(request,env){
  const requestId=crypto.randomUUID();
@@ -18,7 +18,7 @@ export async function handlePlatform(request,env){
   if(cover&&method==='GET'){const row=await db.prepare("SELECT c.mime,c.bytes FROM media_covers c JOIN videos v ON v.id=c.video_id WHERE v.id=? AND v.state='published' AND v.publish_at<=?").bind(cover[1],new Date().toISOString()).first();if(!row)deny(404,'not_found');return new Response(row.bytes,{headers:{'Content-Type':row.mime,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
   if(path==='catalog'&&method==='GET'){
    const courses=await rows(db.prepare("SELECT id,title,description,kind,stream,access,price_minor,currency FROM platform_courses WHERE state='published' ORDER BY updated_at DESC LIMIT 200"));
-   const videos=await rows(db.prepare("SELECT id,title,description,category,year,access,price_minor,currency,(cover_key='d1') AS has_cover FROM videos WHERE state='published' AND publish_at<=? ORDER BY publish_at DESC LIMIT 200").bind(new Date().toISOString()));
+   const videos=await rows(db.prepare("SELECT id,title,description,category,year,access,price_minor,currency,(cover_key='d1') AS has_cover,CASE WHEN source_type='youtube' THEN source_ref END AS youtube_ref FROM videos WHERE state='published' AND publish_at<=? ORDER BY publish_at DESC LIMIT 200").bind(new Date().toISOString()));
    return json({courses:courses.map(decode),videos:videos.map(decode)});
   }
   const play=path.match(/^play\/([a-f0-9-]{36})$/);
@@ -28,7 +28,7 @@ export async function handlePlatform(request,env){
     const viewer=await requireViewerSession(request,env),grant=await videoAccess(db,viewer.id,video.id);if(!grant?.expires_at)deny(403,'viewing_right_required');
     if(env.MEDIA_PAID_ENABLED!=='true')deny(503,'paid_playback_disabled');maxExpiry=Math.min(maxExpiry,grant.expires_at,viewer.expires_at);
    }
-   if(video.source_type==='youtube'&&video.access==='free')return json({type:'youtube',id:video.source_ref});
+   if(video.source_type==='youtube'&&video.access==='free')return json({type:'youtube',id:youtubeId(video.source_ref)});
    if(video.source_type==='vk'&&video.access==='free')return json({type:'vk',url:vkEmbed(video.source_ref)});
    if(video.source_type==='r2'&&video.access==='free')return json({type:'r2',url:'/api/media/videos/'+video.id+'/stream'});
    if(video.source_type!=='bunny')deny(503,'protected_storage_required');if(video.bunny_status!==4)deny(409,'video_not_ready');

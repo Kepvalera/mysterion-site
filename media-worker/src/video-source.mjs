@@ -13,6 +13,6 @@ export function youtubeId(value){
  if(/^[\w-]{11}$/.test(value))return value;
  let url;try{url=new URL(value)}catch{throw new HttpError(400,'invalid_youtube_id')}
  if(url.protocol!=='https:'||url.username||url.password||url.port||!['youtube.com','www.youtube.com','m.youtube.com','youtu.be','www.youtube-nocookie.com'].includes(url.hostname))throw new HttpError(400,'invalid_youtube_id');
- const id=url.hostname==='youtu.be'?url.pathname.slice(1):url.pathname==='/watch'?url.searchParams.get('v'):url.pathname.match(/^\/(?:embed|shorts)\/([\w-]{11})$/)?.[1];
+ const id=url.hostname==='youtu.be'?url.pathname.match(/^\/([\w-]{11})\/?$/)?.[1]:url.pathname==='/watch'?url.searchParams.get('v'):url.pathname.match(/^\/(?:embed|shorts)\/([\w-]{11})$/)?.[1];
  if(!/^[\w-]{11}$/.test(id||''))throw new HttpError(400,'invalid_youtube_id');return id;
 }
