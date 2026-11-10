@@ -1,14 +1,21 @@
 const cache = new Map();
 export class HttpError extends Error { constructor(status, code) { super(code); this.status = status; } }
+const identityReasons=new Set(['issuer_mismatch','audience_mismatch','token_expired','subject_missing','jwks_fetch_failed','jwks_key_not_found','signature_invalid','token_format']);
+function identityError(reason){const error=new HttpError(401,'invalid_identity');error.identityReason=identityReasons.has(reason)?reason:'token_format';return error}
+// Opt-in AND canonical staging origin. Never log claims, headers or exceptions.
+export function logAccessFailure(error,request,env,requestId){
+ if(env.MEDIA_ACCESS_DIAGNOSTICS!=='true'||env.MEDIA_PUBLIC_ORIGIN!=='https://mysterion-viewer-staging.pages.dev'||!identityReasons.has(error?.identityReason)||!/^[a-f0-9-]{36}$/.test(requestId))return false;
+ console.warn(JSON.stringify({requestId,reason:error.identityReason,source:request.headers.has('Cf-Access-Jwt-Assertion')?'assertion':'cookie',audHasWhitespace:typeof env.MEDIA_ACCESS_AUD==='string'&&/\s/.test(env.MEDIA_ACCESS_AUD)}));return true;
+}
 const decode = value => Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')), c=>c.charCodeAt(0));
 export function accessToken(request) {
   // An explicit assertion is authoritative: never retry a rejected header with
   // another credential. Cookie fallback still requires full JWT verification.
   if(request.headers.has('Cf-Access-Jwt-Assertion'))return request.headers.get('Cf-Access-Jwt-Assertion');
   const cookie=request.headers.get('Cookie')||'';
-  if(cookie.length>32768)throw new HttpError(401,'invalid_identity');
+  if(cookie.length>32768)throw identityError('token_format');
   const matches=cookie.split(';').map(part=>part.trim()).filter(part=>part.startsWith('CF_Authorization='));
-  if(matches.length>1)throw new HttpError(401,'invalid_identity');
+  if(matches.length>1)throw identityError('token_format');
   return matches.length?matches[0].slice('CF_Authorization='.length):null;
 }
 export const verifyRequestAccess=(request,env)=>verifyAccess(accessToken(request),env);
@@ -34,16 +41,24 @@ export async function siteSession(request,env){
 }
 export async function verifyAccess(token, env) {
   if (!token) throw new HttpError(401,'authentication_required');
-  if (token.length > 16000) throw new HttpError(401,'invalid_identity');
+  if (token.length > 16000) throw identityError('token_format');
+  let reason='token_format';
   try {
     const parts = token.split('.');
     if(parts.length!==3) throw Error();
     const header=JSON.parse(new TextDecoder().decode(decode(parts[0])));
     const claims=JSON.parse(new TextDecoder().decode(decode(parts[1])));
     const now=Date.now()/1000;
-    if(header.alg!=='RS256' || typeof header.kid!=='string' || claims.iss!==env.MEDIA_ACCESS_ISSUER || ![claims.aud].flat().includes(env.MEDIA_ACCESS_AUD) || !Number.isFinite(claims.exp) || claims.exp<=now || !Number.isFinite(claims.iat) || claims.iat>now+60 || (claims.nbf !== undefined && (!Number.isFinite(claims.nbf) || claims.nbf>now+60)) || typeof claims.sub!=='string' || !claims.sub || claims.sub.length>256) throw Error();
+    if(!header||!claims||header.alg!=='RS256'||typeof header.kid!=='string')throw Error();
+    if(claims.iss!==env.MEDIA_ACCESS_ISSUER){reason='issuer_mismatch';throw Error()}
+    if(![claims.aud].flat().includes(env.MEDIA_ACCESS_AUD)){reason='audience_mismatch';throw Error()}
+    if(!Number.isFinite(claims.exp)||!Number.isFinite(claims.iat)||(claims.nbf!==undefined&&!Number.isFinite(claims.nbf)))throw Error();
+    if(claims.exp<=now||claims.iat>now+60||(claims.nbf!==undefined&&claims.nbf>now+60)){reason='token_expired';throw Error()}
+    if(typeof claims.sub!=='string'||!claims.sub||claims.sub.length>256){reason='subject_missing';throw Error()}
+    const signature=decode(parts[2]);
     let entry=cache.get(claims.iss);
     if(!entry || entry.until<Date.now()) {
+      reason='jwks_fetch_failed';
       const response=await fetch(claims.iss+'/cdn-cgi/access/certs',{signal:AbortSignal.timeout(4000)});
       if(!response.ok) throw Error();
       const jwks=await response.json();
@@ -51,12 +66,14 @@ export async function verifyAccess(token, env) {
       entry={keys:jwks.keys.slice(0,16),until:Date.now()+300000};
       cache.clear(); cache.set(claims.iss,entry);
     }
+    reason='jwks_key_not_found';
     const jwk=entry.keys.find(k=>k.kid===header.kid && k.kty==='RSA' && (!k.alg || k.alg==='RS256'));
     if(!jwk) throw Error();
+    reason='signature_invalid';
     const key=await crypto.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);
-    if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',key,decode(parts[2]),new TextEncoder().encode(parts[0]+'.'+parts[1]))) throw Error();
+    if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',key,signature,new TextEncoder().encode(parts[0]+'.'+parts[1]))) throw Error();
     return claims;
-  } catch { throw new HttpError(401,'invalid_identity'); }
+  } catch { throw identityError(reason); }
 }
 export async function entitledViewer(request, env, videoId) {
   const audience=env.MEDIA_VIEWER_ACCESS_AUD||env.MEDIA_ACCESS_AUD;

@@ -1,4 +1,4 @@
-import {administrator, verifySiteIdentity, HttpError} from './auth.mjs';
+import {administrator, verifySiteIdentity, HttpError,logAccessFailure} from './auth.mjs';
 import {requireMediaOrigin} from './origin.mjs';
 import {siteHeader} from './site-header.mjs';
 import {staffIdentity} from './platform-data.mjs';
@@ -46,6 +46,8 @@ export async function protectMediaPage(context, templates) {
     for (const [key, value] of Object.entries(securityHeaders)) response.headers.set(key, value);
     return response;
   } catch (error) {
+    const requestId=crypto.randomUUID();
+    logAccessFailure(error,context.request,context.env,requestId);
     const language = context.request.headers.get('Accept-Language')?.match(/^(ru|en)\b/i)?.[1].toLowerCase() || 'ru';
     const [title, unavailable, back, authentication, forbidden, wrongOrigin] = messages[language];
     const status=error instanceof HttpError ? error.status : 503;
@@ -57,7 +59,7 @@ export async function protectMediaPage(context, templates) {
     // Only trusted translations enter HTML; no URL, token or upstream error is echoed.
     return new Response(`<!doctype html><html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>MYSTERION MEDIA</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/media.css"><link rel="stylesheet" href="/account.css"><script defer src="/script.js"></script><script defer src="/account.js"></script></head><body>${siteHeader}<main class="media-platform"><div class="container"><p class="eyebrow">MYSTERION MEDIA</p><h1 data-i18n="authProtected">${title}</h1><p data-i18n="${status===401?'authAuthentication':status===403?'authForbidden':status===421?'authWrongOrigin':'authUnavailable'}">${message}</p><p><code>${code}</code></p><a href="/media.html" data-i18n="authReturn">${back}</a></div></main></body></html>`, {
       status,
-      headers:{...securityHeaders, 'Content-Type':'text/html; charset=utf-8','X-Mysterion-Media-Error':code}
+      headers:{...securityHeaders, 'Content-Type':'text/html; charset=utf-8','X-Mysterion-Media-Error':code,'X-Mysterion-Request-ID':requestId}
     });
   }
 }

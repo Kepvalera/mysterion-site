@@ -1,4 +1,4 @@
-import {HttpError,administrator,entitledViewer,siteSession} from './auth.mjs';
+import {HttpError,administrator,entitledViewer,siteSession,logAccessFailure} from './auth.mjs';
 import * as bunny from './bunny.mjs';
 import {isSameOriginMediaRequest,requireMediaOrigin} from './origin.mjs';
 import {memberRoute} from './members.mjs';
@@ -255,7 +255,7 @@ export async function handle(request,env) {
   // provider bodies, credentials, request bodies, user identifiers or signed URLs.
   const upstreamStatus=Number.isInteger(error?.upstreamStatus)?error.upstreamStatus:undefined;
   const errorKind=['TypeError','SyntaxError','TimeoutError','AbortError','Error'].includes(error?.errorKind)?error.errorKind:undefined;
-  console.warn(JSON.stringify({event:'mysterion_media_operation_failed',requestId,phase,code,status:error instanceof HttpError?error.status:503,...(errorKind?{errorKind}:{}),...(upstreamStatus?{upstreamStatus}:{})}));
+  if(!logAccessFailure(error,request,env,requestId))console.warn(JSON.stringify({event:'mysterion_media_operation_failed',requestId,phase,code,status:error instanceof HttpError?error.status:503,...(errorKind?{errorKind}:{}),...(upstreamStatus?{upstreamStatus}:{})}));
   const response=json({error:code,requestId,phase,...(upstreamStatus?{upstreamStatus}:{})},error instanceof HttpError?error.status:503);
   response.headers.set('X-Mysterion-Request-ID',requestId);
   if(response.status===401){

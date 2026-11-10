@@ -1,4 +1,4 @@
-import {HttpError} from './auth.mjs';
+import {HttpError,logAccessFailure} from './auth.mjs';
 import {requireMediaOrigin} from './origin.mjs';
 import {requireViewerSession} from './viewer-auth.mjs';
 import {admitViewerOperation,ViewerRateLimitError} from './viewer-rate-limit.mjs';
@@ -78,6 +78,6 @@ export async function handlePlatform(request,env){
  }catch(error){
   const status=error instanceof HttpError?error.status:503,code=error instanceof HttpError?error.message:'platform_unavailable';
   const rate=error instanceof ViewerRateLimitError?{retryAfter:error.retryAfter,limitScope:error.limitScope}:{};
-  console.warn(JSON.stringify({event:'platform_request_failed',requestId,status,code,...rate}));const response=json({error:code,requestId,...rate},status);if(rate.retryAfter)response.headers.set('Retry-After',String(rate.retryAfter));return response;
+  if(!logAccessFailure(error,request,env,requestId))console.warn(JSON.stringify({event:'platform_request_failed',requestId,status,code,...rate}));const response=json({error:code,requestId,...rate},status);response.headers.set('X-Mysterion-Request-ID',requestId);if(rate.retryAfter)response.headers.set('Retry-After',String(rate.retryAfter));return response;
  }
 }
