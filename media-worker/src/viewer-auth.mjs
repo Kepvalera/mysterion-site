@@ -36,8 +36,9 @@ async function sendToken(env,account,purpose,context){
   env.MEDIA_DB.prepare('UPDATE viewer_email_tokens SET consumed_at=? WHERE account_id=? AND purpose=? AND consumed_at IS NULL').bind(time,account.id,purpose),
   env.MEDIA_DB.prepare('INSERT INTO viewer_email_tokens(token_hash,account_id,purpose,credential_version,created_at,expires_at) VALUES (?,?,?,?,?,?)').bind(hash,account.id,purpose,account.credential_version,time,time+(purpose==='verify'?day:1800))
  ]);
- const delivery=deliver(env,{email:account.email,token,purpose,locale:account.locale,id:hash}).catch(()=>console.warn(JSON.stringify({event:'viewer_email_delivery_failed',code:'email_delivery_unavailable'})));
- if(context?.waitUntil)context.waitUntil(delivery);else await delivery;
+ // Do not acknowledge a mail operation before the provider has accepted it.
+ // Keep the same generic response for ineligible addresses to avoid enumeration.
+ try{await deliver(env,{email:account.email,token,purpose,locale:account.locale,id:hash})}catch{throw new HttpError(503,'email_delivery_unavailable')}
 }
 async function session(request,env){
  const token=cookie(request);if(!token)return null;const hash=await digest(token),time=now();
@@ -130,7 +131,7 @@ export async function handleViewer(request,env,context){
  }catch(error){
   // Fixed classifications only: never log request URLs/bodies, exception messages,
   // identity, cookies, tokens, provider responses or credentials.
-  const allowed=new Set(['viewer_auth_disabled','viewer_auth_not_configured','email_not_configured','origin_not_configured','wrong_origin','invalid_origin','not_found','method_not_allowed','json_required','invalid_json','body_too_large','invalid_fields','invalid_email','invalid_password','invalid_locale','rate_limited','invalid_credentials','invalid_or_expired_token','password_record_invalid','client_ip_unavailable','authentication_required']);
+  const allowed=new Set(['viewer_auth_disabled','viewer_auth_not_configured','email_not_configured','email_delivery_unavailable','origin_not_configured','wrong_origin','invalid_origin','not_found','method_not_allowed','json_required','invalid_json','body_too_large','invalid_fields','invalid_email','invalid_password','invalid_locale','rate_limited','invalid_credentials','invalid_or_expired_token','password_record_invalid','client_ip_unavailable','authentication_required']);
   const known=error instanceof HttpError&&allowed.has(error.message),code=known?error.message:'viewer_service_unavailable',status=known?error.status:503;
   const rate=error instanceof ViewerRateLimitError?{retryAfter:error.retryAfter,limitScope:error.limitScope}:{};
   console.warn(JSON.stringify({event:'viewer_auth_failed',requestId,operation,phase,code,status,...rate,elapsedWallMs:Math.max(0,Date.now()-started)}));
