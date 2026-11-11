@@ -1,6 +1,8 @@
 /* Both public catalog views use the same server-authorized playback flow. */
 (() => {
  'use strict';
+ const participantCopy={ru:{signIn:'Для просмотра войдите в личный кабинет участника.',access:'Нет действующего доступа к этой записи. Проверьте материалы в личном кабинете.',unavailable:'Не удалось открыть запись. Повторите позже или откройте личный кабинет.',account:'Открыть личный кабинет'},en:{signIn:'Sign in to your participant account to watch.',access:'You do not have active access to this recording. Check the materials in your account.',unavailable:'Unable to open the recording. Try again later or open your account.',account:'Open my account'}};
+ const participantText=key=>participantCopy[document.documentElement.lang==='en'?'en':'ru'][key];
  window.createMysterionMediaPlayer=({dialog,title,slot,closeButton,local,t})=>{
   let controller,lastFocus,version=0;
   const node=(tag,text)=>{const element=document.createElement(tag);if(text!==undefined)element.textContent=text;return element};
@@ -14,7 +16,7 @@
   async function open(item,selectedSource){
    clear();lastFocus=document.activeElement;const requestVersion=version;controller=new AbortController();
    const sources=['youtube','vk','rutube'].filter(source=>source==='youtube'?/^[\w-]{11}$/.test(item.youtube_ref||''):source==='vk'?typeof item.vk_ref==='string'&&item.vk_ref:/^[a-f0-9]{32}$/i.test(item.rutube_ref||''));
-   const defaultSource=sources.includes('youtube')?'youtube':sources[0],activeSource=sources.includes(selectedSource)?selectedSource:defaultSource;
+   const defaultSource=sources.includes('youtube')?'youtube':sources[0],activeSource=sources.includes(selectedSource)?selectedSource:defaultSource;let responseStatus=0;
    if(item.access==='free'&&sources.length>1){
     sourceSwitcher.hidden=false;
     for(const source of sources){const button=node('button',source==='youtube'?'YouTube':source==='vk'?'VK Видео':'Rutube');button.type='button';button.setAttribute('aria-pressed',String(activeSource===source));button.addEventListener('click',()=>open(item,source));sourceSwitcher.append(button)}
@@ -22,7 +24,9 @@
    title.textContent=local(item.title);if(!dialog.open)dialog.showModal();slot.append(node('p',t('loading')));
    try{
     if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(item.id))throw Error('invalid_video');
-    const paid=item.access==='paid',playSource=sources.length>1?activeSource:null,playURL=paid?`/api/media/view/play/${item.id}`:`/api/media/videos/${item.id}/play${playSource?`?source=${playSource}`:''}`,response=await(window.mysterionAuthenticatedFetch||fetch)(playURL,{...(paid?{method:'POST'}:{}),credentials:'same-origin',redirect:'error',cache:'no-store',signal:controller.signal});
+    // Paid playback uses the same viewer cookie, grants and short-lived Bunny
+    // token endpoint as the participant account. Legacy Access is not a viewer session.
+    const paid=item.access==='paid',playSource=sources.length>1?activeSource:null,playURL=paid?`/api/platform/play/${item.id}`:`/api/media/videos/${item.id}/play${playSource?`?source=${playSource}`:''}`,response=await(window.mysterionAuthenticatedFetch||fetch)(playURL,{credentials:'same-origin',redirect:'error',cache:'no-store',signal:controller.signal});responseStatus=response.status;
     if(!response.ok)throw Error('viewing_unavailable');const data=await response.json();
     if(requestVersion!==version||!dialog.open)return;
     let player;
@@ -36,8 +40,8 @@
     slot.replaceChildren(player);
    }catch(error){
     if(error.name==='AbortError'||requestVersion!==version||!dialog.open)return;
-    slot.replaceChildren(node('p',t('unavailable')));
-    if(item.access==='paid'){const login=node('a',t('login'));login.href='media-login.html';slot.append(login)}
+    slot.replaceChildren(node('p',item.access==='paid'?participantText(responseStatus===401?'signIn':responseStatus===403?'access':'unavailable'):t('unavailable')));
+    if(item.access==='paid'){const login=node('a',participantText('account'));login.href='/viewer-account.html';slot.append(login)}
    }
   }
   return {open,close};
