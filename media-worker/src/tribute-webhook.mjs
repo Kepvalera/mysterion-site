@@ -1,7 +1,9 @@
 import {requireMediaOrigin} from './origin.mjs';
+import {processTributeEvent} from './sales-tribute.mjs';
 
 // Tribute Shop: https://wiki.tribute.tg/for-shops/api/webhooks
-// Receipt-only stage: no D1, orders, grants, outbound requests or payload logs.
+// Receipt-only unless SALES_ENABLED + TRIBUTE_PAYMENTS_ENABLED are explicitly
+// enabled. Signature verification always precedes optional order processing.
 const reply=(body,status=200,extra={})=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',...extra}});
 function signatureBytes(value){
  if(typeof value!=='string')return null;
@@ -36,7 +38,6 @@ export async function handleTributeWebhook(request,env){
  if(!event||typeof event!=='object'||Array.isArray(event)||typeof event.name!=='string'||!/^[a-z][a-z0-9_]{0,95}$/.test(event.name)||
     !['created_at','sent_at'].every(field=>typeof event[field]==='string'&&event[field].length<=64&&/^\d{4}-\d{2}-\d{2}T/.test(event[field])&&Number.isFinite(Date.parse(event[field])))||
     !event.payload||typeof event.payload!=='object'||Array.isArray(event.payload))return reply({error:'invalid_webhook_data'},400);
- // All authenticated events, including retries, are acknowledged without
- // payment processing. A future grant workflow must introduce its own ledger.
+ try{await processTributeEvent(env,event)}catch(error){return reply({error:error.status===400?'invalid_payment_event':'payment_processing_unavailable'},error.status===400?400:503)}
  return reply({status:'ok'});
 }

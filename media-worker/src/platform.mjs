@@ -7,6 +7,7 @@ import {csrf,input,text,revision,product,json} from './platform-http.mjs';
 import {platformAdmin} from './platform-admin.mjs';
 import {vkEmbed,youtubeId,rutubeId} from './video-source.mjs';
 import * as bunny from './bunny.mjs';
+import {publicSales,viewerSales} from './sales-public.mjs';
 export async function handlePlatform(request,env){
  const requestId=crypto.randomUUID();
  try{
@@ -14,11 +15,16 @@ export async function handlePlatform(request,env){
   const url=new URL(request.url),path=url.pathname.replace(/^\/api\/platform\//,''),method=request.method,db=env.MEDIA_DB;
   if(path.startsWith('admin/'))return json(await platformAdmin(request,env,path.slice(6),method));
   if(method!=='GET')csrf(request,env);
+  if(path==='sales/catalog'&&method==='GET')return json(await publicSales(env));
   const cover=path.match(/^covers\/([a-f0-9-]{36})$/);
   if(cover&&method==='GET'){const row=await db.prepare("SELECT c.mime,c.bytes FROM media_covers c JOIN videos v ON v.id=c.video_id WHERE v.id=? AND v.state='published' AND v.publish_at<=?").bind(cover[1],new Date().toISOString()).first();if(!row)deny(404,'not_found');return new Response(row.bytes,{headers:{'Content-Type':row.mime,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
   if(path==='catalog'&&method==='GET'){
    const courses=await rows(db.prepare("SELECT id,title,description,kind,stream,access,price_minor,currency FROM platform_courses WHERE state='published' ORDER BY updated_at DESC LIMIT 200"));
    const videos=await rows(db.prepare("SELECT id,title,description,category,year,access,price_minor,currency,(cover_key='d1') AS has_cover,CASE WHEN source_type='youtube' THEN source_ref END AS youtube_ref FROM videos WHERE state='published' AND publish_at<=? ORDER BY publish_at DESC LIMIT 200").bind(new Date().toISOString()));
+   if(env.SALES_ENABLED==='true'){
+    const managed=await rows(db.prepare('SELECT kind,product_id,sale_enabled FROM sales_products'));
+    for(const [kind,items] of [['course',courses],['video',videos]])for(const row of items){const sale=managed.find(s=>s.kind===kind&&s.product_id===row.id);if(sale||row.access==='paid'&&env.SALES_PUBLIC_ENABLED!=='true'){row.sales_managed=true;row.sales_available=env.SALES_PUBLIC_ENABLED==='true'&&sale?.sale_enabled===1}}
+   }
    return json({courses:courses.map(decode),videos:videos.map(decode)});
   }
   const play=path.match(/^play\/([a-f0-9-]{36})$/);
@@ -50,19 +56,23 @@ export async function handlePlatform(request,env){
    return json({...decode(lesson),materials:materials.map(m=>({...m,title:localized(m.title)}))});
   }
   const viewer=await requireViewerSession(request,env);
+  if(path.startsWith('sales/')){if(method!=='GET')await admitViewerOperation(request,env,'orders',{address:viewer.id});return json(await viewerSales(request,env,viewer,path.slice(6),method))}
   if(path==='profile'&&method==='PUT'){
    const data=await input(request,['first_name','last_name']);await admitViewerOperation(request,env,'profile',{address:viewer.id});
    const names=['first_name','last_name'].map(key=>{const name=text(data[key],80);if(/[<>\p{Cc}\p{Cf}]/u.test(name))deny(400,'invalid_name');return name.normalize('NFC')});
    await db.prepare('UPDATE viewer_accounts SET first_name=?,last_name=?,updated_at=? WHERE id=?').bind(...names,time(),viewer.id).run();return json({ok:true});
   }
   if(path==='orders'&&method==='POST'){
+   if(env.SALES_ENABLED==='true'&&env.SALES_PUBLIC_ENABLED!=='true')deny(503,'public_sales_disabled');
    const data=await input(request,['kind','id']),target=product(data);await admitViewerOperation(request,env,'orders',{address:viewer.id});
+   if(env.SALES_ENABLED==='true'&&await db.prepare('SELECT 1 FROM sales_products WHERE kind=? AND product_id=?').bind(data.kind,data.id).first())deny(409,'use_sales_workflow');
    const item=await db.prepare(`SELECT * FROM ${target.table} WHERE id=? AND state='published'${data.kind==='video'?' AND publish_at<=?':''}`).bind(data.id,...(data.kind==='video'?[new Date().toISOString()]:[])).first();if(!item||item.access!=='paid'||item.price_minor<=0)deny(400,'not_for_sale');
    const id=crypto.randomUUID();await db.prepare(`INSERT INTO viewer_orders(id,viewer_id,${target.column},title,amount_minor,currency,status,created_at,updated_at) VALUES (?,?,?,?,?,?,'pending_payment',?,?) ON CONFLICT DO NOTHING`).bind(id,viewer.id,item.id,item.title,item.price_minor,item.currency,time(),time()).run();
    const order=await db.prepare(`SELECT id,status,revision FROM viewer_orders WHERE viewer_id=? AND ${target.column}=? AND status IN ('pending_payment','in_review')`).bind(viewer.id,item.id).first();return json(order,201);
   }
   const submit=path.match(/^orders\/([a-f0-9-]{36})\/submit$/);
   if(submit&&method==='POST'){
+   if(env.SALES_ENABLED==='true'&&await db.prepare('SELECT 1 FROM sales_orders WHERE order_id=?').bind(submit[1]).first())deny(409,'use_sales_workflow');
    const data=await input(request,['revision']);await admitViewerOperation(request,env,'orders',{address:viewer.id});
    const result=await db.prepare("UPDATE viewer_orders SET status='in_review',revision=revision+1,updated_at=? WHERE id=? AND viewer_id=? AND status='pending_payment' AND revision=?").bind(time(),submit[1],viewer.id,revision(data.revision)).run();if(!result.meta.changes)deny(409,'revision_conflict');return json({ok:true});
   }

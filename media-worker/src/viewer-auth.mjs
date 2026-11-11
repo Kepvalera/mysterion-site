@@ -70,7 +70,7 @@ export async function handleViewer(request,env,context){
    if(!profile)fail(401,'authentication_required');
    if(env.VIEWER_PLATFORM_ENABLED==='true'){
     const details=await db.prepare('SELECT first_name,last_name FROM viewer_accounts WHERE id=?').bind(user.id).first();
-    return reply({profile:{firstName:details.first_name,lastName:details.last_name,name:[details.first_name,details.last_name].filter(Boolean).join(' '),email:profile.email,emailVerified:true,locale:profile.locale,joinedAt:profile.created_at*1000},session:{expiresAt:profile.expires_at*1000},library:await viewerLibrary(db,user.id),features:{materialAccess:true,purchases:true,displayName:true}});
+    return reply({profile:{firstName:details.first_name,lastName:details.last_name,name:[details.first_name,details.last_name].filter(Boolean).join(' '),email:profile.email,emailVerified:true,locale:profile.locale,joinedAt:profile.created_at*1000},session:{expiresAt:profile.expires_at*1000},library:await viewerLibrary(db,user.id,env.SALES_ENABLED==='true'),features:{materialAccess:true,purchases:true,displayName:true}});
    }
    return reply({profile:{name:null,email:profile.email,emailVerified:true,locale:profile.locale,joinedAt:profile.created_at*1000},session:{expiresAt:profile.expires_at*1000},
     library:{courses:[],videos:[],purchases:[],continueLearning:[]},features:{materialAccess:false,purchases:false,displayName:false}});

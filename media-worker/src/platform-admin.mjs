@@ -4,6 +4,8 @@ import {vkEmbed,youtubeId,rutubeId} from './video-source.mjs';
 import * as bunny from './bunny.mjs';
 import {checkTributeShops} from './tribute-shop-check.mjs';
 import {checkTributeWebhook} from './tribute-webhook-check.mjs';
+import {salesAdmin} from './sales-admin.mjs';
+import {manager,enabled} from './sales-core.mjs';
 const categories=['sermon','testimony','conference','school'];
 const loginHistoryRetention=90*86400,participantPageSize=25,historyPageSize=20;
 function money(d){if(!['free','paid'].includes(d.access)||!Number.isSafeInteger(d.price_minor)||d.price_minor<0||d.price_minor>100000000||!['EUR','USD','RUB'].includes(d.currency)||(d.access==='free'&&d.price_minor!==0)||(d.access==='paid'&&d.price_minor===0))deny(400,'invalid_price')}
@@ -26,6 +28,7 @@ function participantSearchSQL(query){
 }
 export async function platformAdmin(request,env,path,method){
  const db=env.MEDIA_DB,staff=await staffIdentity(request,env);if(method!=='GET')csrf(request,env);
+ if(path==='sales'||path.startsWith('sales/'))return salesAdmin(request,env,staff,path.slice(6),method);
  if(path==='integrations/tribute/check'&&method==='POST'){
   requireOwner(staff);await input(request,[]);
   return checkTributeShops(env);
@@ -34,7 +37,7 @@ export async function platformAdmin(request,env,path,method){
   requireOwner(staff);await input(request,[]);
   return checkTributeWebhook(request,env);
  }
- if(path==='me'&&method==='GET'){let uploadConfigured=false;try{bunny.configured(env);uploadConfigured=true}catch{}return {role:staff.role,canPublish:staff.role!=='uploader',owner:staff.role==='owner',uploadConfigured,paidEnabled:env.MEDIA_PAID_ENABLED==='true'}}
+ if(path==='me'&&method==='GET'){let uploadConfigured=false;try{bunny.configured(env);uploadConfigured=true}catch{}return {role:staff.role,canPublish:staff.role!=='uploader',owner:staff.role==='owner',uploadConfigured,paidEnabled:env.MEDIA_PAID_ENABLED==='true',salesEnabled:enabled(env),canManageSales:await manager(env,staff)}}
  if(path==='videos'&&method==='GET')return {items:(await rows(db.prepare("SELECT * FROM videos WHERE (state!='deleted' OR (?='owner' AND bunny_delete_pending=1)) AND (?!='uploader' OR (created_by=? AND state='draft')) ORDER BY updated_at DESC LIMIT 200").bind(staff.role,staff.role,staff.sub))).map(decode)};
  const fullDelete=path.match(/^videos\/([a-f0-9-]{36})\/delete-bunny$/);
  if(fullDelete&&method==='POST'){
@@ -206,8 +209,9 @@ export async function platformAdmin(request,env,path,method){
   const id=crypto.randomUUID();await db.prepare(`INSERT INTO viewer_grants(id,viewer_id,${target.column},starts_at,expires_at,granted_by,created_at) VALUES (?,?,?,?,?,?,?)`).bind(id,d.viewer_id,d.id,time(),until,staff.sub,time()).run();await audit(db,staff.sub,'grant.created',id);return {id};
  }
  const revoke=path.match(/^grants\/([a-f0-9-]{36})\/revoke$/);if(revoke&&method==='POST'){await input(request,[]);await db.prepare('UPDATE viewer_grants SET revoked_at=? WHERE id=? AND revoked_at IS NULL').bind(time(),revoke[1]).run();await audit(db,staff.sub,'grant.revoked',revoke[1]);return {ok:true}}
- if(path==='orders'&&method==='GET')return {items:(await rows(db.prepare('SELECT o.*,a.email FROM viewer_orders o JOIN viewer_accounts a ON a.id=o.viewer_id ORDER BY o.created_at DESC LIMIT 200'))).map(decode)};
+ if(path==='orders'&&method==='GET')return {items:(await rows(db.prepare('SELECT o.*,a.email FROM viewer_orders o JOIN viewer_accounts a ON a.id=o.viewer_id'+(env.SALES_ENABLED==='true'?' WHERE NOT EXISTS(SELECT 1 FROM sales_orders WHERE order_id=o.id)':'')+' ORDER BY o.created_at DESC LIMIT 200'))).map(decode)};
  const om=path.match(/^orders\/([a-f0-9-]{36})\/(approve|reject)$/);
+ if(om&&env.SALES_ENABLED==='true'&&await db.prepare('SELECT 1 FROM sales_orders WHERE order_id=?').bind(om[1]).first())deny(409,'use_sales_workflow');
  if(om&&method==='POST'){
   const d=await input(request,['revision','expires_at','confirm_received']),rev=revision(d.revision),approval=crypto.randomUUID();
   if(om[2]==='approve'){
