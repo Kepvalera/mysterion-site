@@ -16,7 +16,9 @@
   <script defer src="school-data.js"></script>
   <script defer src="school-page.js"></script>
   <script defer src="jubilee.js"></script>
-<link rel="stylesheet" href="/account.css"></head>
+<link rel="stylesheet" href="/account.css"><link rel="stylesheet" href="/commerce.css">
+<script defer src="/commerce.js"></script>
+</head>
 <body data-page="school">
 <a class="skip-link" href="#main" data-i18n="skip">Перейти к содержимому</a>
 <header class="site-header" id="top">
@@ -34,7 +36,7 @@
       <a href="sermons.html" data-i18n="navSermons">Проповеди</a>
       <a href="photos.html" data-i18n="navPhotos">Фото</a>
       <a href="/media.html" data-i18n="navMedia">Медиа</a>
-      <a href="/index.html#contacts" data-i18n="navContacts">Контакты</a>
+      <a href="/contacts.html" data-i18n="navContacts">Контакты</a>
     </nav>
     <div class="header-actions"><div class="site-account"><a class="account-entry" href="/media-login.html">Войти</a><button class="account-menu-toggle" type="button" aria-label="Меню аккаунта" aria-controls="account-menu" aria-expanded="false" hidden>⌄</button><nav class="account-menu" id="account-menu" aria-label="Аккаунт" hidden><a href="/media-login.html" data-account="account">Личный кабинет</a><a href="/admin-media.html" data-account="manage" hidden>Панель управления</a><a href="/cdn-cgi/access/logout" data-account="logout">Выйти</a></nav></div>
       <div class="language-picker">
@@ -58,7 +60,7 @@
     <a href="sermons.html" data-i18n="navSermons">Проповеди</a>
       <a href="photos.html" data-i18n="navPhotos">Фото</a>
       <a href="/index.html#media" data-i18n="navMedia">Медиа</a>
-    <a href="/index.html#contacts" data-i18n="navContacts">Контакты</a>
+    <a href="/contacts.html" data-i18n="navContacts">Контакты</a>
   </nav>
 </header>
 <main id="main" class="library-page school-page">
@@ -67,6 +69,13 @@
     <h1 id="school-heading" data-school-text="head">Онлайн-школа.</h1>
     <p class="library-lead" data-school-text="lead">Предстоящий юбилейный поток 6 — в 2027 году. Здесь также собраны разделы потоков 3, 4 и 5.</p>
     <div class="library-actions"><a class="btn btn-dark" href="index.html#media"><span data-i18n="backMedia">На главную</span><span aria-hidden="true">↗</span></a></div>
+  </section>
+  <section class="container commerce-card" aria-labelledby="school-terms-heading">
+    <h2 id="school-terms-heading" data-commerce="schoolTermsHeading">Условия обучения</h2>
+    <p data-commerce="schoolTuition">Стоимость: 30 000 ₽.</p>
+    <p data-commerce="schoolDuration">Продолжительность обучения: 3 месяца.</p>
+    <p data-commerce="schoolRecordingAccess">Доступ к записям: 6 месяцев после окончания обучения.</p>
+    <div class="commerce-actions"><a class="btn btn-gold" href="/payment-terms.html" data-commerce="paymentLink">Оплата и условия</a></div>
   </section>
   <section id="jubilee-2027" class="jubilee-wrap container" aria-labelledby="jubilee-school-heading">
     <div class="jubilee-banner jubilee-with-speaker">
@@ -103,5 +112,12 @@
     <p data-i18n="footerDescription">Пространство познания Бога, духовного возрастания и раскрытия призвания.</p>
     <p>© <span id="copyright-year">2026</span> MYSTERION <span data-i18n="footerRights">Все права защищены</span></p>
   </div>
+  <section class="container seller-footer" aria-labelledby="footer-seller-heading">
+    <h2 id="footer-seller-heading" data-commerce="sellerHeading">Информация о продавце</h2>
+    <p class="seller-name">Громов Валерий Витальевич</p>
+    <p data-commerce="sellerStatus">Самозанятый, плательщик налога на профессиональный доход (НПД)</p>
+    <p data-commerce="sellerTax">ИНН: 503825148254</p>
+    <nav class="seller-footer-links"><a href="/payment-terms.html" data-commerce="paymentLink">Оплата и условия</a><a href="/contacts.html" data-commerce="contactsLink">Контакты</a></nav>
+  </section>
 </footer>
 </body></html>

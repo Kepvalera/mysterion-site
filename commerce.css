@@ -1,0 +1,36 @@
+/* Seller details and information pages share the site's existing palette. */
+.seller-footer { margin-top:28px; padding-top:24px; border-top:1px solid #bba47c55; }
+.seller-footer h2,.seller-details h2 { margin:0 0 12px; font-size:clamp(26px,3vw,36px); }
+.seller-footer p { margin:4px 0; font-size:13px; line-height:1.7; }
+.seller-footer .seller-name { color:inherit; font-weight:600; }
+.seller-footer-links { display:flex; flex-wrap:wrap; gap:8px 24px; margin-top:14px; }
+.seller-footer-links a { display:inline-flex; align-items:center; min-height:44px; text-decoration:underline; text-underline-offset:4px; }
+.commerce-page { min-height:70vh; padding-bottom:72px; }
+.commerce-intro { padding:72px 0 36px; }
+.commerce-intro h1 { margin:18px 0 24px; font-size:clamp(42px,7vw,88px); }
+.commerce-lead { max-width:760px; color:var(--ink2); font-size:18px; }
+.commerce-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
+.commerce-card { min-width:0; padding:clamp(24px,4vw,42px); border:1px solid var(--line); border-radius:24px; background:linear-gradient(145deg,#ffffffd9,#f7f2e9b3); }
+.commerce-card h2 { margin-bottom:20px; font-size:clamp(30px,4vw,46px); }
+.commerce-card h3 { margin-bottom:12px; font-size:21px; }
+.commerce-card p:last-child { margin-bottom:0; }
+.commerce-price { margin:18px 0; color:var(--gold); font-family:var(--font-display); font-size:clamp(42px,6vw,64px); line-height:1.2; }
+.commerce-wide { grid-column:1/-1; }
+.commerce-card a:not(.btn) { text-decoration:underline; text-underline-offset:4px; }
+.commerce-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; }
+.commerce-actions .btn { white-space:normal; text-align:center; }
+.commerce-contact-list { margin:0; }
+.commerce-contact-list dt { margin-top:20px; color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.08em; }
+.commerce-contact-list dt:first-child { margin-top:0; }
+.commerce-contact-list dd { margin:6px 0 0; overflow-wrap:anywhere; }
+.seller-details p { margin-bottom:10px; overflow-wrap:anywhere; }
+.platform-shell .seller-footer { max-width:1140px; margin:28px auto 0; padding:24px 28px 40px; color:var(--platform-muted); }
+.platform-shell .seller-footer h2 { color:var(--platform-ink); font-size:26px; }
+.platform-shell .seller-footer a { color:var(--platform-gold); }
+@media (max-width:640px) {
+  .commerce-intro { padding-top:42px; }
+  .commerce-grid { grid-template-columns:1fr; gap:18px; }
+  .commerce-page { padding-bottom:44px; }
+  .commerce-actions { flex-direction:column; align-items:stretch; }
+  .seller-footer-links { flex-direction:column; align-items:flex-start; gap:0; }
+}
