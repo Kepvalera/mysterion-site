@@ -27,7 +27,31 @@ try{
  equal((await call('x'.repeat(65537))).status,413);
  equal((await call(body,{env:{MEDIA_PUBLIC_ORIGIN:origin}})).status,503);
  equal((await call(body,{url:'https://other.invalid/api/tribute/webhook'})).status,421);
- for(const data of [null,[],{name:'shop_order'},{...JSON.parse(body),payload:[]},{...JSON.parse(body),sent_at:'bad'}])equal((await call(JSON.stringify(data))).status,400);
+ for(const data of [null,[]])equal((await call(JSON.stringify(data))).status,400);
+ // Arbitrary signed probe objects are receipt-only, not invented official
+ // Tribute test fixtures. Neither timestamps nor a payment payload is needed.
+ const enabled={MEDIA_PUBLIC_ORIGIN:origin,TRIBUTE_API_KEY:key,SALES_ENABLED:'true',TRIBUTE_PAYMENTS_ENABLED:'true',get MEDIA_DB(){throw Error('Receipt must not access D1')}};
+ for(const data of [{},{test:true},{name:'test'},{name:'TEST',payload:{}},{name:'future_event',payload:{}}]){
+  const text=JSON.stringify(data);
+  for(const config of [env,enabled]){equal((await call(text,{env:config})).status,200);equal((await call(text,{env:config,headers:{'trbt-signature':'0'.repeat(64)}})).status,401)}
+ }
+ for(const data of [{name:'shop_order'},{...JSON.parse(body),payload:[]},{...JSON.parse(body),sent_at:'bad'}]){
+  equal((await call(JSON.stringify(data))).status,200); // Disabled: receipt only.
+  equal((await call(JSON.stringify(data),{env:enabled})).status,400); // Enabled: unchanged Shop validation.
+ }
+ // Official Digital Products guide example (older minimal payload) and the
+ // current OpenAPI schema. Both must remain isolated from Shop processing,
+ // even if someone later enables Shop payments. Duplicate receipts have zero
+ // effects; no claim of persistent purchase idempotency is made here.
+ const digital={name:'new_digital_product',created_at:'2025-03-20T01:15:58.332Z',sent_at:'2025-03-20T01:15:58.542Z',payload:{product_id:456,amount:500,currency:'usd',user_id:31326,telegram_user_id:12321321}};
+ const purchase={...digital,payload:{...digital.payload,purchase_id:987,transaction_id:654,product_name:'Local fixture',purchase_created_at:digital.created_at,trb_user_id:'T-31326'}};
+ const refund={...purchase,name:'digital_product_refunded',payload:{...purchase.payload,refund_reason:'Local fixture',refunded_at:digital.created_at}};
+ for(const data of [digital,purchase,refund])for(const config of [env,enabled]){
+  const text=JSON.stringify(data);
+  for(let i=0;i<2;i++){const r=await call(text,{env:config});equal(r.status,200);equal(await r.json(),{status:'ok'})}
+  equal((await call(text,{env:config,headers:{'trbt-signature':'0'.repeat(64)}})).status,401);
+  equal((await call(text+' ',{env:config,headers:{'trbt-signature':sign(text)}})).status,401);
+ }
  equal((await call('{bad json')).status,400);
  const unicode=JSON.stringify({...JSON.parse(body),payload:{description:'\u0414\u0435\u043c\u043e'}});equal((await call(unicode)).status,200);
  const response=await onRequest({request:new Request(origin+'/api/tribute/webhook',{method:'POST',headers:{'Content-Type':'application/json','trbt-signature':sign(body)},body}),env});equal(response.status,200);

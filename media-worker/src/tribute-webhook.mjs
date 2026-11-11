@@ -1,9 +1,13 @@
 import {requireMediaOrigin} from './origin.mjs';
+import {automaticEnabled} from './sales-core.mjs';
 import {processTributeEvent} from './sales-tribute.mjs';
 
 // Tribute Shop: https://wiki.tribute.tg/for-shops/api/webhooks
-// Receipt-only unless SALES_ENABLED + TRIBUTE_PAYMENTS_ENABLED are explicitly
-// enabled. Signature verification always precedes optional order processing.
+// Digital Products: https://wiki.tribute.tg/for-content-creators/api-documentation/webhooks
+// Digital receipts never enter the Shop order processor: product_id/purchase_id
+// and Tribute buyer IDs are not Shop order UUIDs or verified site account IDs.
+const digitalEvents=new Set(['new_digital_product','digital_product_refunded']);
+const shopEvents=new Set(['shop_order','shop_order_payment_failed','shop_order_refunded']);
 const reply=(body,status=200,extra={})=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',...extra}});
 function signatureBytes(value){
  if(typeof value!=='string')return null;
@@ -35,7 +39,17 @@ export async function handleTributeWebhook(request,env){
  }catch{return reply({error:'webhook_verification_unavailable'},503)}
  let event;
  try{event=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes))}catch{return reply({error:'invalid_webhook_data'},400)}
- if(!event||typeof event!=='object'||Array.isArray(event)||typeof event.name!=='string'||!/^[a-z][a-z0-9_]{0,95}$/.test(event.name)||
+ if(!event||typeof event!=='object'||Array.isArray(event))return reply({error:'invalid_webhook_data'},400);
+ // A connectivity probe is not a payment. Only require a signed JSON object
+ // for receipt-only traffic; do not invent a schema/name for Tribute's test
+ // button (the public API docs do not specify its payload). This also allows
+ // future event types without treating them as purchases. Never persist/log
+ // these bodies, buyer details or signatures.
+ if(digitalEvents.has(event.name))return reply({status:'ok'});
+ if(!shopEvents.has(event.name)||!automaticEnabled(env))return reply({status:'ok'});
+ // Keep the existing strict business envelope gate for enabled Shop payments.
+ // A disabled payment integration cannot mutate orders/access via test data.
+ if(typeof event.name!=='string'||!/^[a-z][a-z0-9_]{0,95}$/.test(event.name)||
     !['created_at','sent_at'].every(field=>typeof event[field]==='string'&&event[field].length<=64&&/^\d{4}-\d{2}-\d{2}T/.test(event[field])&&Number.isFinite(Date.parse(event[field])))||
     !event.payload||typeof event.payload!=='object'||Array.isArray(event.payload))return reply({error:'invalid_webhook_data'},400);
  try{await processTributeEvent(env,event)}catch(error){return reply({error:error.status===400?'invalid_payment_event':'payment_processing_unavailable'},error.status===400?400:503)}
