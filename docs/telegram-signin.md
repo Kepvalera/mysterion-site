@@ -1,6 +1,6 @@
 # Bot sign-in and return to a selected recording
 
-Production stays closed for public sales and automatic access issuance. This
+Public sales stay closed; the existing owner-selected controlled test scope is preserved. This
 release does not enable payment flags, create real payments, change Bunny or
 merge existing accounts. Shop order processing is untouched.
 
@@ -82,3 +82,5 @@ unchanged.
 Official Telegram contract: https://core.telegram.org/bots/api#callbackquery and
 https://core.telegram.org/bots/api#setwebhook. All automated tests use local keys,
 bot fixtures and local SQLite/D1, never real Telegram purchases or production users.
+
+Public Digital purchase buttons additionally require the explicit live flag, live mode, per-video sale_enabled and verified official product metadata. They do not depend on enabling Shop payments. Existing Shop-ready offers return to the existing catalog checkout. None of these live flags is enabled by this release.

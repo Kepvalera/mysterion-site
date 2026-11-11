@@ -19,7 +19,8 @@ export async function viewerSales(request,env,viewer,path,method){
  if(digital&&method==='GET'){
   const videoId=digital[1];if((await videoAccess(db,viewer.id,videoId))?.expires_at)return {available:false,has_access:true};
   const settings=await db.prepare('SELECT * FROM digital_integration_settings WHERE id=1').first();
-  if(!(settings.mode==='test'&&settings.test_viewer_id===viewer.id||settings.mode==='live'&&env.TRIBUTE_DIGITAL_LIVE_ENABLED==='true'&&publicEnabled(env)))return {available:false,reason:'sales_disabled'};
+  if(!(settings.mode==='test'&&settings.test_viewer_id===viewer.id||settings.mode==='live'&&env.TRIBUTE_DIGITAL_LIVE_ENABLED==='true'&&publicEnabled(env)))return {available:false,reason:automaticEnabled(env)&&publicEnabled(env)?'shop_available':'sales_disabled'};
+  if(settings.mode==='live'&&!await db.prepare("SELECT 1 FROM sales_products WHERE kind='video' AND product_id=? AND sale_enabled=1").bind(videoId).first())return {available:false,reason:'sales_disabled'};
   if(!await db.prepare('SELECT 1 FROM telegram_account_links WHERE viewer_id=?').bind(viewer.id).first())return {available:false,reason:'telegram_required'};
   if(await db.prepare("SELECT 1 FROM access_blocks b WHERE b.viewer_id=? AND ((b.kind='video' AND b.product_id=?) OR (b.kind='course' AND EXISTS(SELECT 1 FROM platform_lessons l WHERE l.course_id=b.product_id AND l.video_id=?)))").bind(viewer.id,videoId,videoId).first())return {available:false,reason:'access_restricted'};
   const p=await db.prepare("SELECT m.*,v.state,v.price_minor,v.currency AS video_currency,v.source_type,v.bunny_status,v.publish_at FROM digital_product_mappings m JOIN videos v ON v.id=m.video_id WHERE m.video_id=? AND m.active=1 ORDER BY m.product_id LIMIT 1").bind(videoId).first();
