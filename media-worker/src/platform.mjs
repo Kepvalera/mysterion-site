@@ -16,6 +16,7 @@ export async function handlePlatform(request,env){
   const url=new URL(request.url),path=url.pathname.replace(/^\/api\/platform\//,''),method=request.method,db=env.MEDIA_DB;
   if(path.startsWith('admin/'))return json(await platformAdmin(request,env,path.slice(6),method));
   if(method!=='GET')csrf(request,env);
+  if(path==='currency-rates'&&method==='GET'){const r=await db.prepare('SELECT eur_rub,usd_rub FROM display_currency_rates WHERE id=1').first();return json(r)}
   if(path==='sales/catalog'&&method==='GET')return json(await publicSales(env));
   if(path==='media/availability'&&method==='GET'){let viewer=null;try{viewer=await requireViewerSession(request,env)}catch(error){if(error.status!==401)throw error}return json(await mediaAvailability(env,viewer))}
   const cover=path.match(/^covers\/([a-f0-9-]{36})$/);

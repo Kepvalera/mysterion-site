@@ -8,5 +8,6 @@ export async function mediaAvailability(env,viewer){
  // With automatic payments disabled this never contacts Tribute.
  if(paymentReady){try{const shops=await tributeRequest(env,'/shops');paymentReady=Array.isArray(shops)&&shops.some(s=>s.id===Number(env.TRIBUTE_SHOP_ID)&&s.status===1&&s.onlyStars===false)}catch{paymentReady=false}}
  if(paymentReady)sales=await rows(db.prepare("SELECT product_id,policy FROM sales_products WHERE kind='video' AND sale_enabled=1"));
- return {items:available.map(({playable,...v})=>({...v,has_access:v.access==='free'||!!v.has_access,can_buy:v.access==='paid'&&!v.has_access&&v.price_minor>0&&!!playable&&paymentReady&&sales.some(s=>{if(s.product_id!==v.id)return false;try{dates(s.policy);return true}catch{return false}})}))};
+ const blocked=viewer?new Set((await rows(db.prepare("SELECT product_id FROM access_blocks WHERE viewer_id=? AND kind='video'").bind(viewer.id))).map(b=>b.product_id)):new Set();
+ return {items:available.map(({playable,...v})=>({...v,has_access:v.access==='free'||!!v.has_access&&!blocked.has(v.id),can_buy:!blocked.has(v.id)&&v.access==='paid'&&!v.has_access&&v.price_minor>0&&!!playable&&paymentReady&&sales.some(s=>{if(s.product_id!==v.id)return false;try{dates(s.policy);return true}catch{return false}})}))};
 }

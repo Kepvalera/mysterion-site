@@ -2,11 +2,13 @@ import {deny,time,rows,decode} from './platform-data.mjs';
 import {input,text,revision} from './platform-http.mjs';
 import {reconcileTributePayment} from './sales-tribute.mjs';
 import {searchParticipants} from './participant-search.mjs';
+import {accessAdmin} from './access-admin.mjs';
 import {manager,item,policy,amount,participant,operation,dates,createGrant,order,balanceSQL,products,uuid,hash,enabled,publicEnabled,automaticEnabled} from './sales-core.mjs';
 export async function salesAdmin(request,env,staff,path,method){
  if(!await manager(env,staff))deny(403,'sales_manager_required');const db=env.MEDIA_DB;
+ if(/^grants\/[a-f0-9-]{36}\/(extend|revoke|restore)$/.test(path))return accessAdmin(request,env,staff,path.slice(7),method);
  if(method!=='GET'){
-  const d=await input(request.clone(),['request_id','kind','id','revision','policy_revision','access','price_minor','sale_enabled','policy','viewer_id','amount_minor','method','confirm_received','dates','reason','access_sub','active','provider_uuid']);uuid(d.request_id);
+  const d=await input(request.clone(),['request_id','kind','id','revision','policy_revision','access','price_minor','sale_enabled','policy','viewer_id','amount_minor','method','confirm_received','dates','reason','access_sub','active','provider_uuid','confirm_rub_price']);uuid(d.request_id);
   const old=await db.prepare('SELECT * FROM sales_operations WHERE id=?').bind(d.request_id).first();
   if(old){const m=path.match(/^(orders|grants)\/([a-f0-9-]{36})\/(payment|grant|cancel|refund|extend|revoke)$/),action=path==='products'?'product.save':path==='orders'?'order.create':path==='grants'?'access.'+d.reason:path==='managers'?'manager.set':path==='reconcile'?'tribute.reconcile':m?({payment:'payment.received',grant:'access.paid',cancel:'order.cancel',refund:'payment.refunded',extend:'access.extend',revoke:'access.revoke'})[m[3]]:null,target=m?m[2]:path==='managers'?d.access_sub:d.id;if(['managers','reconcile'].includes(path)&&staff.role!=='owner')deny(403,'owner_required');if(old.actor!==staff.sub||old.action!==action||old.target!==target||old.request_hash!==await hash(d))deny(409,'request_conflict');return JSON.parse(old.result)}
  }
@@ -17,7 +19,7 @@ export async function salesAdmin(request,env,staff,path,method){
   return {
   products:(await products(db)).map(decode),
   orders:(await paged('SELECT o.*,s.state,s.source,s.policy AS access_policy,s.provider_stage,s.revision AS sales_revision,s.last_payment_status,a.email FROM sales_orders s JOIN viewer_orders o ON o.id=s.order_id JOIN viewer_accounts a ON a.id=o.viewer_id ORDER BY o.created_at DESC,o.id')).map(decode),
-  payments:await paged('SELECT p.*,o.title,a.email FROM sales_payments p JOIN viewer_orders o ON o.id=p.order_id JOIN viewer_accounts a ON a.id=o.viewer_id ORDER BY p.created_at DESC,p.id'),
+  payments:await paged('SELECT p.*,o.title,o.currency,a.email FROM sales_payments p JOIN viewer_orders o ON o.id=p.order_id JOIN viewer_accounts a ON a.id=o.viewer_id ORDER BY p.created_at DESC,p.id'),
   grants:await paged('SELECT g.*,a.email,COALESCE(v.title,c.title) AS title FROM viewer_grants g JOIN viewer_accounts a ON a.id=g.viewer_id LEFT JOIN videos v ON v.id=g.video_id LEFT JOIN platform_courses c ON c.id=g.course_id ORDER BY g.created_at DESC,g.id'),
   history:await paged(`SELECT h.action,h.target,h.actor,h.created_at,st.role AS actor_role,COALESCE(o.title,v.title,c.title,gv.title,gc.title) AS title,a.email
    FROM sales_operations h LEFT JOIN platform_staff st ON st.access_sub=h.actor
@@ -34,7 +36,8 @@ export async function salesAdmin(request,env,staff,path,method){
   return operation(db,staff.sub,'manager.set',sub,d,{ok:true},q=>[q('INSERT INTO sales_managers SELECT ?,? WHERE $guard ON CONFLICT(access_sub) DO UPDATE SET active=excluded.active',[sub,d.active])],{sql:"EXISTS(SELECT 1 FROM platform_staff WHERE access_sub=? AND role='publisher' AND active=1)",args:[sub]});
  }
  if(path==='products'&&method==='PUT'){
-  const d=await input(request,['request_id','kind','id','revision','policy_revision','access','price_minor','sale_enabled','policy']),p=await item(db,d.kind,d.id);revision(d.revision);
+  const d=await input(request,['request_id','kind','id','revision','policy_revision','access','price_minor','sale_enabled','policy','confirm_rub_price']),p=await item(db,d.kind,d.id);revision(d.revision);
+  if(p.access==='paid'&&p.currency!=='RUB'&&d.access==='paid'&&d.confirm_rub_price!==true)deny(409,'confirm_rub_price_required');
   if(!['free','paid'].includes(d.access)||![0,1].includes(d.sale_enabled))deny(400,'invalid_price');const price=d.access==='free'?0:amount(d.price_minor);if(d.access==='free'&&(d.price_minor!==0||d.sale_enabled))deny(400,'invalid_price');
   if(p.kind==='school'&&d.access==='paid'&&price!==3000000)deny(400,'school_price_fixed');
   if(d.access==='paid'&&d.kind==='video'&&(!['bunny','youtube'].includes(p.source_type)||!p.source_ref))deny(400,'protected_storage_required');
