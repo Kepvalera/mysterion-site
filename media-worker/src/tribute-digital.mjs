@@ -1,7 +1,8 @@
 import {deny,time,rows,decode,requireOwner,audit} from './platform-data.mjs';
 import {input,revision} from './platform-http.mjs';
 import {hash,operation,createGrant,uuid,participant} from './sales-core.mjs';
-import {tributeRequest} from './sales-tribute.mjs';
+import {digitalProductRequest as tributeRequest} from './digital-product-api.mjs';
+import {verifiedIdentitySQL} from './viewer-identity.mjs';
 const numeric=value=>Number.isSafeInteger(value)&&value>0;
 const stamp=value=>typeof value==='string'&&value.length<=64&&/^\d{4}-\d{2}-\d{2}T/.test(value)?Math.floor(Date.parse(value)/1000):NaN;
 const operationId=async key=>{const h=await hash(key);return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20,32)};
@@ -52,7 +53,7 @@ export async function settleDigitalPurchase(env,purchaseId){
  if(!m.active||m.revision!==r.mapping_revision||m.video_id!==r.video_id){await reason('mapping_changed');return}
  if(r.currency!=='RUB'||r.amount_minor!==r.expected_amount_minor||r.amount_minor!==m.amount_minor){await reason('price_mismatch');return}
  const settings=await digitalSettings(db);if(!enabledFor(env,settings,r.viewer_id)){await reason('issuance_disabled');return}
- const account=await db.prepare("SELECT 1 FROM viewer_accounts WHERE id=? AND status='active' AND email_verified_at IS NOT NULL").bind(r.viewer_id).first();if(!account){await reason('account_unavailable');return}
+ const account=await db.prepare(`SELECT 1 FROM viewer_accounts a WHERE a.id=? AND a.status='active' AND ${verifiedIdentitySQL('a')}`).bind(r.viewer_id).first();if(!account){await reason('account_unavailable');return}
  const v=await db.prepare("SELECT * FROM videos WHERE id=? AND state='published' AND access='paid' AND currency='RUB' AND price_minor=? AND publish_at<=?").bind(r.video_id,r.amount_minor,new Date().toISOString()).first();if(!v||!['bunny','youtube'].includes(v.source_type)||v.source_type==='bunny'&&v.bunny_status!==4){await reason('video_unavailable');return}
  const block=await db.prepare("SELECT 1 FROM access_blocks b WHERE b.viewer_id=? AND ((b.kind='video' AND b.product_id=?) OR (b.kind='course' AND EXISTS(SELECT 1 FROM platform_lessons l WHERE l.course_id=b.product_id AND l.video_id=?)))").bind(r.viewer_id,r.video_id,r.video_id).first();if(block){await reason('administratively_blocked');return}
  const end=r.purchased_at+r.days*86400;if(end<=time()){await reason('period_expired');return}
@@ -61,7 +62,7 @@ export async function settleDigitalPurchase(env,purchaseId){
  AND EXISTS(SELECT 1 FROM digital_product_mappings WHERE product_id=? AND revision=? AND active=1)
  AND EXISTS(SELECT 1 FROM digital_integration_settings WHERE id=1 AND revision=?)
  AND EXISTS(SELECT 1 FROM telegram_account_links WHERE viewer_id=? AND telegram_id=? AND linked_at<=?)
- AND EXISTS(SELECT 1 FROM viewer_accounts WHERE id=? AND status='active' AND email_verified_at IS NOT NULL)
+ AND EXISTS(SELECT 1 FROM viewer_accounts a WHERE a.id=? AND a.status='active' AND ${verifiedIdentitySQL('a')})
  AND EXISTS(SELECT 1 FROM videos WHERE id=? AND revision=? AND state='published' AND access='paid' AND currency='RUB' AND price_minor=?)
  AND NOT EXISTS(SELECT 1 FROM access_blocks b WHERE b.viewer_id=? AND ((b.kind='video' AND b.product_id=?) OR (b.kind='course' AND EXISTS(SELECT 1 FROM platform_lessons l WHERE l.course_id=b.product_id AND l.video_id=?))))`,args:[purchaseId,r.purchase_hash,r.product_id,m.revision,settings.revision,r.viewer_id,r.telegram_id,r.purchased_at,r.viewer_id,r.video_id,v.revision,r.amount_minor,r.viewer_id,r.video_id,r.video_id]};
  try{await operation(db,'tribute-digital','digital.access',purchaseId,data,{ok:true},q=>[

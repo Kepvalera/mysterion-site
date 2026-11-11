@@ -16,12 +16,14 @@
   root.setAttribute('aria-label',lang()==='ru'?'Личный кабинет':'Participant account');
   root.querySelector('.member-nav').setAttribute('aria-label',lang()==='ru'?'Разделы кабинета':'Account sections');
   if(!account)return;
-  setAll('[data-member-email]',account.profile.email);
-  setAll('[data-member-initial]',(account.profile.name||account.profile.email).slice(0,1).toUpperCase());
+  setAll('[data-member-email]',account.profile.email||'Telegram');
+  setAll('[data-member-initial]',(account.profile.name||account.profile.email||'Telegram').slice(0,1).toUpperCase());
   setAll('[data-member-value="name"]',account.profile.name||t('notProvided'));
-  setAll('[data-member-value="email"]',account.profile.email);
+  setAll('[data-member-value="email"]',account.profile.email||t('notProvided'));
   setAll('[data-member-value="joined"]',formattedDate(account.profile.joinedAt));
   setAll('[data-member-value="expires"]',formattedDate(account.session.expiresAt,true));
+  if(account.profile.identityKind==='telegram'){setAll('[data-member-text="emailVerified"]',lang()==='ru'?'Telegram подтверждён':'Telegram verified');setAll('[data-member-value="email"]',t('notProvided'))}
+  $('member-change-password').hidden=account.profile.identityKind==='telegram';
   // These views intentionally have no playback/payment controls until the viewer
   // entitlement model is connected on the server. Browser state grants nothing.
   for(const key of ['courses','videos'])setAll('[data-member-count="'+key+'"]',String(account.features.materialAccess?account.library[key].length:0));
@@ -62,7 +64,7 @@
   try{
    const data=await request('account',undefined,controller.signal);
    if(mine!==generation||root.hidden)return;
-   if(typeof data.profile?.email!=='string'||data.profile.emailVerified!==true||!data.library||!['courses','videos','purchases','continueLearning'].every(k=>Array.isArray(data.library[k]))||!Number.isFinite(data.session?.expiresAt)||!data.features)throw Error('failed');
+   if(!((typeof data.profile?.email==='string'&&data.profile.emailVerified===true)||(data.profile?.identityKind==='telegram'&&data.profile.email===null&&data.profile.telegramVerified===true))||!data.library||!['courses','videos','purchases','continueLearning'].every(k=>Array.isArray(data.library[k]))||!Number.isFinite(data.session?.expiresAt)||!data.features)throw Error('failed');
    account=data;render();$('member-loading').hidden=true;$('member-views').hidden=false;root.querySelector('.member-main').dataset.ready='true';
    navigate(views.includes(location.hash.slice(1))?location.hash.slice(1):'home',false);
   }catch(error){
@@ -75,14 +77,14 @@
  root.querySelectorAll('[data-member-logout]').forEach(button=>button.addEventListener('click',()=>$('viewer-logout').click()));
  $('member-retry').addEventListener('click',()=>load());
  $('member-change-password').addEventListener('click',async()=>{
-  if(!account||resetBusy)return;resetBusy=true;const mine=generation,email=account.profile.email,button=$('member-change-password');button.disabled=true;$('member-profile-status').textContent=t('working');
+  if(!account||!account.profile.email||resetBusy)return;resetBusy=true;const mine=generation,email=account.profile.email,button=$('member-change-password');button.disabled=true;$('member-profile-status').textContent=t('working');
   try{await request('forgot-password',{email},controller?.signal);if(mine===generation)$('member-profile-status').textContent=t('resetSent')}
   catch(error){if(mine===generation)$('member-profile-status').textContent=error.retryAfter?t('retryWait').replace('{seconds}',String(error.retryAfter)):t(error.message==='request_timeout'?'request_timeout':'resetFailed')}
   finally{if(mine===generation){resetBusy=false;button.disabled=false}}
  });
  window.addEventListener('mysterion:viewer-session',event=>{if(!event.detail.showAccount){clear();return}if(!account||account.session.expiresAt!==event.detail.expiresAt)load()});
  window.addEventListener('mysterion:session-expired',clear);
- window.addEventListener('mysterion:participant-refresh',event=>{if(account&&event.detail?.profile?.email===account.profile.email){account=event.detail;render()}});
+ window.addEventListener('mysterion:participant-refresh',event=>{if(account&&event.detail?.profile?.accountId===account.profile.accountId&&event.detail?.profile?.email===account.profile.email){account=event.detail;render()}});
  window.addEventListener('mysterion:language',()=>render());
  window.addEventListener('hashchange',()=>{const next=location.hash.slice(1);if(views.includes(next))navigate(next,false)});
  render();if(!root.hidden)load();

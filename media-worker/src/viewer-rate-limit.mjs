@@ -2,6 +2,9 @@ import {HttpError} from './auth.mjs';
 
 const now=()=>Math.floor(Date.now()/1000);
 const policies=Object.freeze({
+ 'telegram-start':[['telegram_start_ip','ip',8,600]],
+ 'telegram-status':[['telegram_status_ip','ip',150,600]],
+ 'telegram-complete':[['telegram_complete_ip','ip',20,600]],
  profile:[['profile_ip','ip',30,600],['profile_viewer','email',20,600]],
  orders:[['orders_ip','ip',10,600],['orders_viewer','email',10,600]],
  progress:[['progress_ip','ip',120,600],['progress_viewer','email',120,600]],

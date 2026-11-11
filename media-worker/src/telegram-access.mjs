@@ -2,11 +2,12 @@ import {deny,time} from './platform-data.mjs';
 import {input} from './platform-http.mjs';
 import {hash,participant} from './sales-core.mjs';
 import {requireMediaOrigin} from './origin.mjs';
+import {telegramLoginUpdate} from './telegram-login.mjs';
 export const botUsername='MysterionAccessBot',telegramWebhookPath='/api/telegram/webhook';
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
 function token(env){if(typeof env.TELEGRAM_BOT_TOKEN!=='string'||!/^\d+:[A-Za-z0-9_-]{20,200}$/.test(env.TELEGRAM_BOT_TOKEN))deny(503,'telegram_not_configured');return env.TELEGRAM_BOT_TOKEN}
 export async function telegramRequest(env,method,body={}){
- const credential=token(env),stage=({getMe:'identity',getWebhookInfo:'webhook_status',setWebhook:'webhook_register',sendMessage:'message'})[method];if(!stage)deny(400,'telegram_method_not_supported');
+ const credential=token(env),stage=({getMe:'identity',getWebhookInfo:'webhook_status',setWebhook:'webhook_register',sendMessage:'message',answerCallbackQuery:'callback'})[method];if(!stage)deny(400,'telegram_method_not_supported');
  // Workers supports manual/follow, not redirect:error. Manual preserves the
  // no-redirect policy without throwing before the network request is sent.
  let r;try{r=await fetch('https://api.telegram.org/bot'+credential+'/'+method,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(error){deny(503,'telegram_'+stage+'_'+(['TimeoutError','AbortError'].includes(error?.name)?'timeout':'network'))}
@@ -22,8 +23,17 @@ export async function setupTelegramWebhook(env){
  const me=await telegramRequest(env,'getMe');if(me.username?.toLowerCase()!==botUsername.toLowerCase()||!me.is_bot)deny(409,'telegram_bot_mismatch');
  const url=new URL(telegramWebhookPath,env.MEDIA_PUBLIC_ORIGIN).href,info=await telegramRequest(env,'getWebhookInfo');
  if(info.url&&info.url!==url)deny(409,'telegram_other_webhook_exists');
- if(await telegramRequest(env,'setWebhook',{url,secret_token:await telegramWebhookSecret(env),allowed_updates:['message'],drop_pending_updates:false})!==true)deny(503,'telegram_webhook_register_unconfirmed');
+ if(await telegramRequest(env,'setWebhook',{url,secret_token:await telegramWebhookSecret(env),allowed_updates:['message','callback_query'],drop_pending_updates:false})!==true)deny(503,'telegram_webhook_register_unconfirmed');
  const after=await telegramRequest(env,'getWebhookInfo');if(after.url!==url)deny(503,'telegram_webhook_not_ready');return {configured:true,bot:botUsername,url,pendingUpdates:after.pending_update_count||0};
+}
+async function ensureLoginCallbacks(env){
+ // Only reached after the existing secret header and a live /start challenge
+ // were verified. Upgrade our own subscription; never take over another URL.
+ const info=await telegramRequest(env,'getWebhookInfo'),url=new URL(telegramWebhookPath,env.MEDIA_PUBLIC_ORIGIN).href;
+ if(info.url!==url)deny(409,'telegram_other_webhook_exists');
+ if(info.allowed_updates?.includes('callback_query')&&info.allowed_updates.includes('message'))return;
+ const allowed=[...new Set([...(Array.isArray(info.allowed_updates)?info.allowed_updates:[]),'message','callback_query'])];
+ if(await telegramRequest(env,'setWebhook',{url,secret_token:await telegramWebhookSecret(env),allowed_updates:allowed,drop_pending_updates:false})!==true)deny(503,'telegram_webhook_register_unconfirmed');
 }
 export async function telegramViewer(request,env,viewer,path){
  const db=env.MEDIA_DB;
@@ -57,6 +67,7 @@ export async function handleTelegramWebhook(request,env){
   const expected=await telegramWebhookSecret(env),a=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(provided))),b=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(expected)));let diff=0;for(let i=0;i<a.length;i++)diff|=a[i]^b[i];if(diff)return reply({error:'invalid_telegram_secret'},401);
   const update=await input(request,['update_id','message','edited_message','callback_query','channel_post','my_chat_member']);
   if(!Number.isSafeInteger(update.update_id)||update.update_id<0)deny(400,'invalid_telegram_update');
+  if(await telegramLoginUpdate(env,update,(method,body)=>telegramRequest(env,method,body),()=>ensureLoginCallbacks(env)))return reply({ok:true});
   const m=update.message,match=typeof m?.text==='string'?m.text.match(/^\/start(?:@MysterionAccessBot)? bind_([A-Za-z0-9_-]{43})$/i):null;
   if(!match||m.chat?.type!=='private'||m.from?.is_bot!==false||!Number.isSafeInteger(m.from?.id)||m.from.id<1||m.chat.id!==m.from.id)return reply({ok:true});
   const attempt=await env.MEDIA_DB.prepare('SELECT * FROM telegram_link_attempts WHERE token_hash=? AND expires_at>? AND telegram_id IS NULL AND consumed_at IS NULL').bind(await hash(match[1]),time()).first();if(!attempt)return reply({ok:true});

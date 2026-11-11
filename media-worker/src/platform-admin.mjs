@@ -1,3 +1,4 @@
+import {verifiedIdentitySQL} from './viewer-identity.mjs';
 import {staffIdentity,requireOwner,canEditVideo,deny,rows,decode,time,idPattern,audit} from './platform-data.mjs';
 import {csrf,input,text,translations,revision,expiry,product} from './platform-http.mjs';
 import {vkEmbed,youtubeId,rutubeId} from './video-source.mjs';
@@ -167,7 +168,7 @@ export async function platformAdmin(request,env,path,method){
   const {params,page:requestedPage}=queryPage(request,['q','page']),query=text(params.get('q')||'',100);
   const search=participantSearchSQL(query),where=' FROM viewer_accounts a WHERE 1=1'+search.sql;
   const total=(await db.prepare('SELECT COUNT(*) AS n'+where).bind(...search.values).first()).n,pages=Math.max(1,Math.ceil(total/participantPageSize)),page=Math.min(requestedPage,pages);
-  const items=await rows(db.prepare('SELECT a.id,a.email,a.first_name,a.last_name,a.status,a.email_verified_at,a.created_at'+where+' ORDER BY a.created_at DESC,a.id DESC LIMIT ? OFFSET ?').bind(...search.values,participantPageSize,(page-1)*participantPageSize));
+  const items=await rows(db.prepare("SELECT a.id,CASE WHEN a.telegram_only=1 THEN 'Telegram '||(SELECT telegram_id FROM telegram_account_links WHERE viewer_id=a.id) ELSE a.email END AS email,a.telegram_only,a.first_name,a.last_name,a.status,a.email_verified_at,a.created_at"+where+' ORDER BY a.created_at DESC,a.id DESC LIMIT ? OFFSET ?').bind(...search.values,participantPageSize,(page-1)*participantPageSize));
   return {items,page,pageSize:participantPageSize,total,pages};
  }
  const history=path.match(/^participants\/([a-f0-9-]{8}-[a-f0-9-]{27})\/login-history$/);
@@ -184,7 +185,7 @@ export async function platformAdmin(request,env,path,method){
  if(participant&&method==='PUT'){
   const d=await input(request,['first_name','last_name','status']);if(!['active','disabled'].includes(d.status))deny(400,'invalid_account_status');
   const names=['first_name','last_name'].map(k=>{const value=text(d[k],80);if(/[<>\p{Cc}\p{Cf}]/u.test(value))deny(400,'invalid_name');return value.normalize('NFC')});
-  const result=await db.batch([db.prepare('UPDATE viewer_accounts SET first_name=?,last_name=?,status=?,updated_at=? WHERE id=? AND email_verified_at IS NOT NULL').bind(...names,d.status,time(),participant[1]),db.prepare("DELETE FROM viewer_sessions WHERE account_id=? AND EXISTS(SELECT 1 FROM viewer_accounts a WHERE a.id=account_id AND a.status='disabled')").bind(participant[1])]);
+  const result=await db.batch([db.prepare(`UPDATE viewer_accounts AS a SET first_name=?,last_name=?,status=?,updated_at=? WHERE a.id=? AND ${verifiedIdentitySQL('a')}`).bind(...names,d.status,time(),participant[1]),db.prepare("DELETE FROM viewer_sessions WHERE account_id=? AND EXISTS(SELECT 1 FROM viewer_accounts a WHERE a.id=account_id AND a.status='disabled')").bind(participant[1])]);
   if(!result[0].meta.changes)deny(409,'verified_account_required');await audit(db,staff.sub,'participant.updated',participant[1]);return {ok:true};
  }
  if(path==='courses'&&method==='GET')return {items:(await rows(db.prepare('SELECT * FROM platform_courses ORDER BY updated_at DESC LIMIT 200'))).map(decode)};

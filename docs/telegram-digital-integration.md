@@ -12,7 +12,7 @@ flags are invented or activated by migration/publication.
 
 1. Owner: Sales → Tribute → Set up Telegram webhook. Runtime reads the existing
    `TELEGRAM_BOT_TOKEN`, verifies `getMe.username` is `MysterionAccessBot`, and
-   registers the dedicated URL with `allowed_updates: [message]` and
+   registers the dedicated URL with `allowed_updates: [message, callback_query]` and
    `drop_pending_updates: false`. A different existing webhook is not overwritten.
 2. The secret header `X-Telegram-Bot-Api-Secret-Token` is a domain-separated
    HMAC-SHA256 derived from the bot token inside Cloudflare, sent only to

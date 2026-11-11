@@ -1,4 +1,5 @@
 import {deny,time,rows} from './platform-data.mjs';
+import {verifiedIdentitySQL} from './viewer-identity.mjs';
 import {product} from './platform-http.mjs';
 export const FOREVER=253402300799;
 export function enabled(env){return env.SALES_ENABLED==='true'}
@@ -25,7 +26,7 @@ export function dates(snapshot,at=time(),override){
  if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||end<=start||end<=at)deny(409,'access_period_ended');return [start,end];
 }
 export async function item(db,kind,id){const target=product({kind,id}),row=await db.prepare(`SELECT * FROM ${target.table} WHERE id=? AND state!='${kind==='video'?'deleted':'archived'}'`).bind(id).first();if(!row)deny(404,'product_not_found');return {...row,product_kind:kind,column:target.column,table:target.table}}
-export async function participant(db,id){uuid(id);const row=await db.prepare("SELECT id,email FROM viewer_accounts WHERE id=? AND status='active' AND email_verified_at IS NOT NULL").bind(id).first();if(!row)deny(400,'active_participant_required');return row}
+export async function participant(db,id){uuid(id);const row=await db.prepare(`SELECT a.id,CASE WHEN a.telegram_only=1 THEN NULL ELSE a.email END AS email FROM viewer_accounts a WHERE a.id=? AND a.status='active' AND ${verifiedIdentitySQL('a')}`).bind(id).first();if(!row)deny(400,'active_participant_required');return row}
 export async function manager(env,staff){if(!enabled(env))return false;if(staff.role==='owner')return true;if(staff.role!=='publisher')return false;return !!(await env.MEDIA_DB.prepare('SELECT 1 FROM sales_managers WHERE access_sub=? AND active=1').bind(staff.sub).first())}
 export async function order(db,id){uuid(id);const row=await db.prepare('SELECT o.*,s.source,s.state,s.policy,s.revision AS sales_revision,s.provider_uuid,s.shop_id,s.provider_stage,s.payment_url,s.last_payment_status FROM viewer_orders o JOIN sales_orders s ON s.order_id=o.id WHERE o.id=?').bind(id).first();if(!row)deny(404,'sales_order_not_found');return row}
 export const balanceSQL="COALESCE((SELECT SUM(CASE direction WHEN 'received' THEN amount_minor ELSE -amount_minor END) FROM sales_payments WHERE order_id=sales_orders.order_id),0)";

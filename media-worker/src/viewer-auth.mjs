@@ -4,6 +4,8 @@ import {hashPassword,verifyPassword,validPassword,dummyPasswordHash} from './vie
 import {mailConfigured,deliver} from './viewer-mail.mjs';
 import {admitViewerOperation,admitViewerKdf,reserveViewerPassword,ViewerRateLimitError} from './viewer-rate-limit.mjs';
 import {viewerLibrary} from './platform-data.mjs';
+import {verifiedIdentitySQL} from './viewer-identity.mjs';
+import {handleTelegramLogin} from './telegram-login.mjs';
 const cookieName='__Host-mysterion_viewer',day=86400,idle=43200;
 const loginHistoryRetention=90*day;
 const now=()=>Math.floor(Date.now()/1000),random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('');
@@ -42,12 +44,25 @@ async function sendToken(env,account,purpose,context){
 }
 async function session(request,env){
  const token=cookie(request);if(!token)return null;const hash=await digest(token),time=now();
- const row=await env.MEDIA_DB.prepare(`SELECT a.id,a.credential_version,s.created_at,s.expires_at FROM viewer_sessions s JOIN viewer_accounts a ON a.id=s.account_id WHERE s.token_hash=? AND s.credential_version=a.credential_version AND a.status='active' AND a.email_verified_at IS NOT NULL AND s.expires_at>? AND s.idle_expires_at>?`).bind(hash,time,time).first();
+ const row=await env.MEDIA_DB.prepare(`SELECT a.id,a.credential_version,s.created_at,s.expires_at FROM viewer_sessions s JOIN viewer_accounts a ON a.id=s.account_id WHERE s.token_hash=? AND s.credential_version=a.credential_version AND a.status='active' AND ${verifiedIdentitySQL('a')} AND s.expires_at>? AND s.idle_expires_at>?`).bind(hash,time,time).first();
  if(!row)return null;await env.MEDIA_DB.prepare('UPDATE viewer_sessions SET last_seen_at=?,idle_expires_at=min(expires_at,?) WHERE token_hash=? AND last_seen_at<?').bind(time,time+idle,hash,time-300).run();return {...row,hash};
 }
 export async function requireViewerSession(request,env){
  if(env.VIEWER_AUTH_ENABLED!=='true'||!env.MEDIA_DB||typeof env.VIEWER_RATE_KEY!=='string'||env.VIEWER_RATE_KEY.length<32)fail(503,'viewer_auth_not_configured');
  requireMediaOrigin(request,env);const user=await session(request,env);if(!user)fail(401,'authentication_required');return user;
+}
+export async function issueViewerSession(request,env,account){
+ const db=env.MEDIA_DB;
+ const token=random(),hash=await digest(token),time=now();
+   // Primary-key replacement is atomic. Guard against password-reset/disable races.
+   const metadata=loginMetadata(request),result=await db.batch([
+    db.prepare('DELETE FROM viewer_login_history WHERE logged_in_at<?').bind(time-loginHistoryRetention),
+    db.prepare(`INSERT INTO viewer_sessions(account_id,token_hash,credential_version,created_at,last_seen_at,idle_expires_at,expires_at) SELECT id,?,credential_version,?,?,?,? FROM viewer_accounts a WHERE a.id=? AND a.credential_version=? AND a.status='active' AND ${verifiedIdentitySQL('a')} ON CONFLICT(account_id) DO UPDATE SET token_hash=excluded.token_hash,credential_version=excluded.credential_version,created_at=excluded.created_at,last_seen_at=excluded.last_seen_at,idle_expires_at=excluded.idle_expires_at,expires_at=excluded.expires_at`).bind(hash,time,time,time+idle,time+7*day,account.id,account.credential_version),
+    db.prepare('INSERT INTO viewer_login_history(id,account_id,logged_in_at,ip_address,country,device,browser) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),account.id,time,metadata.ip,metadata.country,metadata.device,metadata.browser),
+    db.prepare('INSERT INTO viewer_auth_events VALUES (?,?,?,?)').bind(crypto.randomUUID(),account.id,'login',time)
+   ]);
+   if(!result[1].meta.changes)fail(401,'invalid_credentials');return reply({ok:true},200,`${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7*day}`);
+
 }
 export async function handleViewer(request,env,context){
  const requestId=crypto.randomUUID(),started=Date.now();let phase='configuration';
@@ -64,18 +79,19 @@ export async function handleViewer(request,env,context){
    // Recheck the current token in the profile query. Never map legacy Access
    // users or entitlements by email, URL parameters, browser state or claimed roles.
    phase='account_profile';const time=now();
-   const profile=await db.prepare(`SELECT a.email,a.locale,a.created_at,a.email_verified_at,s.expires_at
+   const profile=await db.prepare(`SELECT a.email,a.telegram_only,a.locale,a.created_at,a.email_verified_at,s.expires_at
     FROM viewer_accounts a JOIN viewer_sessions s ON s.account_id=a.id
     WHERE s.token_hash=? AND s.credential_version=a.credential_version
-    AND a.status='active' AND a.email_verified_at IS NOT NULL AND s.expires_at>? AND s.idle_expires_at>?`).bind(user.hash,time,time).first();
+    AND a.status='active' AND ${verifiedIdentitySQL('a')} AND s.expires_at>? AND s.idle_expires_at>?`).bind(user.hash,time,time).first();
    if(!profile)fail(401,'authentication_required');
    if(env.VIEWER_PLATFORM_ENABLED==='true'){
     const details=await db.prepare('SELECT first_name,last_name FROM viewer_accounts WHERE id=?').bind(user.id).first();
-    return reply({profile:{firstName:details.first_name,lastName:details.last_name,name:[details.first_name,details.last_name].filter(Boolean).join(' '),email:profile.email,emailVerified:true,locale:profile.locale,joinedAt:profile.created_at*1000},session:{expiresAt:profile.expires_at*1000},library:await viewerLibrary(db,user.id,env.SALES_ENABLED==='true'),features:{materialAccess:true,purchases:true,displayName:true}});
+    return reply({profile:{accountId:user.id,firstName:details.first_name,lastName:details.last_name,name:[details.first_name,details.last_name].filter(Boolean).join(' '),email:profile.telegram_only?null:profile.email,emailVerified:!profile.telegram_only,identityKind:profile.telegram_only?'telegram':'email',telegramVerified:profile.telegram_only===1,locale:profile.locale,joinedAt:profile.created_at*1000},session:{expiresAt:profile.expires_at*1000},library:await viewerLibrary(db,user.id,env.SALES_ENABLED==='true'),features:{materialAccess:true,purchases:true,displayName:true}});
    }
-   return reply({profile:{name:null,email:profile.email,emailVerified:true,locale:profile.locale,joinedAt:profile.created_at*1000},session:{expiresAt:profile.expires_at*1000},
+   return reply({profile:{accountId:user.id,name:null,email:profile.telegram_only?null:profile.email,emailVerified:!profile.telegram_only,identityKind:profile.telegram_only?'telegram':'email',telegramVerified:profile.telegram_only===1,locale:profile.locale,joinedAt:profile.created_at*1000},session:{expiresAt:profile.expires_at*1000},
     library:{courses:[],videos:[],purchases:[],continueLearning:[]},features:{materialAccess:false,purchases:false,displayName:false}});
   }
+  if(route.startsWith('telegram/')){phase='telegram_login';return await handleTelegramLogin(request,env,{session,issue:issueViewerSession})}
   const fields={register:['email','password','locale'],login:['email','password'],'verify-email':['token'],'resend-verification':['email'],'forgot-password':['email'],'reset-password':['token','password'],logout:[],'logout-all':[]};
   if(!Object.hasOwn(fields,route))fail(404,'not_found');if(method!=='POST')fail(405,'method_not_allowed');
   if(!isSameOriginMediaRequest(request,env)||request.headers.get('X-Requested-With')!=='XMLHttpRequest')fail(403,'invalid_origin');
@@ -95,24 +111,16 @@ export async function handleViewer(request,env,context){
    return reply({ok:true,message:'check_email'},202);
   }
   if(route==='forgot-password'||route==='resend-verification'){
-   const started=Date.now(),account=await db.prepare('SELECT * FROM viewer_accounts WHERE email=?').bind(address).first();if(account&&account.status!=='disabled'&&(route==='forgot-password'||!account.email_verified_at))await sendToken(env,account,route==='forgot-password'?'reset':'verify',context);await new Promise(resolve=>setTimeout(resolve,Math.max(0,500-(Date.now()-started))));return reply({ok:true,message:'check_email'},202);
+   const started=Date.now(),account=await db.prepare('SELECT * FROM viewer_accounts WHERE email=?').bind(address).first();if(account&&!account.telegram_only&&account.status!=='disabled'&&(route==='forgot-password'||!account.email_verified_at))await sendToken(env,account,route==='forgot-password'?'reset':'verify',context);await new Promise(resolve=>setTimeout(resolve,Math.max(0,500-(Date.now()-started))));return reply({ok:true,message:'check_email'},202);
   }
   if(route==='login'){
    phase='password_admission';const attempt=await reserveViewerPassword(request,env,address);
    try{
-   phase='account_lookup';const account=await db.prepare('SELECT * FROM viewer_accounts WHERE email=?').bind(address).first();phase='kdf_admission';await admitViewerKdf(request,env);phase='password_verify';const valid=await verifyPassword(data.password,account?.password_hash||dummyPasswordHash);
-   if(!valid){phase='password_failure';await attempt.finish(true);fail(401,'invalid_credentials')}
+   phase='account_lookup';const account=await db.prepare('SELECT * FROM viewer_accounts WHERE email=?').bind(address).first();phase='kdf_admission';await admitViewerKdf(request,env);phase='password_verify';const valid=await verifyPassword(data.password,account&&!account.telegram_only?account.password_hash:dummyPasswordHash);
+   if(!valid||account?.telegram_only){phase='password_failure';await attempt.finish(true);fail(401,'invalid_credentials')}
    await attempt.finish(false);
    if(!account||account.status!=='active'||!account.email_verified_at)fail(401,'invalid_credentials');
-   phase='session_store';const token=random(),hash=await digest(token),time=now();
-   // Primary-key replacement is atomic. Guard against password-reset/disable races.
-   const metadata=loginMetadata(request),result=await db.batch([
-    db.prepare('DELETE FROM viewer_login_history WHERE logged_in_at<?').bind(time-loginHistoryRetention),
-    db.prepare(`INSERT INTO viewer_sessions(account_id,token_hash,credential_version,created_at,last_seen_at,idle_expires_at,expires_at) SELECT id,?,credential_version,?,?,?,? FROM viewer_accounts WHERE id=? AND credential_version=? AND status='active' AND email_verified_at IS NOT NULL ON CONFLICT(account_id) DO UPDATE SET token_hash=excluded.token_hash,credential_version=excluded.credential_version,created_at=excluded.created_at,last_seen_at=excluded.last_seen_at,idle_expires_at=excluded.idle_expires_at,expires_at=excluded.expires_at`).bind(hash,time,time,time+idle,time+7*day,account.id,account.credential_version),
-    db.prepare('INSERT INTO viewer_login_history(id,account_id,logged_in_at,ip_address,country,device,browser) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),account.id,time,metadata.ip,metadata.country,metadata.device,metadata.browser),
-    db.prepare('INSERT INTO viewer_auth_events VALUES (?,?,?,?)').bind(crypto.randomUUID(),account.id,'login',time)
-   ]);
-   if(!result[1].meta.changes)fail(401,'invalid_credentials');return reply({ok:true},200,`${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7*day}`);
+   phase='session_store';return await issueViewerSession(request,env,account);
    }finally{await attempt.finish(false)}
   }
   if(!/^[a-f0-9]{64}$/.test(data.token||''))fail(400,'invalid_or_expired_token');
@@ -131,7 +139,7 @@ export async function handleViewer(request,env,context){
  }catch(error){
   // Fixed classifications only: never log request URLs/bodies, exception messages,
   // identity, cookies, tokens, provider responses or credentials.
-  const allowed=new Set(['viewer_auth_disabled','viewer_auth_not_configured','email_not_configured','email_delivery_unavailable','origin_not_configured','wrong_origin','invalid_origin','not_found','method_not_allowed','json_required','invalid_json','body_too_large','invalid_fields','invalid_email','invalid_password','invalid_locale','rate_limited','invalid_credentials','invalid_or_expired_token','password_record_invalid','client_ip_unavailable','authentication_required']);
+  const allowed=new Set(['viewer_auth_disabled','viewer_auth_not_configured','email_not_configured','email_delivery_unavailable','origin_not_configured','wrong_origin','invalid_origin','not_found','method_not_allowed','json_required','invalid_json','body_too_large','invalid_fields','invalid_email','invalid_password','invalid_locale','rate_limited','invalid_credentials','invalid_or_expired_token','password_record_invalid','client_ip_unavailable','authentication_required','telegram_not_configured','invalid_target','telegram_login_expired','telegram_login_not_approved','telegram_login_used','telegram_account_choice_required','telegram_existing_session','telegram_account_conflict']);
   const known=error instanceof HttpError&&allowed.has(error.message),code=known?error.message:'viewer_service_unavailable',status=known?error.status:503;
   const rate=error instanceof ViewerRateLimitError?{retryAfter:error.retryAfter,limitScope:error.limitScope}:{};
   console.warn(JSON.stringify({event:'viewer_auth_failed',requestId,operation,phase,code,status,...rate,elapsedWallMs:Math.max(0,Date.now()-started)}));
