@@ -13,6 +13,31 @@ async function hideVideo(item){const prompt=english()?'Hide this video from the 
  }
  function button(label,action){const b=node('button',label);b.type='button';b.addEventListener('click',async()=>{try{await action()}catch(e){status.textContent=message(e)}});return b}
  function record(title,description,actions=[]){const row=node('article',undefined,'platform-record'),body=node('div');body.append(node('h2',title),node('p',description));row.append(body);if(actions.length){const controls=node('div',undefined,'platform-actions');controls.append(...actions);row.append(controls)}content.append(row);return row}
+ function tributeCheck(){
+  if(!me.owner)return;
+  const en=english(),label=en?'Check Tribute Shop':'Проверить Tribute Shop',sequence=loadSequence;
+  const result=node('div');result.setAttribute('role','status');result.setAttribute('aria-live','polite');
+  const check=button(label,async()=>{
+   if(check.disabled)return;check.disabled=true;check.textContent=en?'Checking…':'Проверяем…';
+   result.replaceChildren(node('p',en?'Contacting Tribute…':'Проверяем подключение к Tribute…'));
+   try{
+    const data=await api.request('admin/integrations/tribute/check','POST',{});
+    if(sequence!==loadSequence||!me.owner||!result.isConnected)return;
+    if(data.apiAccessible!==true||typeof data.activeShopFound!=='boolean'||!Array.isArray(data.shops)||data.shops.some(shop=>!shop||typeof shop.active!=='boolean'||typeof shop.onlyStars!=='boolean'))throw Error('invalid_response');
+    result.replaceChildren(node('p',en?'Tribute API: available.':'API Tribute: доступен.'),node('p',en?'Active shop: '+(data.activeShopFound?'found.':'not found.'):'Активный магазин: '+(data.activeShopFound?'найден.':'не найден.')));
+    if(!data.shops.length)result.append(node('p',en?'onlyStars: unknown — no active shops returned.':'onlyStars: не определён — активные магазины не найдены.'));
+    data.shops.forEach((shop,index)=>result.append(node('p',(en?'Shop ':'Магазин ')+(index+1)+': '+(en?'active':'активен')+' — '+(shop.active?(en?'yes':'да'):(en?'no':'нет'))+'; onlyStars: '+String(shop.onlyStars))));
+    result.append(node('p',en?'No payments were created.':'Реальные платежи не создавались.'));
+   }catch(error){
+    if(sequence!==loadSequence||!result.isConnected)return;
+    const known={tribute_api_key_missing:['Secret TRIBUTE_API_KEY is not configured.','Secret TRIBUTE_API_KEY не настроен.'],tribute_api_key_invalid_format:['Check the Secret value in Cloudflare.','Проверьте значение Secret в Cloudflare.'],tribute_api_unauthorized:['Tribute did not accept the API key.','Tribute не принял API-ключ.'],tribute_api_forbidden:['Tribute denied access to the Shop API.','Tribute запретил доступ к Shop API.'],tribute_api_rate_limited:['Tribute request limit reached. Try again later.','Достигнут лимит запросов Tribute. Повторите позже.'],tribute_api_unreachable:['Tribute could not be reached. Try again later.','Не удалось связаться с Tribute. Повторите позже.'],owner_required:['This check is available to the owner only.','Проверка доступна только владельцу.']};
+    const fallback=en?'The check failed. Try again later; if necessary, sign in as the owner again.':'Проверка не выполнена. Повторите позже; при необходимости войдите владельцем заново.';
+    result.replaceChildren(node('p',(en?'Tribute API: check failed. ':'API Tribute: проверка не выполнена. ')+(known[error.message]?.[en?0:1]||fallback)));
+   }finally{check.disabled=false;check.textContent=label}
+  });
+  const row=record('Tribute Shop',en?'Read-only connection check. No payments or access changes.':'Проверка подключения без создания платежей и изменения доступа.',[check]);
+  row.firstElementChild.append(result);
+ }
  function empty(){const wrap=node('div',undefined,'platform-empty');wrap.append(node('h2','Здесь пока нет записей'),node('p','Добавьте реальные материалы или дождитесь заявок участников. Данные не заполняются автоматически.'));content.append(wrap)}
  async function loadHistory(page=1){
   if(!historyAccount)return;const sequence=++historySequence,account=historyAccount,labels=english()?{title:'Login history',empty:'Login history is not available yet',loading:'Loading…',date:'Date and time',ip:'IP address',country:'Country',device:'Device',browser:'Browser',older:'Previous entries',newer:'Newer entries'}:{title:'История входов',empty:'История входов пока отсутствует',loading:'Загрузка…',date:'Дата и время',ip:'IP-адрес',country:'Страна',device:'Устройство',browser:'Браузер',older:'Предыдущие входы',newer:'Новые входы'};
@@ -27,7 +52,7 @@ async function hideVideo(item){const prompt=english()?'Hide this video from the 
  function openHistory(item){historyAccount=item;historyDialog.showModal();loadHistory(1)}
  async function load(next=section){if(busy)return;section=next;const sequence=++loadSequence;content.replaceChildren();status.textContent='Загружаем…';$('platform-heading').textContent=sections[section];$('platform-nav').querySelectorAll('button').forEach(b=>{if(b.dataset.section===section)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
   try{
-   if(section==='settings'){record('Защищённая инфраструктура',me.uploadConfigured?'Bunny Stream настроен. Файлы отправляются напрямую, минуя D1.':'Хранилище не подключено. Доступны черновики и публичные YouTube / VK.');record('Платный просмотр',me.paidEnabled?'Флаг включён; права всё равно проверяются сервером.':'Отключён. Не включать до отдельной проверки защиты потока.');record('Первый владелец','Назначается только отдельной подтверждённой процедурой по проверенному Cloudflare Access sub.');status.textContent='';return}
+   if(section==='settings'){record('Защищённая инфраструктура',me.uploadConfigured?'Bunny Stream настроен. Файлы отправляются напрямую, минуя D1.':'Хранилище не подключено. Доступны черновики и публичные YouTube / VK.');record('Платный просмотр',me.paidEnabled?'Флаг включён; права всё равно проверяются сервером.':'Отключён. Не включать до отдельной проверки защиты потока.');record('Первый владелец','Назначается только отдельной подтверждённой процедурой по проверенному Cloudflare Access sub.');tributeCheck();status.textContent='';return}
    const params=section==='participants'?new URLSearchParams({page:String(participantPage),q:participantSearch}):null;
    const data=await api.request('admin/'+section+(params?'?'+params:''));if(sequence!==loadSequence)return;sets[section]=data.items||[];
    if(section==='participants')participantPage=data.page||1,participantPages=data.pages||1;
