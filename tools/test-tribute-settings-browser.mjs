@@ -9,11 +9,17 @@ import {createRequire} from 'node:module';
 import {platformAdminTemplate} from '../media-worker/src/platform-admin-template.mjs';
 const require=createRequire(import.meta.url),puppeteer=require(require.resolve('puppeteer-core',{paths:[path.resolve('output/audit-tools/lighthouse')]}));
 const fixtureSecret='LOCAL_UI_FIXTURE_NEVER_A_REAL_KEY',requests=[],errors=[];
-let role='owner',mode='standard',pending;
+let role='owner',mode='standard',pending,legacyCache=false,legacyAssetLoads=0,versionedAssetLoads=0;
 const server=http.createServer(async(req,res)=>{
  try{
-  const pathname=new URL(req.url,'http://local').pathname;
+  const url=new URL(req.url,'http://local'),pathname=url.pathname;
+  if(pathname==='/cache-prior-admin'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(platformAdminTemplate.replace(/\/platform-admin\.js\?[^" ]+/, '/platform-admin.js'));return}
   if(pathname==='/admin-media'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(platformAdminTemplate);return}
+  if(pathname==='/platform-admin.js'&&legacyCache){
+   res.setHeader('Content-Type','text/javascript; charset=utf-8');
+   if(!url.search){legacyAssetLoads++;res.setHeader('Cache-Control','public, max-age=14400, must-revalidate');res.end('window.__legacyAdminAsset=true;');return}
+   versionedAssetLoads++;res.setHeader('Cache-Control','no-cache');res.end(await fs.readFile('platform-admin.js'));return;
+  }
   if(pathname.startsWith('/api/')){
    res.setHeader('Content-Type','application/json');
    if(pathname.endsWith('/me')){res.end(JSON.stringify({role,owner:role==='owner',canPublish:role!=='uploader',uploadConfigured:false,paidEnabled:false}));return}
@@ -39,6 +45,20 @@ const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:'+port});let
 try{
  const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));
  await page.setCookie({name:'local_fixture_session',value:'local-only',url:origin,httpOnly:true});
+ assert.match(platformAdminTemplate,/src="\/platform-admin\.js\?v=/);
+ assert.match(await fs.readFile('_headers','utf8'),/\/platform-admin\.js\r?\n\s+Cache-Control: no-cache/);
+ legacyCache=true;
+ await page.goto(origin+'/cache-prior-admin',{waitUntil:'networkidle0'});
+ assert.equal(await page.evaluate(()=>window.__legacyAdminAsset),true);
+ await page.goto(origin+'/cache-prior-admin?visit=2',{waitUntil:'networkidle0'});
+ assert.equal(legacyAssetLoads,1); // A subsequent visit retained the old four-hour JS cache.
+ assert.equal(await page.$('[data-section=settings]'),null);
+ await page.goto(origin+'/admin-media',{waitUntil:'networkidle0'});
+ await page.click('[data-section=settings]');
+ assert.equal(await page.$$eval('#platform-content button',nodes=>nodes.some(n=>/Tribute Shop/.test(n.textContent))),true);
+ assert.equal(await page.evaluate(()=>window.__legacyAdminAsset),undefined);
+ assert.equal(versionedAssetLoads,1);
+ checks+=7;legacyCache=false;
  const open=async()=>{await page.goto(origin+'/admin-media',{waitUntil:'networkidle0'});await page.click('[data-section=settings]')};
  const click=()=>page.$$eval('#platform-content button',nodes=>nodes.find(n=>/Tribute Shop/.test(n.textContent)).click());
  const result=()=>page.$eval('#platform-content [role=status]',n=>n.textContent);
@@ -55,5 +75,5 @@ try{
  for(const next of ['publisher','uploader']){role=next;await open();assert.equal(await page.$$eval('#platform-content button',nodes=>nodes.some(n=>/Tribute Shop/.test(n.textContent))),false);checks++}
  assert.ok(requests.every(r=>r.method==='POST'&&r.body==='{}'&&r.cookie?.includes('local_fixture_session=local-only')&&r.xRequestedWith==='XMLHttpRequest'));checks++;
  assert.deepEqual(errors,[]);
- console.log(JSON.stringify({checks,ownerOnlyButton:true,currentSession:true,duplicateClicksBlocked:true,secretsNotDisplayed:true,staleResponseIgnored:true,errors,realTributeCalls:0}));
+ console.log(JSON.stringify({checks,cachedOldScriptReproduced:true,versionedScriptRestoresOwnerButton:true,ownerOnlyButton:true,currentSession:true,duplicateClicksBlocked:true,secretsNotDisplayed:true,staleResponseIgnored:true,errors,realTributeCalls:0}));
 }finally{await browser.close();chrome.kill();await new Promise(r=>server.close(r))}
