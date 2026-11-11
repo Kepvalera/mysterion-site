@@ -22,6 +22,7 @@
   next();
  }
  const player=window.createMysterionMediaPlayer({dialog:$('video-dialog'),title:$('dialog-caption'),slot:$('video-player'),closeButton:document.querySelector('.dialog-close'),local,t});
+ window.MysterionMediaCommerce?.attach(player,$('dialog-caption'));
  let category=location.hash==='#testimonies'?'testimony':'all',page=1,items=[],controller,sequence=0,debounce;
  function translate(){search.placeholder=t('search');search.setAttribute('aria-label',t('search'));more.textContent=t('more');retry.textContent=t('retry');document.querySelector('.dialog-close').setAttribute('aria-label',t('close'));document.title=document.documentElement.lang==='en'?'Sermons | MYSTERION':'Проповеди | MYSTERION';document.querySelector('.library-filters').setAttribute('aria-label',document.documentElement.lang==='en'?'Video categories':'Категории видео');for(const button of document.querySelectorAll('.library-filters .filter')){const active=button.dataset.category===category;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))}}
  function render(){
@@ -34,7 +35,7 @@
    const play=node('span','▶','play-symbol');play.setAttribute('aria-hidden','true');thumb.append(play);thumb.addEventListener('click',()=>player.open(item));
    const info=node('div',undefined,'video-info');info.append(node('span',`${t(item.category)} · ${item.year} · ${t(item.access)}`,'video-type'),node('h3',local(item.title)),node('p',local(item.description),'video-description'));
    const speaker=local(item.speaker);if(speaker)info.append(node('p',speaker,'video-speaker'));
-   const watch=node('button',t('watch'),'btn btn-dark video-watch');watch.type='button';watch.addEventListener('click',()=>player.open(item));info.append(watch);card.append(thumb,info);grid.append(card);
+   const watch=node('button',t('watch'),'btn btn-dark video-watch');watch.type='button';watch.addEventListener('click',()=>player.open(item));info.append(watch);card.append(thumb,info);window.MysterionMediaCommerce?.decorate(card,item);grid.append(card);
   }
  }
  async function load(reset=true){

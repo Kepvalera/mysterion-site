@@ -6,6 +6,8 @@ import {checkTributeShops} from './tribute-shop-check.mjs';
 import {checkTributeWebhook} from './tribute-webhook-check.mjs';
 import {salesAdmin} from './sales-admin.mjs';
 import {manager,enabled} from './sales-core.mjs';
+import {courseLifecycle} from './course-lifecycle.mjs';
+import {searchParticipants} from './participant-search.mjs';
 const categories=['sermon','testimony','conference','school'];
 const loginHistoryRetention=90*86400,participantPageSize=25,historyPageSize=20;
 function money(d){if(!['free','paid'].includes(d.access)||!Number.isSafeInteger(d.price_minor)||d.price_minor<0||d.price_minor>100000000||!['EUR','USD','RUB'].includes(d.currency)||(d.access==='free'&&d.price_minor!==0)||(d.access==='paid'&&d.price_minor===0))deny(400,'invalid_price')}
@@ -97,7 +99,8 @@ export async function platformAdmin(request,env,path,method){
     if(!youtubeRef&&!vkRef&&!rutubeRef)deny(400,'video_source_required');
     sourceType=youtubeRef?'youtube':vkRef?'vk':'youtube';ref=youtubeRef||vkRef||'';
   }
-  if(d.access==='paid'&&sourceType!=='bunny')deny(400,'protected_storage_required');
+  if(d.access==='paid'&&!['bunny','youtube'].includes(sourceType))deny(400,'protected_storage_required');
+  if(d.access==='paid'&&sourceType==='youtube')ref=youtubeId(ref);
   if(old&&old.source_type==='bunny'&&old.source_ref&&sourceType!=='bunny')deny(409,'bound_source_immutable');
   if(d.state==='published'){
    if(d.access==='paid'&&env.MEDIA_PAID_ENABLED!=='true')deny(503,'paid_publication_disabled');
@@ -150,6 +153,8 @@ export async function platformAdmin(request,env,path,method){
  }
  // Every non-video administrative operation is owner-only, including lists.
  requireOwner(staff);
+ if(path==='participant-search'&&method==='GET')return searchParticipants(db,request);
+ const restoreCourse=path.match(/^courses\/([a-f0-9-]{36})\/restore$/);if(restoreCourse&&method==='POST')return courseLifecycle(request,env,staff,restoreCourse[1],true);
  if(path==='overview'&&method==='GET')return {participants:(await db.prepare('SELECT COUNT(*) n FROM viewer_accounts').first()).n,videos:(await db.prepare("SELECT COUNT(*) n FROM videos WHERE state!='deleted'").first()).n,courses:(await db.prepare("SELECT COUNT(*) n FROM platform_courses WHERE state!='archived'").first()).n,orders:(await db.prepare("SELECT COUNT(*) n FROM viewer_orders WHERE status='in_review'").first()).n};
  if(path==='participants'&&method==='GET'){
   const {params,page:requestedPage}=queryPage(request,['q','page']),query=text(params.get('q')||'',100);
@@ -177,10 +182,12 @@ export async function platformAdmin(request,env,path,method){
  }
  if(path==='courses'&&method==='GET')return {items:(await rows(db.prepare('SELECT * FROM platform_courses ORDER BY updated_at DESC LIMIT 200'))).map(decode)};
  const cm=path.match(/^courses\/([a-f0-9-]{36})$/);
+ if(cm&&method==='DELETE')return courseLifecycle(request,env,staff,cm[1]);
  if(path==='courses'&&method==='POST'||cm&&method==='PUT'){
   const d=await input(request,['title','description','kind','stream','access','price_minor','currency','state','revision']);money(d);
   if(!['school','conference','seminar','course'].includes(d.kind)||!['draft','published','archived'].includes(d.state)||(d.kind==='school'?![3,4,5,6].includes(d.stream):d.stream!==null))deny(400,'invalid_course');
-  const title=translations(d.title,300,true),description=translations(d.description,6000),id=cm?.[1]||crypto.randomUUID();
+  const old=cm?await db.prepare('SELECT title,description FROM platform_courses WHERE id=?').bind(cm[1]).first():null;
+  const title=mergeTranslation(d.title,old?.title,300,true),description=mergeTranslation(d.description,old?.description,6000),id=cm?.[1]||crypto.randomUUID();
   if(cm)await updateResult(db.prepare('UPDATE platform_courses SET title=?,description=?,kind=?,stream=?,access=?,price_minor=?,currency=?,state=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?').bind(title,description,d.kind,d.stream,d.access,d.price_minor,d.currency,d.state,time(),id,revision(d.revision)));
   else await db.prepare('INSERT INTO platform_courses(id,title,description,kind,stream,access,price_minor,currency,state,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,d.kind,d.stream,d.access,d.price_minor,d.currency,d.state,time(),time()).run();await audit(db,staff.sub,'course.saved',id);return decode(await db.prepare('SELECT * FROM platform_courses WHERE id=?').bind(id).first());
  }

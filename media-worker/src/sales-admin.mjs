@@ -1,6 +1,7 @@
 import {deny,time,rows,decode} from './platform-data.mjs';
 import {input,text,revision} from './platform-http.mjs';
 import {reconcileTributePayment} from './sales-tribute.mjs';
+import {searchParticipants} from './participant-search.mjs';
 import {manager,item,policy,amount,participant,operation,dates,createGrant,order,balanceSQL,products,uuid,hash,enabled,publicEnabled,automaticEnabled} from './sales-core.mjs';
 export async function salesAdmin(request,env,staff,path,method){
  if(!await manager(env,staff))deny(403,'sales_manager_required');const db=env.MEDIA_DB;
@@ -27,7 +28,7 @@ export async function salesAdmin(request,env,staff,path,method){
   pagination,manualEnabled:enabled(env),publicEnabled:publicEnabled(env),automaticEnabled:automaticEnabled(env),canDelegate:staff.role==='owner'
  };
  }
- if(path==='participants'&&method==='GET'){const search=text(new URL(request.url).searchParams.get('q')||'',100).toLowerCase();if(search.length<3)return {items:[]};return {items:await rows(db.prepare("SELECT id,email,first_name,last_name FROM viewer_accounts WHERE status='active' AND email_verified_at IS NOT NULL AND instr(lower(email),?)>0 ORDER BY email LIMIT 25").bind(search))}}
+ if(path==='participants'&&method==='GET')return searchParticipants(db,request);
  if(path==='managers'&&method==='PUT'){
   if(staff.role!=='owner')deny(403,'owner_required');const d=await input(request,['request_id','access_sub','active']),sub=text(d.access_sub,256,true);if(![0,1].includes(d.active))deny(400,'invalid_fields');
   return operation(db,staff.sub,'manager.set',sub,d,{ok:true},q=>[q('INSERT INTO sales_managers SELECT ?,? WHERE $guard ON CONFLICT(access_sub) DO UPDATE SET active=excluded.active',[sub,d.active])],{sql:"EXISTS(SELECT 1 FROM platform_staff WHERE access_sub=? AND role='publisher' AND active=1)",args:[sub]});
@@ -36,8 +37,8 @@ export async function salesAdmin(request,env,staff,path,method){
   const d=await input(request,['request_id','kind','id','revision','policy_revision','access','price_minor','sale_enabled','policy']),p=await item(db,d.kind,d.id);revision(d.revision);
   if(!['free','paid'].includes(d.access)||![0,1].includes(d.sale_enabled))deny(400,'invalid_price');const price=d.access==='free'?0:amount(d.price_minor);if(d.access==='free'&&(d.price_minor!==0||d.sale_enabled))deny(400,'invalid_price');
   if(p.kind==='school'&&d.access==='paid'&&price!==3000000)deny(400,'school_price_fixed');
-  if(d.access==='paid'&&d.kind==='video'&&(p.source_type!=='bunny'||!p.source_ref))deny(400,'protected_storage_required');
-  if(d.sale_enabled&&(p.state!=='published'||d.kind==='video'&&(p.bunny_status!==4||p.publish_at>new Date().toISOString())||env.MEDIA_PAID_ENABLED!=='true'))deny(409,'product_not_ready');
+  if(d.access==='paid'&&d.kind==='video'&&(!['bunny','youtube'].includes(p.source_type)||!p.source_ref))deny(400,'protected_storage_required');
+  if(d.sale_enabled&&(p.state!=='published'||d.kind==='video'&&(p.source_type==='bunny'&&p.bunny_status!==4||p.publish_at>new Date().toISOString())||env.MEDIA_PAID_ENABLED!=='true'))deny(409,'product_not_ready');
   const terms=policy(d.policy,p);if(d.sale_enabled)dates(terms);const previous=await db.prepare('SELECT revision FROM sales_products WHERE kind=? AND product_id=?').bind(d.kind,p.id).first();if((previous?.revision||0)!==d.policy_revision)deny(409,'revision_conflict');
   return operation(db,staff.sub,'product.save',p.id,d,{ok:true},q=>[
    q(`UPDATE ${p.table} SET access=?,price_minor=?,currency='RUB',revision=revision+1,updated_at=? WHERE id=? AND $guard`,[d.access,price,d.kind==='video'?new Date().toISOString():time(),p.id]),
@@ -76,7 +77,7 @@ export async function salesAdmin(request,env,staff,path,method){
   }
  }
  if(path==='grants'&&method==='POST'){
-  const d=await input(request,['request_id','viewer_id','kind','id','reason','dates']),p=await item(db,d.kind,d.id);await participant(db,d.viewer_id);if(!['gift','free'].includes(d.reason)||p.state!=='published')deny(400,'invalid_grant');if(d.kind==='video'&&p.access==='paid'&&p.source_type!=='bunny')deny(400,'protected_storage_required');const [start,end]=dates(null,time(),d.dates),id=crypto.randomUUID();
+  const d=await input(request,['request_id','viewer_id','kind','id','reason','dates']),p=await item(db,d.kind,d.id);await participant(db,d.viewer_id);if(!['gift','free'].includes(d.reason)||p.state!=='published')deny(400,'invalid_grant');if(d.kind==='video'&&p.access==='paid'&&!['bunny','youtube'].includes(p.source_type))deny(400,'protected_storage_required');const [start,end]=dates(null,time(),d.dates),id=crypto.randomUUID();
   return operation(db,staff.sub,'access.'+d.reason,p.id,d,{id},q=>[createGrant(q,d.viewer_id,d.kind,p.id,start,end,staff.sub,null,id)]);
  }
  const grant=path.match(/^grants\/([a-f0-9-]{36})\/(extend|revoke)$/);

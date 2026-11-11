@@ -8,6 +8,7 @@ import {platformAdmin} from './platform-admin.mjs';
 import {vkEmbed,youtubeId,rutubeId} from './video-source.mjs';
 import * as bunny from './bunny.mjs';
 import {publicSales,viewerSales} from './sales-public.mjs';
+import {mediaAvailability} from './media-availability.mjs';
 export async function handlePlatform(request,env){
  const requestId=crypto.randomUUID();
  try{
@@ -16,15 +17,18 @@ export async function handlePlatform(request,env){
   if(path.startsWith('admin/'))return json(await platformAdmin(request,env,path.slice(6),method));
   if(method!=='GET')csrf(request,env);
   if(path==='sales/catalog'&&method==='GET')return json(await publicSales(env));
+  if(path==='media/availability'&&method==='GET'){let viewer=null;try{viewer=await requireViewerSession(request,env)}catch(error){if(error.status!==401)throw error}return json(await mediaAvailability(env,viewer))}
   const cover=path.match(/^covers\/([a-f0-9-]{36})$/);
   if(cover&&method==='GET'){const row=await db.prepare("SELECT c.mime,c.bytes FROM media_covers c JOIN videos v ON v.id=c.video_id WHERE v.id=? AND v.state='published' AND v.publish_at<=?").bind(cover[1],new Date().toISOString()).first();if(!row)deny(404,'not_found');return new Response(row.bytes,{headers:{'Content-Type':row.mime,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
   if(path==='catalog'&&method==='GET'){
    const courses=await rows(db.prepare("SELECT id,title,description,kind,stream,access,price_minor,currency FROM platform_courses WHERE state='published' ORDER BY updated_at DESC LIMIT 200"));
-   const videos=await rows(db.prepare("SELECT id,title,description,category,year,access,price_minor,currency,(cover_key='d1') AS has_cover,CASE WHEN source_type='youtube' THEN source_ref END AS youtube_ref FROM videos WHERE state='published' AND publish_at<=? ORDER BY publish_at DESC LIMIT 200").bind(new Date().toISOString()));
+   const videos=await rows(db.prepare("SELECT id,title,description,category,year,access,price_minor,currency,(cover_key='d1') AS has_cover,CASE WHEN access='free' AND source_type='youtube' THEN source_ref END AS youtube_ref FROM videos WHERE state='published' AND publish_at<=? ORDER BY publish_at DESC LIMIT 200").bind(new Date().toISOString()));
    if(env.SALES_ENABLED==='true'){
     const managed=await rows(db.prepare('SELECT kind,product_id,sale_enabled FROM sales_products'));
     for(const [kind,items] of [['course',courses],['video',videos]])for(const row of items){const sale=managed.find(s=>s.kind===kind&&s.product_id===row.id);if(sale||row.access==='paid'&&env.SALES_PUBLIC_ENABLED!=='true'){row.sales_managed=true;row.sales_available=env.SALES_PUBLIC_ENABLED==='true'&&sale?.sale_enabled===1}}
    }
+   let viewer=null;try{viewer=await requireViewerSession(request,env)}catch(error){if(error.status!==401)throw error}
+   const availability=await mediaAvailability(env,viewer);for(const v of videos)if(v.access==='paid'){const a=availability.items.find(i=>i.id===v.id);v.sales_managed=true;v.sales_available=a?.can_buy===true;v.has_access=a?.has_access===true}
    return json({courses:courses.map(decode),videos:videos.map(decode)});
   }
   const play=path.match(/^play\/([a-f0-9-]{36})$/);
@@ -37,7 +41,7 @@ export async function handlePlatform(request,env){
    if(video.access==='free'&&video.youtube_ref)return json({type:'youtube',id:youtubeId(video.youtube_ref)});
    if(video.access==='free'&&video.vk_ref)return json({type:'vk',url:vkEmbed(video.vk_ref)});
    if(video.access==='free'&&video.rutube_ref)return json({type:'rutube',id:rutubeId(video.rutube_ref)});
-   if(video.source_type==='youtube'&&video.access==='free')return json({type:'youtube',id:youtubeId(video.source_ref)});
+   if(video.source_type==='youtube')return json({type:'youtube',id:youtubeId(video.source_ref)});
    if(video.source_type==='vk'&&video.access==='free')return json({type:'vk',url:vkEmbed(video.source_ref)});
    if(video.source_type==='r2'&&video.access==='free')return json({type:'r2',url:'/api/media/videos/'+video.id+'/stream'});
    if(video.source_type!=='bunny')deny(503,'protected_storage_required');if(video.bunny_status!==4)deny(409,'video_not_ready');
@@ -45,13 +49,13 @@ export async function handlePlatform(request,env){
   }
   const courseMatch=path.match(/^courses\/([a-f0-9-]{36})$/),lessonMatch=path.match(/^lessons\/([a-f0-9-]{36})$/);
   if(courseMatch&&method==='GET'){
-   const course=await db.prepare("SELECT * FROM platform_courses WHERE id=? AND state='published'").bind(courseMatch[1]).first();if(!course)deny(404,'not_found');
-   let expiresAt=null;if(course.access==='paid'){const user=await requireViewerSession(request,env),grant=await courseAccess(db,user.id,course.id);if(!grant?.expires_at)deny(403,'viewing_right_required');expiresAt=grant.expires_at}
+   const course=await db.prepare("SELECT * FROM platform_courses WHERE id=? AND state IN ('published','archived')").bind(courseMatch[1]).first();if(!course)deny(404,'not_found');
+   let expiresAt=null;if(course.access==='paid'||course.state==='archived'){const user=await requireViewerSession(request,env),grant=await courseAccess(db,user.id,course.id);if(!grant?.expires_at)deny(403,'viewing_right_required');expiresAt=grant.expires_at}
    const lessons=await rows(db.prepare("SELECT id,title,description,position FROM platform_lessons WHERE course_id=? AND state='published' ORDER BY position,id").bind(course.id));return json({...decode(course),expires_at:expiresAt,lessons:lessons.map(decode)});
   }
   if(lessonMatch&&method==='GET'){
-   const lesson=await db.prepare("SELECT l.*,c.access,c.state AS course_state FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.id=? AND l.state='published' AND c.state='published'").bind(lessonMatch[1]).first();if(!lesson)deny(404,'not_found');
-   if(lesson.access==='paid'&&!lesson.public_preview){const user=await requireViewerSession(request,env),grant=await courseAccess(db,user.id,lesson.course_id);if(!grant?.expires_at)deny(403,'viewing_right_required')}
+   const lesson=await db.prepare("SELECT l.*,c.access,c.state AS course_state FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.id=? AND l.state='published' AND c.state IN ('published','archived')").bind(lessonMatch[1]).first();if(!lesson)deny(404,'not_found');
+   if(lesson.access==='paid'&&!lesson.public_preview||lesson.course_state==='archived'){const user=await requireViewerSession(request,env),grant=await courseAccess(db,user.id,lesson.course_id);if(!grant?.expires_at)deny(403,'viewing_right_required')}
    const materials=await rows(db.prepare('SELECT id,title,content FROM platform_materials WHERE lesson_id=? ORDER BY id').bind(lesson.id));
    return json({...decode(lesson),materials:materials.map(m=>({...m,title:localized(m.title)}))});
   }
@@ -80,8 +84,8 @@ export async function handlePlatform(request,env){
   if(progress&&method==='PUT'){
    const data=await input(request,['position_seconds','completed']);await admitViewerOperation(request,env,'progress',{address:viewer.id});
    if(!Number.isInteger(data.position_seconds)||data.position_seconds<0||data.position_seconds>86400||![0,1].includes(data.completed))deny(400,'invalid_fields');
-   const lesson=await db.prepare("SELECT l.*,c.access FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.id=? AND l.state='published' AND c.state='published'").bind(progress[1]).first();if(!lesson)deny(404,'not_found');
-   if(lesson.access==='paid'&&!lesson.public_preview&&!(await courseAccess(db,viewer.id,lesson.course_id))?.expires_at)deny(403,'viewing_right_required');
+   const lesson=await db.prepare("SELECT l.*,c.access,c.state AS course_state FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.id=? AND l.state='published' AND c.state IN ('published','archived')").bind(progress[1]).first();if(!lesson)deny(404,'not_found');
+   if((lesson.access==='paid'&&!lesson.public_preview||lesson.course_state==='archived')&&!(await courseAccess(db,viewer.id,lesson.course_id))?.expires_at)deny(403,'viewing_right_required');
    await db.prepare('INSERT INTO platform_progress VALUES (?,?,?,?,?) ON CONFLICT(viewer_id,lesson_id) DO UPDATE SET position_seconds=excluded.position_seconds,completed=excluded.completed,updated_at=excluded.updated_at').bind(viewer.id,lesson.id,data.position_seconds,data.completed,time()).run();return json({ok:true});
   }
   deny(404,'not_found');

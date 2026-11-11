@@ -23,17 +23,17 @@ export async function courseAccess(db,viewerId,courseId){
 export async function videoAccess(db,viewerId,videoId){
  return db.prepare(`SELECT MAX(g.expires_at) AS expires_at FROM viewer_grants g WHERE ${activeGrantSQL}
  AND (g.video_id=? OR EXISTS(SELECT 1 FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id
- WHERE l.course_id=g.course_id AND l.video_id=? AND l.state='published' AND c.state='published'))`).bind(viewerId,time(),time(),videoId,videoId).first();
+ WHERE l.course_id=g.course_id AND l.video_id=? AND l.state='published' AND c.state IN ('published','archived')))`).bind(viewerId,time(),time(),videoId,videoId).first();
 }
 export async function viewerLibrary(db,viewerId,salesEnabled=false){
  const courses=await rows(db.prepare(`SELECT c.*,MAX(g.expires_at) AS expires_at FROM platform_courses c JOIN viewer_grants g ON g.course_id=c.id
- WHERE ${activeGrantSQL} AND c.state='published' GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 200`).bind(viewerId,time(),time()));
+ WHERE ${activeGrantSQL} AND c.state IN ('published','archived') GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 200`).bind(viewerId,time(),time()));
  const videos=await rows(db.prepare(`SELECT v.id,v.title,v.description,v.category,v.year,v.access,MAX(g.expires_at) AS expires_at FROM videos v JOIN viewer_grants g
- ON g.video_id=v.id OR EXISTS(SELECT 1 FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.course_id=g.course_id AND l.video_id=v.id AND l.state='published' AND c.state='published')
+ ON g.video_id=v.id OR EXISTS(SELECT 1 FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.course_id=g.course_id AND l.video_id=v.id AND l.state='published' AND c.state IN ('published','archived'))
  WHERE ${activeGrantSQL} AND v.state='published' AND v.publish_at<=? GROUP BY v.id ORDER BY v.publish_at DESC LIMIT 200`).bind(viewerId,time(),time(),new Date().toISOString()));
  const purchases=await rows(db.prepare('SELECT id,course_id,video_id,title,amount_minor,currency,status,revision,created_at,access_expires_at FROM viewer_orders WHERE viewer_id=?'+(salesEnabled?' AND NOT EXISTS(SELECT 1 FROM sales_orders WHERE order_id=viewer_orders.id)':'')+' ORDER BY created_at DESC LIMIT 200').bind(viewerId));
  const progress=await rows(db.prepare(`SELECT p.*,l.title,l.course_id FROM platform_progress p JOIN platform_lessons l ON l.id=p.lesson_id JOIN platform_courses c ON c.id=l.course_id
- WHERE p.viewer_id=? AND l.state='published' AND c.state='published' AND (c.access='free' OR EXISTS(SELECT 1 FROM viewer_grants g WHERE ${activeGrantSQL} AND g.course_id=c.id))
+ WHERE p.viewer_id=? AND l.state='published' AND c.state IN ('published','archived') AND ((c.access='free' AND c.state='published') OR EXISTS(SELECT 1 FROM viewer_grants g WHERE ${activeGrantSQL} AND g.course_id=c.id))
  ORDER BY p.updated_at DESC LIMIT 6`).bind(viewerId,viewerId,time(),time()));
  return {courses:courses.map(decode),videos:videos.map(decode),purchases:purchases.map(decode),continueLearning:progress.map(decode)};
 }
