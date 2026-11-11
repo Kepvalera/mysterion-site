@@ -3,6 +3,7 @@ import {csrf,input,text,translations,revision,expiry,product} from './platform-h
 import {vkEmbed,youtubeId,rutubeId} from './video-source.mjs';
 import * as bunny from './bunny.mjs';
 import {checkTributeShops} from './tribute-shop-check.mjs';
+import {checkTributeWebhook} from './tribute-webhook-check.mjs';
 const categories=['sermon','testimony','conference','school'];
 const loginHistoryRetention=90*86400,participantPageSize=25,historyPageSize=20;
 function money(d){if(!['free','paid'].includes(d.access)||!Number.isSafeInteger(d.price_minor)||d.price_minor<0||d.price_minor>100000000||!['EUR','USD','RUB'].includes(d.currency)||(d.access==='free'&&d.price_minor!==0)||(d.access==='paid'&&d.price_minor===0))deny(400,'invalid_price')}
@@ -28,6 +29,10 @@ export async function platformAdmin(request,env,path,method){
  if(path==='integrations/tribute/check'&&method==='POST'){
   requireOwner(staff);await input(request,[]);
   return checkTributeShops(env);
+ }
+ if(path==='integrations/tribute/webhook-check'&&method==='POST'){
+  requireOwner(staff);await input(request,[]);
+  return checkTributeWebhook(request,env);
  }
  if(path==='me'&&method==='GET'){let uploadConfigured=false;try{bunny.configured(env);uploadConfigured=true}catch{}return {role:staff.role,canPublish:staff.role!=='uploader',owner:staff.role==='owner',uploadConfigured,paidEnabled:env.MEDIA_PAID_ENABLED==='true'}}
  if(path==='videos'&&method==='GET')return {items:(await rows(db.prepare("SELECT * FROM videos WHERE (state!='deleted' OR (?='owner' AND bunny_delete_pending=1)) AND (?!='uploader' OR (created_by=? AND state='draft')) ORDER BY updated_at DESC LIMIT 200").bind(staff.role,staff.role,staff.sub))).map(decode)};

@@ -35,8 +35,31 @@ async function hideVideo(item){const prompt=english()?'Hide this video from the 
     result.replaceChildren(node('p',(en?'Tribute API: check failed. ':'API Tribute: проверка не выполнена. ')+(known[error.message]?.[en?0:1]||fallback)));
    }finally{check.disabled=false;check.textContent=label}
   });
-  const row=record('Tribute Shop',en?'Read-only connection check. No payments or access changes.':'Проверка подключения без создания платежей и изменения доступа.',[check]);
+  const webhookResult=node('div');webhookResult.id='tribute-webhook-check-result';webhookResult.setAttribute('role','status');webhookResult.setAttribute('aria-live','polite');
+  const webhookLabel=en?'Test Tribute webhook':'Проверить webhook Tribute';
+  const webhook=button(webhookLabel,async()=>{
+   if(webhook.disabled)return;webhook.disabled=true;webhook.textContent=en?'Checking…':'Проверяем…';
+   webhookResult.replaceChildren(node('p',en?'Sending signed test notifications…':'Отправляем подписанные тестовые уведомления…'));
+   try{
+    const data=await api.request('admin/integrations/tribute/webhook-check','POST',{});
+    if(sequence!==loadSequence||!me.owner||!webhookResult.isConnected)return;
+    if(data.testOnly!==true||typeof data.testBody!=='string'||data.testBody.length>4096||!/^[a-f0-9]{64}$/.test(data.testSignature||''))throw Error('invalid_test_fixture');
+    async function probe(signature){
+     try{const response=await fetch('/api/tribute/webhook',{method:'POST',credentials:'omit',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(8000),headers:{'Content-Type':'application/json','trbt-signature':signature},body:data.testBody});let result;try{result=await response.json()}catch{}return {status:response.status,accepted:response.status===200&&result?.status==='ok',rejected:response.status===401&&result?.error==='invalid_webhook_signature'}}catch{return {status:null,accepted:false,rejected:false}}
+    }
+    const wrong=(data.testSignature[0]==='0'?'1':'0')+data.testSignature.slice(1);
+    const [signed,invalid]=await Promise.all([probe(data.testSignature),probe(wrong)]);
+    if(sequence!==loadSequence||!webhookResult.isConnected)return;
+    const code=value=>Number.isInteger(value)&&value>=100&&value<=599?String(value):(en?'unavailable':'нет ответа');
+    webhookResult.replaceChildren(node('p',(en?'Valid signature: HTTP ':'Верная подпись: HTTP ')+code(signed.status)),node('p',(en?'Invalid signature: HTTP ':'Неверная подпись: HTTP ')+code(invalid.status)),node('p',signed.accepted&&invalid.rejected?(en?'Webhook check passed. No payments or access changes.':'Проверка webhook пройдена. Платежи и доступы не изменены.'):(en?'Webhook check failed. No payments were created.':'Проверка webhook не пройдена. Платежи не создавались.')));
+   }catch{
+    if(sequence===loadSequence&&webhookResult.isConnected)webhookResult.replaceChildren(node('p',en?'The webhook check could not be completed. Check your owner session and server configuration.':'Не удалось выполнить проверку webhook. Проверьте сессию владельца и серверную настройку.'));
+   }finally{webhook.disabled=false;webhook.textContent=webhookLabel}
+  });
+  webhook.id='tribute-webhook-check-button';
+  const row=record('Tribute Shop',en?'Read-only connection check. No payments or access changes.':'Проверка подключения без создания платежей и изменения доступа.',[check,webhook]);
   row.firstElementChild.append(result);
+  row.firstElementChild.append(webhookResult);
  }
  function empty(){const wrap=node('div',undefined,'platform-empty');wrap.append(node('h2','Здесь пока нет записей'),node('p','Добавьте реальные материалы или дождитесь заявок участников. Данные не заполняются автоматически.'));content.append(wrap)}
  async function loadHistory(page=1){

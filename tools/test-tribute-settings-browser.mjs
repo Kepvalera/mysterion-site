@@ -7,9 +7,12 @@ import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {createRequire} from 'node:module';
 import {platformAdminTemplate} from '../media-worker/src/platform-admin-template.mjs';
+import {createHmac} from 'node:crypto';
 const require=createRequire(import.meta.url),puppeteer=require(require.resolve('puppeteer-core',{paths:[path.resolve('output/audit-tools/lighthouse')]}));
 const fixtureSecret='LOCAL_UI_FIXTURE_NEVER_A_REAL_KEY',requests=[],errors=[];
 let role='owner',mode='standard',pending,legacyCache=false,legacyAssetLoads=0,versionedAssetLoads=0;
+const webhookRequests=[],probeBody=JSON.stringify({name:'shop_order_payment_failed',created_at:'2026-11-11T00:00:00Z',sent_at:'2026-11-11T00:00:00Z',payload:{uuid:'550e8400-e29b-41d4-a716-446655440000',shopId:0,amount:3000000,currency:'rub',errorCode:'payment_failed',errorMessage:'Local fixture',customerId:'mysterion-webhook-self-test'}});
+const probeSignature=createHmac('sha256',fixtureSecret).update(probeBody).digest('hex');
 const server=http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://local'),pathname=url.pathname;
@@ -22,6 +25,12 @@ const server=http.createServer(async(req,res)=>{
   }
   if(pathname.startsWith('/api/')){
    res.setHeader('Content-Type','application/json');
+   if(pathname==='/api/tribute/webhook'){
+    let body='';for await(const chunk of req)body+=chunk;
+    webhookRequests.push({method:req.method,body,cookie:req.headers.cookie});
+    if(req.headers['trbt-signature']===probeSignature&&body===probeBody)res.end('{"status":"ok"}');else{res.writeHead(401);res.end('{"error":"invalid_webhook_signature"}')}return;
+   }
+   if(pathname.endsWith('/integrations/tribute/webhook-check')){res.end(JSON.stringify({testOnly:true,testBody:probeBody,testSignature:probeSignature}));return}
    if(pathname.endsWith('/me')){res.end(JSON.stringify({role,owner:role==='owner',canPublish:role!=='uploader',uploadConfigured:false,paidEnabled:false}));return}
    if(pathname.endsWith('/integrations/tribute/check')){
     let body='';for await(const chunk of req)body+=chunk;
@@ -67,12 +76,15 @@ try{
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.equal((await result()).includes(fixtureSecret),false);checks+=2;
  }
  await page.evaluate(()=>document.documentElement.lang='en');await page.click('[data-section=settings]');await click();await page.waitForFunction(()=>document.querySelector('#platform-content [role=status]').textContent.includes('Tribute API: available.'));checks++;
+ await page.click('#tribute-webhook-check-button');await page.waitForFunction(()=>document.getElementById('tribute-webhook-check-result').textContent.includes('Webhook check passed.'));
+ const webhookText=await page.$eval('#tribute-webhook-check-result',n=>n.textContent);assert.ok(webhookText.includes('200')&&webhookText.includes('401'));assert.equal(webhookText.includes(probeSignature)||webhookText.includes(fixtureSecret)||webhookText.includes(probeBody),false);
+ assert.equal(webhookRequests.length,2);assert.ok(webhookRequests.every(r=>r.method==='POST'&&r.body===probeBody&&!r.cookie));checks+=4;
  mode='stars';await click();await page.waitForFunction(()=>document.querySelector('#platform-content [role=status]').textContent.includes('onlyStars: true'));checks++;
  mode='empty';await click();await page.waitForFunction(()=>document.querySelector('#platform-content [role=status]').textContent.includes('unknown'));checks++;
  for(const next of ['unauthorized','unsafe-error']){mode=next;await click();await page.waitForFunction(()=>document.querySelector('#platform-content [role=status]').textContent.includes('check failed'));assert.equal((await result()).includes(fixtureSecret),false);checks++}
  mode='hold';const before=requests.length;await click();await page.waitForFunction(()=>[...document.querySelectorAll('#platform-content button')].some(n=>n.disabled));await page.$$eval('#platform-content button',nodes=>nodes[0].click());assert.equal(requests.length,before+1);checks++;
  await page.click('[data-section=overview]');pending.end(JSON.stringify({apiAccessible:true,activeShopFound:true,shops:[{active:true,onlyStars:false}]}));await new Promise(r=>setTimeout(r,100));assert.equal(await page.$('#platform-content [role=status]'),null);checks++;
- for(const next of ['publisher','uploader']){role=next;await open();assert.equal(await page.$$eval('#platform-content button',nodes=>nodes.some(n=>/Tribute Shop/.test(n.textContent))),false);checks++}
+ for(const next of ['publisher','uploader']){role=next;await open();assert.equal(await page.$$eval('#platform-content button',nodes=>nodes.some(n=>/Tribute Shop/.test(n.textContent))),false);assert.equal(await page.$('#tribute-webhook-check-button'),null);checks+=2}
  assert.ok(requests.every(r=>r.method==='POST'&&r.body==='{}'&&r.cookie?.includes('local_fixture_session=local-only')&&r.xRequestedWith==='XMLHttpRequest'));checks++;
  assert.deepEqual(errors,[]);
  console.log(JSON.stringify({checks,cachedOldScriptReproduced:true,versionedScriptRestoresOwnerButton:true,ownerOnlyButton:true,currentSession:true,duplicateClicksBlocked:true,secretsNotDisplayed:true,staleResponseIgnored:true,errors,realTributeCalls:0}));
