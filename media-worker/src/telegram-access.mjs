@@ -6,8 +6,10 @@ export const botUsername='MysterionAccessBot',telegramWebhookPath='/api/telegram
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
 function token(env){if(typeof env.TELEGRAM_BOT_TOKEN!=='string'||!/^\d+:[A-Za-z0-9_-]{20,200}$/.test(env.TELEGRAM_BOT_TOKEN))deny(503,'telegram_not_configured');return env.TELEGRAM_BOT_TOKEN}
 export async function telegramRequest(env,method,body={}){
- let r;try{r=await fetch('https://api.telegram.org/bot'+token(env)+'/'+method,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch{deny(503,'telegram_unavailable')}
- let v;try{v=await r.json()}catch{deny(503,'telegram_unavailable')}if(!r.ok||v.ok!==true)deny(503,'telegram_request_failed');return v.result;
+ const credential=token(env),stage=({getMe:'identity',getWebhookInfo:'webhook_status',setWebhook:'webhook_register',sendMessage:'message'})[method];if(!stage)deny(400,'telegram_method_not_supported');
+ let r;try{r=await fetch('https://api.telegram.org/bot'+credential+'/'+method,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(error){deny(503,'telegram_'+stage+'_'+(['TimeoutError','AbortError'].includes(error?.name)?'timeout':'network'))}
+ let v;try{v=await r.json()}catch{deny(503,'telegram_'+stage+'_invalid_response')}
+ if(!r.ok||v.ok!==true){const code=[400,401,403,404,409,429,500,502,503,504].includes(v.error_code)?v.error_code:[400,401,403,404,409,429,500,502,503,504].includes(r.status)?r.status:'unknown';deny(503,'telegram_'+stage+'_http_'+code)}return v.result;
 }
 // Domain-separated secret derived inside Cloudflare. It never leaves the
 // server except as setWebhook.secret_token to Telegram over HTTPS. No extra
@@ -17,7 +19,7 @@ export async function setupTelegramWebhook(env){
  const me=await telegramRequest(env,'getMe');if(me.username?.toLowerCase()!==botUsername.toLowerCase()||!me.is_bot)deny(409,'telegram_bot_mismatch');
  const url=new URL(telegramWebhookPath,env.MEDIA_PUBLIC_ORIGIN).href,info=await telegramRequest(env,'getWebhookInfo');
  if(info.url&&info.url!==url)deny(409,'telegram_other_webhook_exists');
- await telegramRequest(env,'setWebhook',{url,secret_token:await telegramWebhookSecret(env),allowed_updates:['message'],drop_pending_updates:false});
+ if(await telegramRequest(env,'setWebhook',{url,secret_token:await telegramWebhookSecret(env),allowed_updates:['message'],drop_pending_updates:false})!==true)deny(503,'telegram_webhook_register_unconfirmed');
  const after=await telegramRequest(env,'getWebhookInfo');if(after.url!==url)deny(503,'telegram_webhook_not_ready');return {configured:true,bot:botUsername,url,pendingUpdates:after.pending_update_count||0};
 }
 export async function telegramViewer(request,env,viewer,path){
