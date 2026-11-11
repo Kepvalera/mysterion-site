@@ -7,7 +7,10 @@ const reply=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Contro
 function token(env){if(typeof env.TELEGRAM_BOT_TOKEN!=='string'||!/^\d+:[A-Za-z0-9_-]{20,200}$/.test(env.TELEGRAM_BOT_TOKEN))deny(503,'telegram_not_configured');return env.TELEGRAM_BOT_TOKEN}
 export async function telegramRequest(env,method,body={}){
  const credential=token(env),stage=({getMe:'identity',getWebhookInfo:'webhook_status',setWebhook:'webhook_register',sendMessage:'message'})[method];if(!stage)deny(400,'telegram_method_not_supported');
- let r;try{r=await fetch('https://api.telegram.org/bot'+credential+'/'+method,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(error){deny(503,'telegram_'+stage+'_'+(['TimeoutError','AbortError'].includes(error?.name)?'timeout':'network'))}
+ // Workers supports manual/follow, not redirect:error. Manual preserves the
+ // no-redirect policy without throwing before the network request is sent.
+ let r;try{r=await fetch('https://api.telegram.org/bot'+credential+'/'+method,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(error){deny(503,'telegram_'+stage+'_'+(['TimeoutError','AbortError'].includes(error?.name)?'timeout':'network'))}
+ if(r.status>=300&&r.status<400)deny(503,'telegram_'+stage+'_redirect_denied');
  let v;try{v=await r.json()}catch{deny(503,'telegram_'+stage+'_invalid_response')}
  if(!r.ok||v.ok!==true){const code=[400,401,403,404,409,429,500,502,503,504].includes(v.error_code)?v.error_code:[400,401,403,404,409,429,500,502,503,504].includes(r.status)?r.status:'unknown';deny(503,'telegram_'+stage+'_http_'+code)}return v.result;
 }

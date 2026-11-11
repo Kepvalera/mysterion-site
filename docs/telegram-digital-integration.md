@@ -24,6 +24,11 @@ flags are invented or activated by migration/publication.
    descriptions and token-bearing request URLs are never returned or logged.
    This setup request alone has a 65-second browser deadline to cover up to four
    sequential 15-second calls; all other API requests retain their 20-second limit.
+   Telegram outbound requests use `redirect: manual` and reject every 3xx before
+   reading the body. Workers does not implement `redirect: error`: it throws
+   during Request construction before sending anything. The native workerd
+   regression test reproduces that failure and verifies all four setup steps
+   using local HTTP fixtures, plus redirect refusal. No proxy/TLS bypass is used.
 3. Participant: Account → Profile → Connect Telegram → open bot → Start → return
    to the same site session → Check connection → confirm the displayed Telegram
    ID. The random 256-bit link expires in 10 minutes; only its hash is stored.
