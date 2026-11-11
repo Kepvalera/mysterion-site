@@ -2,6 +2,7 @@ import {deny,time,rows,decode,videoAccess,courseAccess} from './platform-data.mj
 import {input} from './platform-http.mjs';
 import {publicEnabled,automaticEnabled,products,item,participant,amount,dates,operation} from './sales-core.mjs';
 import {createTributePayment} from './sales-tribute.mjs';
+import {telegramViewer} from './telegram-access.mjs';
 export async function publicSales(env){
  if(!publicEnabled(env))return {enabled:false,items:[]};
  const available=(await products(env.MEDIA_DB)).filter(p=>{
@@ -13,6 +14,7 @@ export async function publicSales(env){
 }
 export async function viewerSales(request,env,viewer,path,method){
  const db=env.MEDIA_DB;if(env.SALES_ENABLED!=='true')deny(404,'not_found');
+ if(path==='telegram'||path.startsWith('telegram/'))return telegramViewer(request,env,viewer,path);
  if(path==='history'&&method==='GET')return {orders:(await rows(db.prepare('SELECT o.id,o.title,o.amount_minor,o.currency,o.created_at,o.access_expires_at,s.state,s.source,s.last_payment_status,s.payment_url FROM viewer_orders o JOIN sales_orders s ON s.order_id=o.id WHERE o.viewer_id=? ORDER BY o.created_at DESC LIMIT 200').bind(viewer.id))).map(decode)};
  if(path==='checkout'&&method==='POST'){
   if(!publicEnabled(env))deny(503,'public_sales_disabled');const d=await input(request,['request_id','kind','id','method']);if(!['manual','tribute'].includes(d.method))deny(400,'invalid_payment_method');if(d.method==='tribute'&&!automaticEnabled(env))deny(503,'automatic_payments_disabled');

@@ -1,6 +1,7 @@
 import {requireMediaOrigin} from './origin.mjs';
 import {automaticEnabled} from './sales-core.mjs';
 import {processTributeEvent} from './sales-tribute.mjs';
+import {processDigitalEvent} from './tribute-digital.mjs';
 
 // Tribute Shop: https://wiki.tribute.tg/for-shops/api/webhooks
 // Digital Products: https://wiki.tribute.tg/for-content-creators/api-documentation/webhooks
@@ -45,7 +46,7 @@ export async function handleTributeWebhook(request,env){
  // button (the public API docs do not specify its payload). This also allows
  // future event types without treating them as purchases. Never persist/log
  // these bodies, buyer details or signatures.
- if(digitalEvents.has(event.name))return reply({status:'ok'});
+ if(digitalEvents.has(event.name)){try{await processDigitalEvent(env,event)}catch(error){return reply({error:error.status===400?'invalid_digital_event':'digital_processing_unavailable'},error.status===400?400:503)}return reply({status:'ok'})}
  if(!shopEvents.has(event.name)||!automaticEnabled(env))return reply({status:'ok'});
  // Keep the existing strict business envelope gate for enabled Shop payments.
  // A disabled payment integration cannot mutate orders/access via test data.

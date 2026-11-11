@@ -1,1 +1,1 @@
-{"version":1,"include":["/api/media","/api/media/*","/api/viewer/*","/api/platform/*","/api/tribute/webhook","/admin-media","/admin-media.html","/admin-media/*","/media-login","/media-login.html","/media-login/*"],"exclude":[]}
+{"version":1,"include":["/api/media","/api/media/*","/api/viewer/*","/api/platform/*","/api/tribute/webhook","/api/telegram/webhook","/admin-media","/admin-media.html","/admin-media/*","/media-login","/media-login.html","/media-login/*"],"exclude":[]}

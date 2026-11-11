@@ -30,7 +30,7 @@ try{
  for(const data of [null,[]])equal((await call(JSON.stringify(data))).status,400);
  // Arbitrary signed probe objects are receipt-only, not invented official
  // Tribute test fixtures. Neither timestamps nor a payment payload is needed.
- const enabled={MEDIA_PUBLIC_ORIGIN:origin,TRIBUTE_API_KEY:key,SALES_ENABLED:'true',TRIBUTE_PAYMENTS_ENABLED:'true',get MEDIA_DB(){throw Error('Receipt must not access D1')}};
+ const enabled={MEDIA_PUBLIC_ORIGIN:origin,TRIBUTE_API_KEY:key,SALES_ENABLED:'true',TRIBUTE_PAYMENTS_ENABLED:'true',TRIBUTE_DIGITAL_ENABLED:'false',get MEDIA_DB(){throw Error('Receipt must not access D1')}};
  for(const data of [{},{test:true},{name:'test'},{name:'TEST',payload:{}},{name:'future_event',payload:{}}]){
   const text=JSON.stringify(data);
   for(const config of [env,enabled]){equal((await call(text,{env:config})).status,200);equal((await call(text,{env:config,headers:{'trbt-signature':'0'.repeat(64)}})).status,401)}

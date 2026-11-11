@@ -9,6 +9,8 @@ import {manager,enabled} from './sales-core.mjs';
 import {courseLifecycle} from './course-lifecycle.mjs';
 import {searchParticipants} from './participant-search.mjs';
 import {accessAdmin,currencyRates} from './access-admin.mjs';
+import {digitalAdmin} from './tribute-digital.mjs';
+import {setupTelegramWebhook} from './telegram-access.mjs';
 const categories=['sermon','testimony','conference','school'];
 const loginHistoryRetention=90*86400,participantPageSize=25,historyPageSize=20;
 function money(d){if(!['free','paid'].includes(d.access)||!Number.isSafeInteger(d.price_minor)||d.price_minor<0||d.price_minor>100000000||!['EUR','USD','RUB'].includes(d.currency)||(d.access==='free'&&d.price_minor!==0)||(d.access==='paid'&&d.price_minor===0))deny(400,'invalid_price')}
@@ -31,6 +33,8 @@ function participantSearchSQL(query){
 }
 export async function platformAdmin(request,env,path,method){
  const db=env.MEDIA_DB,staff=await staffIdentity(request,env);if(method!=='GET')csrf(request,env);
+ if(path==='tribute-digital'||path.startsWith('tribute-digital/'))return digitalAdmin(request,env,staff,path.slice(16),method);
+ if(path==='integrations/telegram/setup'&&method==='POST'){requireOwner(staff);await input(request,[]);return setupTelegramWebhook(env)}
  if(path==='access'||path.startsWith('access/'))return accessAdmin(request,env,staff,path.slice(7),method);
  if(path==='currency-rates')return currencyRates(request,env,staff);
  if(path==='sales'||path.startsWith('sales/'))return salesAdmin(request,env,staff,path.slice(6),method);
