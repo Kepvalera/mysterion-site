@@ -1,3 +1,4 @@
+import {publicDigitalSettings,digitalPublicOpen} from './digital-public-sales.mjs';
 import {deny,time,rows,decode,videoAccess,courseAccess} from './platform-data.mjs';
 import {input} from './platform-http.mjs';
 import {publicEnabled,automaticEnabled,products,item,participant,amount,dates,operation} from './sales-core.mjs';
@@ -5,7 +6,7 @@ import {createTributePayment} from './sales-tribute.mjs';
 import {telegramViewer} from './telegram-access.mjs';
 import {digitalProductRequest} from './digital-product-api.mjs';
 export async function publicSales(env){
- if(!publicEnabled(env))return {enabled:false,items:[]};
+ if(!publicEnabled(env)||!(await publicDigitalSettings(env.MEDIA_DB))?.enabled)return {enabled:false,items:[]};
  const available=(await products(env.MEDIA_DB)).filter(p=>{
   if(!p.sale_enabled||p.state!=='published'||p.access!=='paid'||p.currency!=='RUB'||p.product_kind==='video'&&(!['bunny','youtube'].includes(p.source_type)||p.source_type==='bunny'&&p.bunny_status!==4||p.publish_at>new Date().toISOString()))return false;
   if(p.kind==='school'&&(p.price_minor!==3000000||p.policy?.mode!=='school'))return false;
@@ -19,11 +20,8 @@ export async function viewerSales(request,env,viewer,path,method){
  if(digital&&method==='GET'){
   const videoId=digital[1];if((await videoAccess(db,viewer.id,videoId))?.expires_at)return {available:false,has_access:true};
   const settings=await db.prepare('SELECT * FROM digital_integration_settings WHERE id=1').first();
-  if(!(settings?.mode==='test'&&settings.test_viewer_id===viewer.id||settings?.mode==='live'&&env.TRIBUTE_DIGITAL_LIVE_ENABLED==='true'&&publicEnabled(env))){
-   if(automaticEnabled(env)&&publicEnabled(env))return {available:false,reason:'shop_available'};
-   return {available:false,reason:!settings?'digital_settings_missing':settings.mode==='test'?(settings.test_viewer_id?'test_participant_mismatch':'test_participant_missing'):settings.mode==='live'?(env.TRIBUTE_DIGITAL_LIVE_ENABLED!=='true'?'digital_live_disabled':'public_sales_disabled'):'digital_issuance_disabled'};
-  }
-  if(settings.mode==='live'&&!await db.prepare("SELECT 1 FROM sales_products WHERE kind='video' AND product_id=? AND sale_enabled=1").bind(videoId).first())return {available:false,reason:'video_sales_disabled'};
+  const publicState=await publicDigitalSettings(db),publicOpen=digitalPublicOpen(env,publicState),testAllowed=!publicState?.activated_at&&settings?.mode==='test'&&settings.test_viewer_id===viewer.id;
+  if(!publicOpen&&!testAllowed)return {available:false,reason:publicState?.activated_at?'public_sales_paused':settings?.mode==='test'?'test_participant_mismatch':'public_sales_paused'};
   if(!await db.prepare('SELECT 1 FROM telegram_account_links WHERE viewer_id=?').bind(viewer.id).first())return {available:false,reason:'telegram_required'};
   if(await db.prepare("SELECT 1 FROM access_blocks b WHERE b.viewer_id=? AND ((b.kind='video' AND b.product_id=?) OR (b.kind='course' AND EXISTS(SELECT 1 FROM platform_lessons l WHERE l.course_id=b.product_id AND l.video_id=?)))").bind(viewer.id,videoId,videoId).first())return {available:false,reason:'access_restricted'};
   const p=await db.prepare("SELECT m.*,v.state,v.price_minor,v.currency AS video_currency,v.source_type,v.bunny_status,v.publish_at FROM digital_product_mappings m JOIN videos v ON v.id=m.video_id WHERE m.video_id=? AND m.active=1 ORDER BY m.product_id LIMIT 1").bind(videoId).first();
@@ -36,12 +34,16 @@ export async function viewerSales(request,env,viewer,path,method){
   if(remote.status!=='approved')return {available:false,reason:'digital_product_not_approved',product_status:['new','pending','rejected'].includes(remote.status)?remote.status:'unknown'};
   if(remote.amount!==p.amount_minor||remote.currency?.toUpperCase()!=='RUB')return {available:false,reason:'digital_product_price_mismatch'};
   if(remote.webLink!==p.payment_url)return {available:false,reason:'digital_product_url_mismatch'};
+  // Re-check after the provider request so a pause during that request wins.
+  const current=await publicDigitalSettings(db);
+  if(publicOpen&&(!digitalPublicOpen(env,current)||current.revision!==publicState.revision))return {available:false,reason:'public_sales_paused'};
+  if(testAllowed&&!publicOpen){const latest=await db.prepare('SELECT * FROM digital_integration_settings WHERE id=1').first();if(current?.activated_at||latest?.mode!=='test'||latest.test_viewer_id!==viewer.id||latest.revision!==settings.revision)return {available:false,reason:'test_participant_mismatch'}}
   return {available:true,payment_url:p.payment_url,amount_minor:p.amount_minor,currency:'RUB'};
  }
  if(path==='telegram'||path.startsWith('telegram/'))return telegramViewer(request,env,viewer,path);
  if(path==='history'&&method==='GET')return {orders:(await rows(db.prepare('SELECT o.id,o.title,o.amount_minor,o.currency,o.created_at,o.access_expires_at,s.state,s.source,s.last_payment_status,s.payment_url FROM viewer_orders o JOIN sales_orders s ON s.order_id=o.id WHERE o.viewer_id=? ORDER BY o.created_at DESC LIMIT 200').bind(viewer.id))).map(decode)};
  if(path==='checkout'&&method==='POST'){
-  if(!publicEnabled(env))deny(503,'public_sales_disabled');const d=await input(request,['request_id','kind','id','method']);if(!['manual','tribute'].includes(d.method))deny(400,'invalid_payment_method');if(d.method==='tribute'&&!automaticEnabled(env))deny(503,'automatic_payments_disabled');
+  if(!publicEnabled(env)||!(await publicDigitalSettings(db))?.enabled)deny(503,'public_sales_disabled');const d=await input(request,['request_id','kind','id','method']);if(!['manual','tribute'].includes(d.method))deny(400,'invalid_payment_method');if(d.method==='tribute'&&!automaticEnabled(env))deny(503,'automatic_payments_disabled');
   await participant(db,viewer.id);const p=await item(db,d.kind,d.id),s=await db.prepare('SELECT * FROM sales_products WHERE kind=? AND product_id=? AND sale_enabled=1').bind(d.kind,p.id).first();
   if(!s||p.state!=='published'||p.access!=='paid'||p.currency!=='RUB'||env.MEDIA_PAID_ENABLED!=='true'||d.kind==='video'&&(p.source_type==='bunny'&&p.bunny_status!==4||!['bunny','youtube'].includes(p.source_type)||p.publish_at>new Date().toISOString()))deny(400,'not_for_sale');amount(p.price_minor);dates(s.policy);
   if(p.kind==='school'&&(p.price_minor!==3000000||JSON.parse(s.policy).mode!=='school'))deny(400,'school_terms_required');

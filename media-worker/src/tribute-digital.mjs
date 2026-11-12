@@ -2,6 +2,7 @@ import {deny,time,rows,decode,requireOwner,audit} from './platform-data.mjs';
 import {input,revision} from './platform-http.mjs';
 import {hash,operation,createGrant,uuid,participant} from './sales-core.mjs';
 import {digitalProductRequest as tributeRequest} from './digital-product-api.mjs';
+import {publicDigitalSettings,launchedPurchase,digitalRuntimeReady,changePublicDigitalSales} from './digital-public-sales.mjs';
 import {verifiedIdentitySQL} from './viewer-identity.mjs';
 const numeric=value=>Number.isSafeInteger(value)&&value>0;
 const stamp=value=>typeof value==='string'&&value.length<=64&&/^\d{4}-\d{2}-\d{2}T/.test(value)?Math.floor(Date.parse(value)/1000):NaN;
@@ -52,7 +53,7 @@ export async function settleDigitalPurchase(env,purchaseId){
  const m=await db.prepare('SELECT * FROM digital_product_mappings WHERE product_id=?').bind(r.product_id).first();if(!m||!r.video_id){await reason('unmapped_product');return}
  if(!m.active||m.revision!==r.mapping_revision||m.video_id!==r.video_id){await reason('mapping_changed');return}
  if(r.currency!=='RUB'||r.amount_minor!==r.expected_amount_minor||r.amount_minor!==m.amount_minor){await reason('price_mismatch');return}
- const settings=await digitalSettings(db);if(!enabledFor(env,settings,r.viewer_id)){await reason('issuance_disabled');return}
+ const settings=await digitalSettings(db),publicState=await publicDigitalSettings(db);if(!enabledFor(env,settings,r.viewer_id)&&!launchedPurchase(publicState,r.purchased_at)){await reason('issuance_disabled');return}
  const account=await db.prepare(`SELECT 1 FROM viewer_accounts a WHERE a.id=? AND a.status='active' AND ${verifiedIdentitySQL('a')}`).bind(r.viewer_id).first();if(!account){await reason('account_unavailable');return}
  const v=await db.prepare("SELECT * FROM videos WHERE id=? AND state='published' AND access='paid' AND currency='RUB' AND price_minor=? AND publish_at<=?").bind(r.video_id,r.amount_minor,new Date().toISOString()).first();if(!v||!['bunny','youtube'].includes(v.source_type)||v.source_type==='bunny'&&v.bunny_status!==4){await reason('video_unavailable');return}
  const block=await db.prepare("SELECT 1 FROM access_blocks b WHERE b.viewer_id=? AND ((b.kind='video' AND b.product_id=?) OR (b.kind='course' AND EXISTS(SELECT 1 FROM platform_lessons l WHERE l.course_id=b.product_id AND l.video_id=?)))").bind(r.viewer_id,r.video_id,r.video_id).first();if(block){await reason('administratively_blocked');return}
@@ -88,7 +89,8 @@ async function refundDigitalOrder(env,r){
 }
 export async function digitalAdmin(request,env,staff,path,method){
  requireOwner(staff);const db=env.MEDIA_DB;
- if(path===''&&method==='GET')return {settings:await digitalSettings(db),mappings:await rows(db.prepare('SELECT m.*,v.title FROM digital_product_mappings m JOIN videos v ON v.id=m.video_id ORDER BY m.product_id')),videos:(await rows(db.prepare("SELECT id,title,price_minor,currency FROM videos WHERE state='published' AND access='paid' ORDER BY updated_at DESC LIMIT 200"))).map(decode),receipts:await rows(db.prepare('SELECT r.*,a.email FROM digital_purchase_receipts r LEFT JOIN viewer_accounts a ON a.id=r.viewer_id ORDER BY received_at DESC LIMIT 50')),liveAvailable:env.TRIBUTE_DIGITAL_LIVE_ENABLED==='true'};
+ if(path==='public-sales'&&method==='PUT')return changePublicDigitalSales(request,env,staff);
+ if(path===''&&method==='GET')return {publicSales:{...await publicDigitalSettings(db),runtimeReady:digitalRuntimeReady(env)},settings:await digitalSettings(db),mappings:await rows(db.prepare('SELECT m.*,v.title FROM digital_product_mappings m JOIN videos v ON v.id=m.video_id ORDER BY m.product_id')),videos:(await rows(db.prepare("SELECT id,title,price_minor,currency FROM videos WHERE state='published' AND access='paid' ORDER BY updated_at DESC LIMIT 200"))).map(decode),receipts:await rows(db.prepare('SELECT r.*,a.email FROM digital_purchase_receipts r LEFT JOIN viewer_accounts a ON a.id=r.viewer_id ORDER BY received_at DESC LIMIT 50')),liveAvailable:env.TRIBUTE_DIGITAL_LIVE_ENABLED==='true'};
  if(path==='products'&&method==='POST'){await input(request,[]);const result=await tributeRequest(env,'/products?type=digital&size=100&page=1');return {items:(Array.isArray(result.rows)?result.rows:[]).map(p=>({id:p.id,name:p.name,amount:p.amount,currency:p.currency,status:p.status,webLink:p.webLink}))}}
  if(path==='mapping'&&method==='PUT'){
   const d=await input(request,['request_id','product_id','video_id','days','active','revision']);if(!numeric(d.product_id)||!Number.isInteger(d.days)||d.days<1||d.days>3660||![0,1].includes(d.active))deny(400,'invalid_digital_mapping');uuid(d.video_id);

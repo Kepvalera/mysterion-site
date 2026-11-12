@@ -1,3 +1,4 @@
+import {publicDigitalSettings,digitalPublicOpen} from './digital-public-sales.mjs';
 import {deny,time,rows,decode} from './platform-data.mjs';
 import {input,text,revision} from './platform-http.mjs';
 import {reconcileTributePayment} from './sales-tribute.mjs';
@@ -27,7 +28,7 @@ export async function salesAdmin(request,env,staff,path,method){
    LEFT JOIN videos v ON v.id=h.target LEFT JOIN platform_courses c ON c.id=h.target
    LEFT JOIN videos gv ON gv.id=g.video_id LEFT JOIN platform_courses gc ON gc.id=g.course_id
    LEFT JOIN viewer_accounts a ON a.id=COALESCE(o.viewer_id,g.viewer_id) ORDER BY h.created_at DESC,h.id`),
-  pagination,manualEnabled:enabled(env),publicEnabled:publicEnabled(env),automaticEnabled:automaticEnabled(env),canDelegate:staff.role==='owner'
+  pagination,manualEnabled:enabled(env),publicEnabled:digitalPublicOpen(env,await publicDigitalSettings(db)), automaticEnabled:automaticEnabled(env),canDelegate:staff.role==='owner'
  };
  }
  if(path==='participants'&&method==='GET')return searchParticipants(db,request);
