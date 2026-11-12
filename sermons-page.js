@@ -29,13 +29,13 @@
   grid.replaceChildren();
   if(!items.length){const empty=node('div',undefined,'library-empty');empty.append(node('h3',search.value.trim()?t('noMatches'):t('empty')),node('p',search.value.trim()?t('noMatchesText'):t('emptyText')));grid.append(empty);return}
   for(const item of items){
-   const card=node('article',undefined,'video-card'),thumb=node('button',undefined,'video-thumb');thumb.type='button';thumb.setAttribute('aria-label',t('watch')+': '+local(item.title));
+   const card=node('article',undefined,'video-card'),thumb=node('button',undefined,'video-thumb');thumb.type='button';thumb.dataset.mediaPreview='';thumb.setAttribute('aria-label',t('watch')+': '+local(item.title));
    const youtubeId=/^[\w-]{11}$/.test(item.youtube_ref||'')?item.youtube_ref:null;
    if(item.has_cover){const img=node('img');img.src=`/api/media/videos/${item.id}/cover`;img.alt='';img.loading='lazy';img.decoding='async';img.width=640;img.height=360;img.addEventListener('error',()=>addFallbackThumbnail(thumb,item,youtubeId),{once:true});thumb.append(img)}else addFallbackThumbnail(thumb,item,youtubeId);
    const play=node('span','▶','play-symbol');play.setAttribute('aria-hidden','true');thumb.append(play);thumb.addEventListener('click',()=>player.open(item));
    const info=node('div',undefined,'video-info');info.append(node('span',`${t(item.category)} · ${item.year} · ${t(item.access)}`,'video-type'),node('h3',local(item.title)),node('p',local(item.description),'video-description'));
    const speaker=local(item.speaker);if(speaker)info.append(node('p',speaker,'video-speaker'));
-   const watch=node('button',t('watch'),'btn btn-dark video-watch');watch.type='button';watch.addEventListener('click',()=>player.open(item));info.append(watch);card.append(thumb,info);window.MysterionMediaCommerce?.decorate(card,item);grid.append(card);
+   const watch=node('button',t('watch'),'btn btn-dark video-watch');watch.type='button';watch.dataset.mediaWatch='';watch.addEventListener('click',()=>player.open(item));info.append(watch);card.append(thumb,info);window.MysterionMediaCommerce?.decorate(card,item);grid.append(card);
   }
  }
  async function load(reset=true){
