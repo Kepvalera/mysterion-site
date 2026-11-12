@@ -93,7 +93,16 @@ export async function digitalAdmin(request,env,staff,path,method){
  if(path==='mapping'&&method==='PUT'){
   const d=await input(request,['request_id','product_id','video_id','days','active','revision']);if(!numeric(d.product_id)||!Number.isInteger(d.days)||d.days<1||d.days>3660||![0,1].includes(d.active))deny(400,'invalid_digital_mapping');uuid(d.video_id);
   const remote=await tributeRequest(env,'/products/'+d.product_id),v=await db.prepare("SELECT * FROM videos WHERE id=? AND state='published' AND access='paid'").bind(d.video_id).first();
-  if(remote.id!==d.product_id||remote.type!=='digital'||remote.status!=='approved'||remote.currency?.toUpperCase()!=='RUB'||!numeric(remote.amount)||!v||v.currency!=='RUB'||v.price_minor!==remote.amount)deny(400,'digital_price_mismatch');
+  if(remote.id!==d.product_id)deny(400,'digital_product_id_mismatch');
+  if(remote.type!=='digital')deny(400,'digital_product_type_mismatch');
+  // Mapping is configuration, not checkout approval. A new/pending product may
+  // be prepared before moderation or its first purchase. Checkout retains its
+  // independent approved-product and issuance gates.
+  if(!['new','pending','approved'].includes(remote.status))deny(400,'digital_product_status_unavailable');
+  if(remote.currency?.toUpperCase()!=='RUB')deny(400,'digital_product_currency_mismatch');
+  if(!numeric(remote.amount))deny(400,'digital_product_amount_invalid');
+  if(!v)deny(400,'digital_video_unavailable');
+  if(v.currency!=='RUB'||v.price_minor!==remote.amount)deny(400,'digital_price_mismatch');
   let url;try{url=new URL(remote.webLink)}catch{deny(400,'invalid_digital_product_url')}if(url.origin!=='https://web.tribute.tg'||!/^\/p\/[A-Za-z0-9]+\/?$/.test(url.pathname)||url.search||url.hash||url.username||url.password)deny(400,'invalid_digital_product_url');
   const old=await db.prepare('SELECT * FROM digital_product_mappings WHERE product_id=?').bind(d.product_id).first();if((old?.revision||0)!==d.revision)deny(409,'revision_conflict');
   if(old&&(old.video_id!==d.video_id||old.days!==d.days||old.amount_minor!==remote.amount)&&await db.prepare('SELECT 1 FROM digital_purchase_receipts WHERE product_id=?').bind(d.product_id).first())deny(409,'digital_mapping_has_purchases');
