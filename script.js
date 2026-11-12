@@ -386,5 +386,5 @@ if (copyrightYear) copyrightYear.textContent = new Date().getFullYear();
   document.documentElement.classList.add('motion-ready');
 })();
 
-/* Shared navigation entry; no authentication or commerce changes. */
-(()=>{for(const nav of document.querySelectorAll('.desktop-nav,.mobile-nav')){if(nav.querySelector('a[href="/paid-videos.html"]'))continue;const a=document.createElement('a');a.href='/paid-videos.html';a.dataset.paidNav='';const sermons=nav.querySelector('a[href$="sermons.html"]');if(sermons)sermons.after(a);else nav.append(a)}const translate=()=>document.querySelectorAll('[data-paid-nav]').forEach(a=>{a.textContent=document.documentElement.lang==='en'?'Paid videos':'Платные видео';if(location.pathname==='/paid-videos.html')a.setAttribute('aria-current','page')});window.addEventListener('mysterion:language',translate);translate()})();
+/* Media is the single video-library navigation entry. */
+(()=>{for(const nav of document.querySelectorAll('.desktop-nav,.mobile-nav'))for(const a of nav.querySelectorAll('a')){const path=new URL(a.href,location.href).pathname;if(path==='/sermons.html'||path==='/paid-videos.html')a.remove();else if(a.dataset.i18n==='navMedia')a.href='/media.html'}})();
