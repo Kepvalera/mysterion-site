@@ -22,6 +22,8 @@ Object.assign(operationErrors.en,{errorStoreSchema:'A required D1 table or colum
 operationErrors.ru.errorBunnyRedirect='Bunny вернул перенаправление. Оно заблокировано, чтобы не передавать API-ключ на другой адрес. Нужна проверка серверного endpoint.';
 operationErrors.en.errorBunnyRedirect='Bunny returned a redirect. It was blocked to prevent forwarding the API key to another address. Check the server endpoint.';
 for(const lang of ['ru','en'])Object.assign(window.MysterionMediaText[lang],bunnyMediaText[lang],importLabels[lang],publishingText[lang],sessionLabels[lang],operationErrors[lang]);
+Object.assign(window.MysterionMediaText.ru,{sectionLabel:'Раздел',allVideos:'Все видео',freeVideos:'Бесплатные',paidVideos:'Платные',emptySection:'В этом разделе пока нет видео'});
+Object.assign(window.MysterionMediaText.en,{sectionLabel:'Section',allVideos:'All videos',freeVideos:'Free',paidVideos:'Paid',emptySection:'There are no videos in this section yet'});
 window.mediaText=key=>(window.MysterionMediaText[document.documentElement.lang]||window.MysterionMediaText.ru)[key]||key;
 window.translateMedia=()=>{document.querySelectorAll('[data-media]').forEach(el=>el.textContent=window.mediaText(el.dataset.media));document.title=(document.body.dataset.mediaPage==='admin'?window.mediaText('admin'):'MYSTERION MEDIA')+' | MYSTERION INTERNATIONAL'};
 window.addEventListener('mysterion:language',window.translateMedia);
