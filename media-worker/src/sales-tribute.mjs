@@ -1,3 +1,4 @@
+import {newPurchasesAllowed} from './site-display-mode.mjs';
 import {deny,time,localized} from './platform-data.mjs';
 import {automaticEnabled,publicEnabled,order,hash,operation,dates,createGrant,uuid} from './sales-core.mjs';
 const base='https://tribute.tg/api/v1';
@@ -8,6 +9,7 @@ export async function tributeRequest(env,path,body){
 }
 export function paymentURL(value){try{const u=new URL(value);if(u.protocol==='https:'&&u.hostname==='web.tribute.tg'&&!u.port&&!u.username&&!u.password&&/^\/shop\/pay\/[a-f0-9-]{36}\/?$/.test(u.pathname)&&!u.search&&!u.hash)return u.href}catch{}deny(502,'tribute_invalid_payment_url')}
 export async function createTributePayment(env,orderId,viewer,origin){
+ if(!await newPurchasesAllowed(env))deny(503,'site_temporary_mode');
  if(!automaticEnabled(env)||!publicEnabled(env))deny(503,'automatic_payments_disabled');const db=env.MEDIA_DB,o=await order(db,orderId);
  if(o.viewer_id!==viewer.id||o.source!=='tribute')deny(403,'order_owner_required');if(o.state!=='pending')deny(409,'payment_not_pending');if(o.provider_stage==='ready')return {id:o.id,payment_url:paymentURL(o.payment_url)};
  if(o.provider_stage!=='new')deny(409,'payment_reconciliation_required');

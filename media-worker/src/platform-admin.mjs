@@ -1,3 +1,4 @@
+import {siteModeAdmin} from './site-mode-admin.mjs';
 import {verifiedIdentitySQL} from './viewer-identity.mjs';
 import {staffIdentity,requireOwner,canEditVideo,deny,rows,decode,time,idPattern,audit} from './platform-data.mjs';
 import {csrf,input,text,translations,revision,expiry,product} from './platform-http.mjs';
@@ -34,6 +35,7 @@ function participantSearchSQL(query){
 }
 export async function platformAdmin(request,env,path,method){
  const db=env.MEDIA_DB,staff=await staffIdentity(request,env);if(method!=='GET')csrf(request,env);
+ if(path==='site-mode'||path==='site-mode/content'||path==='site-mode/resume-sales')return siteModeAdmin(request,env,staff,path==='site-mode'?'':path.slice(10),method);
  if(path==='tribute-digital'||path.startsWith('tribute-digital/'))return digitalAdmin(request,env,staff,path.slice(16),method);
  if(path==='integrations/telegram/setup'&&method==='POST'){requireOwner(staff);await input(request,[]);return setupTelegramWebhook(env)}
  if(path==='access'||path.startsWith('access/'))return accessAdmin(request,env,staff,path.slice(7),method);

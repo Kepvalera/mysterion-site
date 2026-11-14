@@ -1,3 +1,4 @@
+import {temporarySite,newPurchasesAllowed} from './site-display-mode.mjs';
 import {HttpError,logAccessFailure} from './auth.mjs';
 import {requireMediaOrigin} from './origin.mjs';
 import {requireViewerSession} from './viewer-auth.mjs';
@@ -21,7 +22,7 @@ export async function handlePlatform(request,env){
   if(path==='media/availability'&&method==='GET'){let viewer=null;try{viewer=await requireViewerSession(request,env)}catch(error){if(error.status!==401)throw error}return json(await mediaAvailability(env,viewer))}
   const cover=path.match(/^covers\/([a-f0-9-]{36})$/);
   if(cover&&method==='GET'){const row=await db.prepare("SELECT c.mime,c.bytes FROM media_covers c JOIN videos v ON v.id=c.video_id WHERE v.id=? AND v.state='published' AND v.publish_at<=?").bind(cover[1],new Date().toISOString()).first();if(!row)deny(404,'not_found');return new Response(row.bytes,{headers:{'Content-Type':row.mime,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
-  if(path==='catalog'&&method==='GET'){
+  if(path==='catalog'&&method==='GET'){if(await temporarySite(env))return json({courses:[],videos:[],site_mode:'services'});
    const courses=await rows(db.prepare("SELECT id,title,description,kind,stream,access,price_minor,currency FROM platform_courses WHERE state='published' ORDER BY updated_at DESC LIMIT 200"));
    const videos=await rows(db.prepare("SELECT id,title,description,category,year,access,price_minor,currency,(cover_key='d1') AS has_cover,CASE WHEN access='free' AND source_type='youtube' THEN source_ref END AS youtube_ref FROM videos WHERE state='published' AND publish_at<=? ORDER BY publish_at DESC LIMIT 200").bind(new Date().toISOString()));
    if(env.SALES_ENABLED==='true'){
@@ -67,7 +68,7 @@ export async function handlePlatform(request,env){
    const names=['first_name','last_name'].map(key=>{const name=text(data[key],80);if(/[<>\p{Cc}\p{Cf}]/u.test(name))deny(400,'invalid_name');return name.normalize('NFC')});
    await db.prepare('UPDATE viewer_accounts SET first_name=?,last_name=?,updated_at=? WHERE id=?').bind(...names,time(),viewer.id).run();return json({ok:true});
   }
-  if(path==='orders'&&method==='POST'){
+  if(path==='orders'&&method==='POST'){if(!await newPurchasesAllowed(env))deny(503,'site_temporary_mode');
    if(env.SALES_ENABLED==='true'&&env.SALES_PUBLIC_ENABLED!=='true')deny(503,'public_sales_disabled');
    const data=await input(request,['kind','id']),target=product(data);await admitViewerOperation(request,env,'orders',{address:viewer.id});
    if(env.SALES_ENABLED==='true'&&await db.prepare('SELECT 1 FROM sales_products WHERE kind=? AND product_id=?').bind(data.kind,data.id).first())deny(409,'use_sales_workflow');

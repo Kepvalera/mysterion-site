@@ -1,0 +1,2 @@
+/* Display-only hiding. Keep nodes required by existing account/header scripts. */
+.site-services-account .desktop-nav,.site-services-account .mobile-nav,.site-services-account .header-cta,.site-services-account .menu-toggle{display:none!important}

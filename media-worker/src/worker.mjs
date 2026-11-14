@@ -1,3 +1,4 @@
+import {temporarySite} from './site-display-mode.mjs';
 import {HttpError,administrator,entitledViewer,siteSession,logAccessFailure} from './auth.mjs';
 import * as bunny from './bunny.mjs';
 import {isSameOriginMediaRequest,requireMediaOrigin} from './origin.mjs';
@@ -58,7 +59,7 @@ export async function handle(request,env) {
   if(!url.pathname.startsWith('/api/media')) fail(404,'not_found');
   if(path==='session'&&method==='GET')return json(await siteSession(request,env));
   if(path==='view/account')return json(await memberRoute(request,env,path,method,null,body));
-  if(path==='collections' && method==='GET'){
+  if(path==='collections' && method==='GET'){if(await temporarySite(env))return json({items:[]});
    if(env.MEDIA_MEMBERS_ENABLED!=='true')return json({items:[]});
    const rows=await env.MEDIA_DB.prepare("SELECT id,title,description FROM collections WHERE state='published' ORDER BY created_at DESC LIMIT 200").all();
    return json({items:rows.results.map(decodeRow)});
@@ -73,7 +74,7 @@ export async function handle(request,env) {
    if(row.bunny_status!==4)fail(409,'video_not_ready');
    return json(await bunny.playback(env,row));
   }
-  if(path==='videos' && method==='GET') {
+  if(path==='videos' && method==='GET') {if(await temporarySite(env))return json({items:[],hasMore:false});
    const category=url.searchParams.get('category'),year=url.searchParams.get('year'),access=url.searchParams.get('access'),q=(url.searchParams.get('q')||'').trim();
    if(q.length>120 || (category && !categories.includes(category)) || (year && !/^\d{4}$/.test(year)) || (access && !['free','paid'].includes(access))) fail(400,'invalid_filter');
    const page=Math.min(10000,Math.max(1,Number(url.searchParams.get('page'))||1));
