@@ -1,3 +1,4 @@
+import {loadServiceExample} from './service-example.mjs';
 import {siteDisplayState} from './site-display-mode.mjs';
 import {servicePage,serviceLanguage,serviceHeaders} from './service-page.mjs';
 const noStore={'Cache-Control':'private, no-store, max-age=0','CDN-Cache-Control':'no-store','Cloudflare-CDN-Cache-Control':'no-store'};
@@ -18,6 +19,7 @@ export async function routeSiteDisplay(context,next){
  }
  if(path==='/robots.txt')return new Response('User-agent: *\nDisallow: /api/\nDisallow: /admin-media\nDisallow: /viewer-account\nSitemap: https://mysterion-international.com/sitemap.xml\n',{headers:{...noStore,'Content-Type':'text/plain; charset=utf-8'}});
  if(path==='/sitemap.xml')return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://mysterion-international.com/</loc></url></urlset>',{headers:{...noStore,'Content-Type':'application/xml; charset=utf-8'}});
+ let example=null;if(context.request.method==='GET')try{example=await loadServiceExample(context.env)}catch{}
  const headers={...serviceHeaders,'Content-Language':serviceLanguage(context.request)};if(!['/','/index','/index.html'].includes(path))headers['X-Robots-Tag']='noindex, follow';
- return new Response(context.request.method==='HEAD'?null:servicePage(context.request,state),{status:['GET','HEAD'].includes(context.request.method)?200:405,headers});
+ return new Response(context.request.method==='HEAD'?null:servicePage(context.request,state,example),{status:['GET','HEAD'].includes(context.request.method)?200:405,headers});
 }

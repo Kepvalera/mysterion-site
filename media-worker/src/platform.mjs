@@ -1,3 +1,4 @@
+import {loadServiceExample} from './service-example.mjs';
 import {temporarySite,newPurchasesAllowed} from './site-display-mode.mjs';
 import {HttpError,logAccessFailure} from './auth.mjs';
 import {requireMediaOrigin} from './origin.mjs';
@@ -20,6 +21,7 @@ export async function handlePlatform(request,env){
   if(path==='currency-rates'&&method==='GET'){const r=await db.prepare('SELECT eur_rub,usd_rub FROM display_currency_rates WHERE id=1').first();return json(r)}
   if(path==='sales/catalog'&&method==='GET')return json(await publicSales(env));
   if(path==='media/availability'&&method==='GET'){let viewer=null;try{viewer=await requireViewerSession(request,env)}catch(error){if(error.status!==401)throw error}return json(await mediaAvailability(env,viewer))}
+  if(path==='service-example'&&method==='GET'){if(!await temporarySite(env))return json({example:null,has_demo_access:false,payment_enabled:false});const example=await loadServiceExample(env);let viewer=null;try{viewer=await requireViewerSession(request,env)}catch(e){if(e.status!==401)throw e}return json({example,has_demo_access:!!(example&&viewer&&(await videoAccess(db,viewer.id,example.id))?.expires_at),payment_enabled:false})}
   const cover=path.match(/^covers\/([a-f0-9-]{36})$/);
   if(cover&&method==='GET'){const row=await db.prepare("SELECT c.mime,c.bytes FROM media_covers c JOIN videos v ON v.id=c.video_id WHERE v.id=? AND v.state='published' AND v.publish_at<=?").bind(cover[1],new Date().toISOString()).first();if(!row)deny(404,'not_found');return new Response(row.bytes,{headers:{'Content-Type':row.mime,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
   if(path==='catalog'&&method==='GET'){if(await temporarySite(env))return json({courses:[],videos:[],site_mode:'services'});
