@@ -22,7 +22,7 @@ function harness(location='https://video.bunnycdn.com/tusupload/test') {
  };
  vm.runInNewContext(source,{window,TextEncoder,Uint8Array,btoa,URL,Date,AbortController,DOMException,XMLHttpRequest:XHR,fetch,setTimeout,clearTimeout});
  const authorize=async()=>{grants++;return {endpoint:'https://video.bunnycdn.com/tusupload',expires:Math.floor(Date.now()/1000)+900,headers:{AuthorizationSignature:'TEST_SIGNATURE',AuthorizationExpire:String(Math.floor(Date.now()/1000)+900),LibraryId:'123',VideoId:'test'}}};
- return {Upload:window.MysterionBunnyUpload,authorize,state:()=>({offset,grants,posts,patches,heads})};
+ return {Upload:window.MysterionBunnyUpload,authorize,state:()=>({offset,grants,posts,patches,heads,setOffset:value=>{offset=value}})};
 }
 const file=new File([new Uint8Array(17*1024*1024)],'LOCAL_TEST_ONLY.mp4',{type:'video/mp4'});
 let passed=0;
@@ -43,4 +43,7 @@ let passed=0;
  const h=harness(),upload=new h.Upload(file,async()=>{upload.pause();return h.authorize()},()=>{});
  assert.equal(await upload.start(),false);assert.equal(h.state().posts,0);passed++;
 }
-console.log(JSON.stringify({clientScenarios:passed,chunkSizeMiB:4,pauseResume:'HEAD resumes confirmed server offset',expiredGrant:'renewed',networkRetry:'bounded retry and HEAD confirmation',externalLocation:'blocked',realUploads:0}));
+{
+ const h=harness();h.state().setOffset(4*1024*1024);const upload=new h.Upload(file,h.authorize,()=>{});assert.equal(await upload.start(),true);assert.equal(h.state().offset,file.size);assert.equal(h.state().posts,1);passed++;
+}
+console.log(JSON.stringify({clientScenarios:passed,chunkSizeMiB:4,pauseResume:'HEAD resumes confirmed server offset',expiredGrant:'renewed',networkRetry:'bounded retry and HEAD confirmation',offsetMismatch:'reconciled by HEAD',externalLocation:'blocked',realUploads:0}));

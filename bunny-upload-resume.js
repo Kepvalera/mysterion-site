@@ -1,7 +1,7 @@
 /* TUS 1.0 conference uploader. Legacy bunny-upload.js remains unchanged. */
 window.MysterionBunnyUpload = class {
  constructor(file, authorize, onProgress, onStatus) {
-  this.file=file;this.authorize=authorize;this.onProgress=onProgress;this.onStatus=onStatus||(()=>{});this.offset=0;this.url=null;this.paused=true;this.running=false;this.maxRetries=4;
+  this.file=file;this.authorize=authorize;this.onProgress=onProgress;this.onStatus=onStatus||(()=>{});this.offset=0;this.url=null;this.paused=true;this.running=false;this.maxRetries=4;this.lastHttpStatus=0;this.lastPhase='authorize';
  }
  pause(){this.paused=true;this.xhr?.abort();this.controller?.abort()}
  status(code){this.onStatus(code)}
@@ -14,16 +14,17 @@ window.MysterionBunnyUpload = class {
  async request(method,headers,retries=3){
   let attempt=0;
   while(attempt<=retries){
-   this.controller=new AbortController();let timeout,response;
-   try{timeout=setTimeout(()=>this.controller.abort(),30000);response=await fetch(this.url||'https://video.bunnycdn.com/tusupload',{method,headers,redirect:'error',credentials:'omit',signal:this.controller.signal})}
-   catch(error){clearTimeout(timeout);if(error?.name==='AbortError')throw error;attempt++;if(attempt<=retries){this.status('upload_retrying');await new Promise(r=>setTimeout(r,500*2**(attempt-1)));continue}throw Error('upload_network_error')}
-   clearTimeout(timeout);
+   this.controller=new AbortController();let timeout,response,timeoutFired=false;
+   this.lastPhase=method.toLowerCase();
+   try{timeout=setTimeout(()=>{timeoutFired=true;this.controller.abort()},30000);response=await fetch(this.url||'https://video.bunnycdn.com/tusupload',{method,headers,redirect:'error',credentials:'omit',signal:this.controller.signal})}
+   catch(error){clearTimeout(timeout);if(error?.name==='AbortError'&&!timeoutFired)throw error;attempt++;if(attempt<=retries){this.status('upload_retrying');await new Promise(r=>setTimeout(r,500*2**(attempt-1)));continue}throw Error('upload_network_error')}
+   clearTimeout(timeout);this.lastHttpStatus=response.status;
    if([408,429].includes(response.status)||(response.status>=500&&response.status<600)){attempt++;if(attempt<=retries){this.status('upload_retrying');await new Promise(r=>setTimeout(r,500*2**(attempt-1)));continue}throw Error('tus_'+response.status)}
    if(!response.ok)throw Error('tus_'+response.status);return response;
   }
  }
  async serverOffset(headers){
-  try{const response=await this.request('HEAD',headers,2);const raw=response.headers.get('Upload-Offset'),offset=Number(raw);if(!raw||!Number.isSafeInteger(offset)||offset<0||offset>this.file.size)return null;return offset}catch{return null}
+  try{const response=await this.request('HEAD',headers,2);const raw=response.headers.get('Upload-Offset'),offset=Number(raw);if(!raw||!Number.isSafeInteger(offset)||offset<0||offset>this.file.size){const error=Error(raw?'invalid_upload_offset':'tus_offset_header_missing');error.phase='head';error.httpStatus=response.status;throw error}this.lastHttpStatus=response.status;return offset}catch(error){if(!error.phase){error.phase='head';error.httpStatus=this.lastHttpStatus||0}throw error}
  }
  async start(){
   if(this.running)return;this.running=true;this.paused=false;this.status('uploading');
@@ -37,7 +38,9 @@ window.MysterionBunnyUpload = class {
     const location=response.headers.get('Location');if(!location)throw Error('missing_upload_location');this.url=this.location(location);if(this.onLocation)await this.onLocation(this.url);
    }
    if(this.paused)return false;headers=await this.credentials();
-   const confirmed=await this.serverOffset(headers);if(confirmed===null)throw Error('invalid_upload_offset');this.offset=confirmed;
+   let confirmed;
+   try{confirmed=await this.serverOffset(headers)}catch(error){throw error}
+   this.offset=confirmed;
    while(this.offset<this.file.size&&!this.paused){
     headers=await this.credentials();const end=Math.min(this.offset+4*1024*1024,this.file.size);
     const next=await this.chunk(headers,this.offset,end);if(next===null){this.status('upload_connection_lost');throw Error('upload_network_error')}this.offset=next;this.onProgress(this.offset,this.file.size);
@@ -51,15 +54,17 @@ window.MysterionBunnyUpload = class {
    if(this.paused)return current;if(attempt>0){this.status('upload_retrying');await new Promise(r=>setTimeout(r,700*2**(attempt-1)));headers=await this.credentials()}
    const next=await new Promise(resolve=>{
     const xhr=this.xhr=new XMLHttpRequest();xhr.open('PATCH',this.url);xhr.timeout=300000;
+    this.lastPhase='patch';this.lastHttpStatus=0;
     for(const [key,value]of Object.entries({...headers,'Content-Type':'application/offset+octet-stream','Upload-Offset':String(current)}))xhr.setRequestHeader(key,value);
     xhr.upload.onprogress=event=>this.onProgress(current+event.loaded,this.file.size);
-    xhr.onload=()=>{if(xhr.status===204){const raw=xhr.getResponseHeader('Upload-Offset'),offset=Number(raw);resolve(Number.isSafeInteger(offset)&&offset>=current&&offset<=end?offset:null)}else resolve(null)};
+    xhr.onload=()=>{this.lastHttpStatus=xhr.status;if(xhr.status===204){const raw=xhr.getResponseHeader('Upload-Offset'),offset=Number(raw);resolve(Number.isSafeInteger(offset)&&offset>=0&&offset<=this.file.size?{offset,header:true}:{offset:null,status:204,header:false})}else resolve({offset:null,status:xhr.status,header:false})};
     xhr.onerror=xhr.ontimeout=()=>resolve(null);xhr.onabort=()=>resolve(null);xhr.send(this.file.slice(current,end));
    });
-   if(next!==null)return next;
+   if(next?.header) return next.offset;
+   let confirmed=null;
+   try{confirmed=await this.serverOffset(await this.credentials())}catch(error){if(attempt===this.maxRetries){error.phase='head';throw error}}
+   if(confirmed!==null){this.offset=confirmed;current=confirmed;start=confirmed;end=Math.min(confirmed+4*1024*1024,this.file.size);if(confirmed===this.file.size)return confirmed;continue}
    if(attempt===this.maxRetries)return null;
-   const confirmed=await this.serverOffset(await this.credentials());
-   if(confirmed!==null&&confirmed>=start&&confirmed<=end){current=confirmed;if(current===end)return end}
    this.status('upload_connection_lost');
   }
   return null;

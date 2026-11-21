@@ -52,6 +52,12 @@ export async function platformAdmin(request,env,path,method){
   return checkTributeWebhook(request,env);
  }
  if(path==='me'&&method==='GET'){let uploadConfigured=false;try{bunny.configured(env);uploadConfigured=true}catch{}return {role:staff.role,canPublish:staff.role!=='uploader',owner:staff.role==='owner',uploadConfigured,paidEnabled:env.MEDIA_PAID_ENABLED==='true',salesEnabled:enabled(env),canManageSales:await manager(env,staff)}}
+ if(path==='uploads/recover'&&method==='POST'){
+  requireOwner(staff);const d=await input(request,['fingerprint']);
+  if(typeof d.fingerprint!=='string'||! /^[a-f0-9]{64}$/.test(d.fingerprint))deny(400,'invalid_upload_fingerprint');
+  const row=await db.prepare("SELECT p.video_id,p.location,p.file_size,p.fingerprint,v.source_ref,v.bunny_status,v.state FROM platform_uploads p JOIN videos v ON v.id=p.video_id WHERE p.fingerprint=? AND v.state='draft' AND v.source_type='bunny' AND v.source_ref!='' ORDER BY p.updated_at DESC LIMIT 1").bind(d.fingerprint).first();
+  return row?{found:true,video_id:row.video_id,location:row.location,file_size:row.file_size,bunny_status:row.bunny_status,source_ref:row.source_ref}:{found:false};
+ }
  if(path==='videos'&&method==='GET')return {items:(await rows(db.prepare("SELECT * FROM videos WHERE (state!='deleted' OR (?='owner' AND bunny_delete_pending=1)) AND (?!='uploader' OR (created_by=? AND state='draft')) ORDER BY updated_at DESC LIMIT 200").bind(staff.role,staff.role,staff.sub))).map(decode)};
  const fullDelete=path.match(/^videos\/([a-f0-9-]{36})\/delete-bunny$/);
  if(fullDelete&&method==='POST'){
