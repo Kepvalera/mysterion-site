@@ -85,10 +85,11 @@ export async function platformAdmin(request,env,path,method){
  }
  const vm=path.match(/^videos\/([a-f0-9-]{36})(?:\/(upload|status|resume|cover))?$/);
  if(path==='videos'&&method==='POST'||vm&&!vm[2]&&method==='PUT'){
-  const d=await input(request,['id','title','description','category','year','source_type','source_ref','youtube_ref','vk_ref','rutube_ref','access','price_minor','currency','state','revision']);
+  const d=await input(request,['id','title','description','category','year','source_type','source_ref','youtube_ref','vk_ref','rutube_ref','access','price_minor','currency','state','revision','duration_days','sale_enabled']);
   if(d.id!==undefined&&(!idPattern.test(d.id)||vm&&d.id!==vm[1]))deny(400,'invalid_video');
   const old=vm?await videoRow(db,vm[1]):null;if(old)canEditVideo(staff,old);money(d);
   if(!categories.includes(d.category)||!Number.isInteger(d.year)||d.year<1900||d.year>2100||!['youtube','vk','rutube','bunny'].includes(d.source_type)||!['draft','published'].includes(d.state))deny(400,'invalid_video');
+  if(d.access==='paid'&&d.currency!=='RUB')deny(400,'paid_price_must_be_rub');
   if(staff.role==='uploader'&&d.state!=='draft')deny(403,'publisher_required');
   const hasPlatformSources=Object.hasOwn(d,'youtube_ref')||Object.hasOwn(d,'vk_ref')||Object.hasOwn(d,'rutube_ref');
   let sourceType=d.source_type,ref,youtubeRef=null,vkRef=null,rutubeRef=null;
@@ -126,6 +127,18 @@ export async function platformAdmin(request,env,path,method){
    // A stable client-chosen UUID makes an initial save safe to retry after a
    // lost response. It never overwrites an existing or concurrently edited row.
    if(saved.title!==title||saved.description!==description||['category','year','access','price_minor','currency','state'].some(k=>saved[k]!==d[k])||saved.source_type!==sourceType||saved.source_ref!==ref||saved.youtube_ref!==youtubeRef||saved.vk_ref!==vkRef||saved.rutube_ref!==rutubeRef)deny(409,'revision_conflict');
+  }
+  if(d.access==='paid'){
+   const days=Number.isInteger(d.duration_days)&&d.duration_days>=1&&d.duration_days<=3660?d.duration_days:30;
+   const saleEnabled=d.state==='published'&&env.MEDIA_PAID_ENABLED==='true'?1:0;
+   await db.prepare(`INSERT INTO sales_products(kind,product_id,sale_enabled,policy,revision)
+      VALUES ('video',?,?,?,1)
+      ON CONFLICT(kind,product_id) DO UPDATE SET
+        sale_enabled=excluded.sale_enabled,
+        policy=excluded.policy,
+        revision=sales_products.revision+1`).bind(id,saleEnabled,JSON.stringify({mode:'days',days})).run();
+  }else{
+   await db.prepare("DELETE FROM sales_products WHERE kind='video' AND product_id=?").bind(id).run();
   }
   await audit(db,staff.sub,'video.saved',id);return decode(await videoRow(db,id));
  }

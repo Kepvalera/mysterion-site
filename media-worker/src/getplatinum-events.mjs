@@ -3,6 +3,13 @@ import {hash,operation,dates} from './sales-core.mjs';
 import {gpOrder} from './getplatinum-checkout.mjs';
 const numeric=n=>Number.isSafeInteger(n)&&n>0;
 const opId=async value=>{const h=await hash(value);return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20,32)};
+function providerReceipt(event) {
+ const keys={number:['receiptNumber','receipt_number','checkNumber','check_number','fiscalReceiptNumber','fiscal_receipt_number'],url:['receiptUrl','receipt_url','checkUrl','check_url','fiscalReceiptUrl','fiscal_receipt_url'],bank:['bankStatus','bank_status','paymentStatus','payment_status'],fiscal:['fiscalStatus','fiscal_status','receiptStatus','receipt_status']};
+ const found={number:null,url:null,bank:null,fiscal:null};
+ function walk(value){if(!value||typeof value!=='object'||Array.isArray(value))return;for(const [field,names]of Object.entries(keys)){if(found[field])continue;for(const name of names){if(typeof value[name]==='string'&&value[name].trim())found[field]=value[name].trim()}}for(const child of Object.values(value))walk(child)}
+ walk(event);
+ return found;
+}
 const refunded=alias=>`COALESCE((SELECT SUM(r.amount_minor) FROM getplatinum_refunds r WHERE r.order_id=${alias}.id AND r.status=4 AND r.currency='RUB' AND r.reason IS NULL),0)`;
 export async function processGPEvent(env,event,bodyHash){
  if(!event||typeof event!=='object'||Array.isArray(event)||Object.hasOwn(event,'checksum'))deny(400,'gp_v2_callback_required');
@@ -21,8 +28,10 @@ export async function processGPEvent(env,event,bodyHash){
  const uncertainRefund=await db.prepare("SELECT 1 FROM getplatinum_refunds WHERE order_id=? AND status=4 AND reason IS NOT NULL").bind(o.id).first();
  const blocked=await db.prepare("SELECT 1 FROM access_blocks b WHERE viewer_id=? AND ((kind='video' AND product_id=?) OR (kind='course' AND EXISTS(SELECT 1 FROM platform_lessons WHERE course_id=b.product_id AND video_id=?)))").bind(o.viewer_id,o.video_id,o.video_id).first();
  const reason=end<=start?'access_period_ended':uncertainRefund?'refund_details_missing':blocked?'access_restricted':null;
+ const receipt=providerReceipt(event);
  return operation(db,'getplatinum','gp.paid',o.id,{request_id,mdOrder:p.mdOrder,amount:p.amount,currency:o.currency},{ok:true},q=>[
   q('INSERT INTO getplatinum_payments SELECT ?,?,?,?,? WHERE $guard',[p.mdOrder,o.id,p.amount,o.currency,confirmed]),
+  q("INSERT INTO payment_receipts(id,order_id,provider,status,receipt_number,receipt_url,bank_status,fiscal_status,refund_status,amount_minor,currency,buyer_email,received_at,updated_at) SELECT 'gp:'+CAST(? AS TEXT),?, 'getplatinum', 'confirmed',?,?,?,?,'none',?,?,(SELECT email FROM viewer_accounts WHERE id=(SELECT viewer_id FROM viewer_orders WHERE id=?)),?,? WHERE $guard ON CONFLICT(id) DO UPDATE SET status='confirmed',receipt_number=COALESCE(payment_receipts.receipt_number,excluded.receipt_number),receipt_url=COALESCE(payment_receipts.receipt_url,excluded.receipt_url),bank_status=COALESCE(payment_receipts.bank_status,excluded.bank_status),fiscal_status=COALESCE(payment_receipts.fiscal_status,excluded.fiscal_status),refund_status='none',updated_at=excluded.updated_at",[p.mdOrder,o.id,receipt.number,receipt.url,receipt.bank,receipt.fiscal,p.amount,o.currency,o.id,confirmed,confirmed]),
   q('INSERT INTO getplatinum_events SELECT ?,?,1,?,?,? WHERE $guard',[key,o.id,bodyHash,confirmed,reason]),
   q("UPDATE getplatinum_orders SET md_order=?,paid_at=COALESCE(paid_at,?),stage=CASE WHEN COALESCE((SELECT SUM(amount_minor) FROM getplatinum_refunds WHERE order_id=getplatinum_orders.order_id AND status=4 AND currency='RUB' AND reason IS NULL),0)>=? THEN 'refunded' WHEN ? IS NOT NULL THEN 'review' ELSE 'paid' END,reason=?,revision=revision+1 WHERE order_id=? AND $guard",[p.mdOrder,confirmed,o.amount_minor,reason,reason,o.id]),
   q(`UPDATE viewer_orders SET status=CASE WHEN ${refunded('viewer_orders')}>=amount_minor THEN 'rejected' ELSE 'paid' END,access_expires_at=?,updated_at=?,revision=revision+1 WHERE id=? AND $guard`,[end>start?end:null,confirmed,o.id]),
@@ -37,6 +46,7 @@ async function refund(env,o,event,bodyHash){
  const key='gp.refund:'+r.refundId,request_id=await opId(key),reason=missing?'refund_details_missing':null;
  return operation(env.MEDIA_DB,'getplatinum','gp.refund',o.id,{request_id,refundId:r.refundId,mdOrder:r.mdOrder,status:r.status,amount:missing?null:r.amount,currency:missing?null:o.currency},{ok:true},q=>[
   q('INSERT INTO getplatinum_refunds SELECT ?,?,?,?,?,?,?,?,? WHERE $guard',[r.refundId,o.id,r.mdOrder,r.status,missing?null:r.amount,missing?null:o.currency,bodyHash,time(),reason]),
+  q("INSERT INTO payment_receipts(id,order_id,provider,status,receipt_number,receipt_url,bank_status,fiscal_status,refund_status,amount_minor,currency,buyer_email,received_at,updated_at) SELECT 'gp:'+CAST(? AS TEXT),?, 'getplatinum',CASE WHEN ?=4 THEN 'refunded' ELSE 'refund_pending' END,NULL,NULL,NULL,NULL,CASE WHEN ?=4 THEN 'refunded' ELSE 'pending' END,?,?,(SELECT email FROM viewer_accounts WHERE id=(SELECT viewer_id FROM viewer_orders WHERE id=?)),?,? WHERE $guard ON CONFLICT(id) DO UPDATE SET status=excluded.status,refund_status=excluded.refund_status,amount_minor=COALESCE(excluded.amount_minor,payment_receipts.amount_minor),updated_at=excluded.updated_at",[r.mdOrder,o.id,r.status,r.status,missing?null:r.amount,missing?null:o.currency,o.id,time(),time()]),
   q('INSERT INTO getplatinum_events SELECT ?,?,9,?,?,? WHERE $guard',[key,o.id,bodyHash,time(),reason]),
   q("UPDATE getplatinum_orders SET stage='review',reason='refund_details_missing',revision=revision+1 WHERE order_id=? AND ?=1 AND stage!='refunded' AND $guard",[o.id,missing&&r.status===4?1:0]),
   q(`UPDATE getplatinum_orders SET stage='refunded',reason=NULL,revision=revision+1 WHERE order_id=? AND COALESCE((SELECT SUM(amount_minor) FROM getplatinum_refunds WHERE order_id=getplatinum_orders.order_id AND status=4 AND currency='RUB' AND reason IS NULL),0)>=? AND $guard`,[o.id,o.amount_minor]),
