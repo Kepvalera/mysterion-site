@@ -243,6 +243,10 @@ export async function platformAdmin(request,env,path,method){
  }
  if(path==='lessons'&&method==='GET')return {items:(await rows(db.prepare('SELECT * FROM platform_lessons ORDER BY course_id,position LIMIT 500'))).map(decode)};
  const lm=path.match(/^lessons\/([a-f0-9-]{36})$/);
+ if(lm&&method==='DELETE'){
+  requireOwner(staff);const d=await input(request,['revision']);const lesson=await db.prepare('SELECT revision FROM platform_lessons WHERE id=?').bind(lm[1]).first();if(!lesson)deny(404,'lesson_not_found');
+  const result=await db.batch([db.prepare('DELETE FROM platform_progress WHERE lesson_id=?').bind(lm[1]),db.prepare('DELETE FROM platform_materials WHERE lesson_id=?').bind(lm[1]),db.prepare('DELETE FROM platform_lessons WHERE id=? AND revision=?').bind(lm[1],revision(d.revision))]);if(!result[2].meta.changes)deny(409,'revision_conflict');await audit(db,staff.sub,'lesson.deleted',lm[1]);return {ok:true};
+ }
  if(path==='lessons'&&method==='POST'||lm&&method==='PUT'){
   const d=await input(request,['course_id','title','description','video_id','position','state','public_preview','revision']);
   if(!idPattern.test(d.course_id)||d.video_id!==null&&!idPattern.test(d.video_id)||!Number.isInteger(d.position)||d.position<0||d.position>10000||!['draft','published'].includes(d.state)||![0,1].includes(d.public_preview))deny(400,'invalid_lesson');
