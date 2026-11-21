@@ -85,7 +85,7 @@ export async function platformAdmin(request,env,path,method){
  }
  const vm=path.match(/^videos\/([a-f0-9-]{36})(?:\/(upload|status|resume|cover))?$/);
  if(path==='videos'&&method==='POST'||vm&&!vm[2]&&method==='PUT'){
-  const d=await input(request,['id','title','description','category','year','source_type','source_ref','youtube_ref','vk_ref','rutube_ref','access','price_minor','currency','state','revision','duration_days','sale_enabled']);
+  const d=await input(request,['id','title','description','speaker','category','year','source_type','source_ref','youtube_ref','vk_ref','rutube_ref','access','price_minor','currency','state','revision','duration_days','sale_enabled']);
   if(d.id!==undefined&&(!idPattern.test(d.id)||vm&&d.id!==vm[1]))deny(400,'invalid_video');
   const old=vm?await videoRow(db,vm[1]):null;if(old)canEditVideo(staff,old);money(d);
   if(!categories.includes(d.category)||!Number.isInteger(d.year)||d.year<1900||d.year>2100||!['youtube','vk','rutube','bunny'].includes(d.source_type)||!['draft','published'].includes(d.state))deny(400,'invalid_video');
@@ -120,9 +120,10 @@ export async function platformAdmin(request,env,path,method){
    if(sourceType==='bunny'){bunny.boundVideo(env,old||{});const status=await bunny.syncVideo(env,old);if(!status.ready)deny(409,'video_not_ready')}
   }
   const title=mergeTranslation(d.title,old?.title,300,true),description=mergeTranslation(d.description,old?.description,6000),now=new Date().toISOString(),id=old?.id||d.id||crypto.randomUUID();
-  if(old)await updateResult(db.prepare('UPDATE videos SET title=?,description=?,category=?,year=?,source_type=?,source_ref=?,youtube_ref=?,vk_ref=?,rutube_ref=?,access=?,price_minor=?,currency=?,state=?,revision=revision+1,updated_at=?,mutation_id=? WHERE id=? AND revision=? AND NOT EXISTS(SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>?)').bind(title,description,d.category,d.year,sourceType,ref,youtubeRef,vkRef,rutubeRef,d.access,d.price_minor,d.currency,d.state,now,crypto.randomUUID(),id,revision(d.revision),time()));
+  const speaker=typeof d.speaker==='string'?text(d.speaker,180):'';
+  if(old)await updateResult(db.prepare('UPDATE videos SET title=?,description=?,speaker=?,category=?,year=?,source_type=?,source_ref=?,youtube_ref=?,vk_ref=?,rutube_ref=?,access=?,price_minor=?,currency=?,state=?,revision=revision+1,updated_at=?,mutation_id=? WHERE id=? AND revision=? AND NOT EXISTS(SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>?)').bind(title,description,speaker,d.category,d.year,sourceType,ref,youtubeRef,vkRef,rutubeRef,d.access,d.price_minor,d.currency,d.state,now,crypto.randomUUID(),id,revision(d.revision),time()));
   else {
-   await db.prepare('INSERT INTO videos(id,title,description,category,year,source_type,source_ref,youtube_ref,vk_ref,rutube_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(id,title,description,d.category,d.year,sourceType,ref,youtubeRef,vkRef,rutubeRef,d.access,d.price_minor,d.currency,d.state,now,now,crypto.randomUUID(),staff.sub).run();
+   await db.prepare('INSERT INTO videos(id,title,description,speaker,category,year,source_type,source_ref,youtube_ref,vk_ref,rutube_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(id,title,description,speaker,d.category,d.year,sourceType,ref,youtubeRef,vkRef,rutubeRef,d.access,d.price_minor,d.currency,d.state,now,now,crypto.randomUUID(),staff.sub).run();
    const saved=await videoRow(db,id);if(saved.created_by!==staff.sub)deny(403,'draft_owner_required');
    // A stable client-chosen UUID makes an initial save safe to retry after a
    // lost response. It never overwrites an existing or concurrently edited row.

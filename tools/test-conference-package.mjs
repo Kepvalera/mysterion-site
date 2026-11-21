@@ -19,7 +19,7 @@ try{
  assert.equal(product.kind,'course');assert.equal(product.product_id,conference.id);assert.equal(product.sale_enabled,1); assert.equal(product.policy,JSON.stringify({mode:'days',days:60}));checks+=4;
  const videoIds=[];
  for(const title of ['День 1','День 2']){
-  const videoId=crypto.randomUUID();  db.prepare("INSERT INTO videos(id,title,description,category,year,source_type,source_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id) VALUES (?,?,?,'conference',2026,'bunny',?,'paid',1000000,'RUB','published',?,?,?)").run(videoId,JSON.stringify({ru:title,en:title}),'{}',crypto.randomUUID(),new Date().toISOString(),new Date().toISOString(),crypto.randomUUID());
+  const videoId=crypto.randomUUID();db.prepare("INSERT INTO videos(id,title,description,speaker,category,year,source_type,source_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id) VALUES (?,?,?,?,?,2026,'bunny',?,'paid',1000000,'RUB','published',?,?,?)").run(videoId,JSON.stringify({ru:title,en:title}),'{}','Спикер','conference',crypto.randomUUID(),new Date().toISOString(),new Date().toISOString(),crypto.randomUUID());
   videoIds.push(videoId);
   await read(call('admin/lessons','POST',{course_id:conference.id,title:{ru:title,en:title},description:{ru:'Запись конференции',en:'Conference recording'},video_id:videoId,position:videoIds.length,state:'published',public_preview:0}));
  }
@@ -28,6 +28,7 @@ try{
  const publicCatalog=await read(call('catalog','GET'));
  const packageItem=publicCatalog.courses.find(c=>c.id===conference.id);
  assert.equal(packageItem.access,'paid');assert.equal(packageItem.price_minor,1000000);checks+=2;
+ assert.equal(publicCatalog.videos.some(v=>videoIds.includes(v.id)),false);checks++;
  const viewerId=crypto.randomUUID(),now=Math.floor(Date.now()/1000),orderId=crypto.randomUUID(),grantId=crypto.randomUUID();
  db.prepare("INSERT INTO viewer_accounts(id,email,password_hash,email_verified_at,status,locale,created_at,updated_at) VALUES (?,?,?,?,'active','ru',?,?)").run(viewerId,'conference@example.invalid','fixture',now,now,now);
  db.prepare("INSERT INTO viewer_orders(id,viewer_id,course_id,title,amount_minor,currency,status,created_at,updated_at,access_expires_at) VALUES (?,?,?,?,1000000,'RUB','paid',?,?,?)").run(orderId,viewerId,conference.id,'{}',now,now,now+60*86400);
