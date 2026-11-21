@@ -20,7 +20,7 @@ function harness(location='https://video.bunnycdn.com/tusupload/test') {
   if(options.method==='HEAD'){heads++;return new Response(null,{status:200,headers:{'Upload-Offset':String(offset)}})}
   throw Error('Unexpected request');
  };
- vm.runInNewContext(source,{window,TextEncoder,Uint8Array,btoa,URL,Date,AbortController,DOMException,XMLHttpRequest:XHR,fetch});
+ vm.runInNewContext(source,{window,TextEncoder,Uint8Array,btoa,URL,Date,AbortController,DOMException,XMLHttpRequest:XHR,fetch,setTimeout,clearTimeout});
  const authorize=async()=>{grants++;return {endpoint:'https://video.bunnycdn.com/tusupload',expires:Math.floor(Date.now()/1000)+900,headers:{AuthorizationSignature:'TEST_SIGNATURE',AuthorizationExpire:String(Math.floor(Date.now()/1000)+900),LibraryId:'123',VideoId:'test'}}};
  return {Upload:window.MysterionBunnyUpload,authorize,state:()=>({offset,grants,posts,patches,heads})};
 }
@@ -28,12 +28,12 @@ const file=new File([new Uint8Array(17*1024*1024)],'LOCAL_TEST_ONLY.mp4',{type:'
 let passed=0;
 {
  const h=harness(),progress=[];const upload=new h.Upload(file,h.authorize,(sent,total)=>progress.push([sent,total]));
- assert.equal(await upload.start(),true);assert.equal(h.state().patches,3);assert.equal(h.state().posts,1);assert.equal(h.state().heads,1);assert.equal(h.state().offset,file.size);assert.equal(progress.at(-1)[0],file.size);assert.equal(upload.running,false);passed++;
+ assert.equal(await upload.start(),true); assert.equal(h.state().patches,5);assert.equal(h.state().posts,1);assert.equal(h.state().heads,1);assert.equal(h.state().offset,file.size);assert.equal(progress.at(-1)[0],file.size);assert.equal(upload.running,false);passed++;
 }
 {
  const h=harness();let stopped=false;const upload=new h.Upload(file,h.authorize,()=>{if(!stopped){stopped=true;upload.pause()}});
- await assert.rejects(upload.start(),error=>error.name==='AbortError');assert.equal(upload.running,false);assert.equal(h.state().patches,1);passed++;
- upload.grant.expires=0;assert.equal(await upload.start(),true);assert.equal(h.state().posts,1);assert.equal(h.state().heads,2);assert.equal(h.state().grants,2);assert.equal(h.state().patches,3);assert.equal(h.state().offset,file.size);passed++;
+ assert.equal(await upload.start(),false);assert.equal(upload.running,false);assert.equal(h.state().patches,1);passed++;
+ upload.grant.expires=0;assert.equal(await upload.start(),true);assert.equal(h.state().posts,1);assert.equal(h.state().heads,3);assert.equal(h.state().grants,2);assert.equal(h.state().patches,5);assert.equal(h.state().offset,file.size);passed++;
 }
 {
  const h=harness('https://evil.invalid/tusupload/steal'),upload=new h.Upload(file,h.authorize,()=>{});
@@ -43,4 +43,4 @@ let passed=0;
  const h=harness(),upload=new h.Upload(file,async()=>{upload.pause();return h.authorize()},()=>{});
  assert.equal(await upload.start(),false);assert.equal(h.state().posts,0);passed++;
 }
-console.log(JSON.stringify({clientScenarios:passed,chunkSizeMiB:8,pauseResume:'HEAD resumes confirmed server offset',expiredGrant:'renewed',externalLocation:'blocked',realUploads:0}));
+console.log(JSON.stringify({clientScenarios:passed,chunkSizeMiB:4,pauseResume:'HEAD resumes confirmed server offset',expiredGrant:'renewed',networkRetry:'bounded retry and HEAD confirmation',externalLocation:'blocked',realUploads:0}));
