@@ -1,0 +1,70 @@
+import assert from 'node:assert/strict';
+import {createHmac} from 'node:crypto';
+import {platformFixture} from './platform-local-fixture.mjs';
+import {gpCheckout,gpOffer} from '../media-worker/src/getplatinum-checkout.mjs';
+import {handleGetPlatinumWebhook} from '../media-worker/src/getplatinum-webhook.mjs';
+import {handlePlatform} from '../media-worker/src/platform.mjs';
+import {viewerSales} from '../media-worker/src/sales-public.mjs';
+import {mediaAvailability} from '../media-worker/src/media-availability.mjs';
+const f=await platformFixture(),{db,env,staff}=f,fetchBefore=globalThis.fetch;let checks=0,initCalls=0,lastBody,uncertain=false;
+const eq=(a,b)=>{assert.deepEqual(a,b);checks++},reject=async(fn,code)=>{await assert.rejects(fn,e=>e.message===code);checks++};
+Object.assign(env,{GETPLATINUM_API_KEY:'LOCAL_GETPLATINUM_FIXTURE_NOT_A_REAL_KEY',SALES_ENABLED:'true',MEDIA_PAID_ENABLED:'true'});
+const now=Math.floor(Date.now()/1000),uid=crypto.randomUUID(),other=crypto.randomUUID(),video=crypto.randomUUID(),viewer={id:uid};
+for(const [id,email] of [[uid,'buyer@example.invalid'],[other,'other@example.invalid']])db.prepare("INSERT INTO viewer_accounts(id,email,password_hash,status,email_verified_at,locale,created_at,updated_at) VALUES (?,?,'NO_LOGIN','active',?,'ru',?,?)").run(id,email,now,now,now);
+db.prepare("INSERT INTO videos(id,title,description,category,year,source_type,source_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id) VALUES (?,'{\"ru\":\"Тестовое видео\",\"en\":\"Fixture video\"}','{}','conference',2026,'youtube','AbcDEF123_-','paid',10000,'RUB','published',?,?,'fixture')").run(video,new Date((now-1)*1000).toISOString(),new Date().toISOString());
+db.prepare("INSERT INTO sales_products(kind,product_id,sale_enabled,policy) VALUES ('video',?,1,?)").run(video,JSON.stringify({mode:'days',days:60}));
+globalThis.fetch=async(url,options)=>{if(String(url).startsWith('https://kepvalera.getplatinum.ru/')){eq(options.redirect,'manual');eq(options.headers.Authorization,'Bearer '+env.GETPLATINUM_API_KEY);if(String(url).endsWith('/get-organization'))return Response.json({errorCode:0,id:123,isActive:true,allowedVats:['none','0']});if(String(url).endsWith('/init-payment-url')){initCalls++;lastBody=JSON.parse(options.body);if(uncertain)throw Error('SIMULATED_NETWORK_ERROR');return Response.json({errorCode:0,dealId:lastBody.dealId,formUrl:'https://kepvalera.getplatinum.ru/pay/fixture'})}throw Error('Unexpected GP call')}return fetchBefore(url,options)};
+const req=(body,role='owner')=>new Request(env.MEDIA_PUBLIC_ORIGIN+'/api/platform/admin/getplatinum',{method:'PUT',headers:{'Content-Type':'application/json',Origin:env.MEDIA_PUBLIC_ORIGIN,'X-Requested-With':'XMLHttpRequest','Cf-Access-Jwt-Assertion':staff[role]},body:JSON.stringify(body)});
+const purchase=(request_id=crypto.randomUUID(),extra={})=>gpCheckout(new Request(env.MEDIA_PUBLIC_ORIGIN+'/api/platform/sales/getplatinum/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request_id,id:video,...extra})}),env,viewer);
+const event=(id,mdOrder=900,changes={})=>({notificationType:1,dealId:id,isSuccess:true,paymentData:{mdOrder,amount:10000,currency:'RUB',...changes}});
+const webhook=async(value,opts={})=>{const body=typeof value==='string'?value:JSON.stringify(value),signature=createHmac('sha256',env.GETPLATINUM_API_KEY).update(body).digest('hex').toUpperCase();return handleGetPlatinumWebhook(new Request(env.MEDIA_PUBLIC_ORIGIN+'/api/getplatinum/webhook',{method:'POST',headers:{'Content-Type':'application/json','X-Checksum':opts.bad?'0'.repeat(64):opts.lower?signature.toLowerCase():signature},body}),env)};
+const refund=(id,refundId,mdOrder=900,amount=10000)=>({notificationType:9,dealId:id,isSuccess:true,refundData:{refundId,mdOrder,status:4,amount,currency:'RUB'}});
+const stage=id=>db.prepare('SELECT stage FROM getplatinum_orders WHERE order_id=?').get(id).stage,count=table=>db.prepare('SELECT COUNT(*) n FROM '+table).get().n;
+const releasePending=()=>db.prepare("UPDATE viewer_orders SET status='rejected' WHERE status='pending_payment'").run();
+try{
+ eq({...db.prepare('SELECT active_provider,gp_enabled,gp_vat FROM payment_provider_settings').get()},{active_provider:'tribute',gp_enabled:0,gp_vat:null});
+ await reject(()=>purchase(),'gp_checkout_disabled');
+ const settings={request_id:crypto.randomUUID(),revision:1,active_provider:'getplatinum',gp_enabled:1,gp_vat:'none'};
+ let response=await handlePlatform(req(settings),env);eq(response.status,409);eq((await response.json()).error,'gp_server_activation_required');
+ env.GETPLATINUM_LIVE_ENABLED='true';response=await handlePlatform(req(settings,'publisher'),env);eq(response.status,403);
+ response=await handlePlatform(req(settings),env);eq(response.status,200);
+ db.exec("UPDATE digital_public_sales SET enabled=1,activated_at=1;UPDATE site_display_settings SET mode='main',purchases_paused=0;");
+ await reject(()=>purchase(undefined,{amount_minor:1}),'invalid_fields');
+ const offer=await gpOffer(env,viewer,video);eq(offer.amount_minor,10000);eq(offer.policy.days,60);eq(offer.receipt_email,'buyer@example.invalid');
+ for(const sql of ["UPDATE digital_public_sales SET enabled=0","UPDATE site_display_settings SET mode='services'","UPDATE site_display_settings SET purchases_paused=1"]){db.exec(sql);await reject(()=>purchase(),'gp_checkout_disabled');db.exec("UPDATE digital_public_sales SET enabled=1;UPDATE site_display_settings SET mode='main',purchases_paused=0")}
+ db.exec('UPDATE payment_provider_settings SET gp_vat=NULL');await reject(()=>purchase(),'gp_vat_required');db.exec("UPDATE payment_provider_settings SET gp_vat='none'");
+ db.prepare('UPDATE viewer_accounts SET telegram_only=1 WHERE id=?').run(uid);await reject(()=>purchase(),'gp_receipt_contact_required');db.prepare('UPDATE viewer_accounts SET telegram_only=0 WHERE id=?').run(uid);
+ const rid=crypto.randomUUID(),order=await purchase(rid);eq(order.state,'ready');eq(lastBody.amount,10000);eq(lastBody.positions[0].price,10000);eq(lastBody.positions[0].vat,'none');eq(lastBody.clientParams.clientId,uid);eq(lastBody.notificationUrl,env.MEDIA_PUBLIC_ORIGIN+'/api/getplatinum/webhook');eq(Object.hasOwn(lastBody,'terminalId'),false);eq(Object.hasOwn(lastBody,'test'),false);
+ eq((await purchase(rid)).id,order.id);eq(initCalls,1);
+ const unsafe=new Request(env.MEDIA_PUBLIC_ORIGIN+'/api/platform/sales/getplatinum/checkout',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://evil.invalid','X-Requested-With':'XMLHttpRequest'},body:'{}'});eq((await handlePlatform(unsafe,env)).status,403);
+ const manual=new Request(env.MEDIA_PUBLIC_ORIGIN+'/api/platform/admin/orders/'+order.id+'/approve',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.MEDIA_PUBLIC_ORIGIN,'X-Requested-With':'XMLHttpRequest','Cf-Access-Jwt-Assertion':staff.owner},body:'{}'});eq((await handlePlatform(manual,env)).status,409);
+ await reject(()=>purchase(),'gp_pending_order_exists');
+ await reject(()=>viewerSales(new Request(env.MEDIA_PUBLIC_ORIGIN),env,{id:other},'getplatinum/orders/'+order.id,'GET'),'gp_order_not_found');
+ eq((await webhook(event(order.id),{bad:true})).status,401);eq((await webhook(event(order.id),{lower:true})).status,401);eq(count('viewer_grants'),0);
+ eq((await webhook(event(order.id,900,{amount:1}))).status,400);eq((await webhook(event(order.id,900,{currency:'EUR'}))).status,400);eq((await webhook(event(order.id,900,{currency:23}))).status,400);
+ eq((await webhook(event(crypto.randomUUID()))).status,404);
+ eq((await webhook({...event(order.id),checksum:'v1'})).status,400);
+ // A paused provider must still settle an already-created order.
+ env.GETPLATINUM_LIVE_ENABLED='false';db.exec("UPDATE site_display_settings SET mode='services';UPDATE payment_provider_settings SET gp_enabled=0;");
+ eq((await webhook(event(order.id))).status,200);eq(stage(order.id),'paid');eq(count('viewer_grants'),1);const grant=db.prepare('SELECT * FROM viewer_grants').get();eq(grant.viewer_id,uid);eq(grant.expires_at-grant.starts_at,60*86400);
+ eq((await webhook(JSON.stringify(event(order.id),null,2))).status,200);eq(count('viewer_grants'),1);eq(count('getplatinum_payments'),1);
+ eq((await webhook({notificationType:1,dealId:order.id,isSuccess:false,paymentData:null})).status,200);eq(stage(order.id),'paid');
+ const gift=crypto.randomUUID();db.prepare('INSERT INTO viewer_grants(id,viewer_id,video_id,starts_at,expires_at,granted_by,created_at) VALUES (?,?,?,?,?,?,?)').run(gift,uid,video,now-1,now+5000,'fixture',now);
+ eq((await webhook(refund(order.id,1,900,4000))).status,200);eq(stage(order.id),'paid');eq(db.prepare('SELECT revoked_at FROM viewer_grants WHERE id=?').get(grant.id).revoked_at,null);
+ eq((await webhook(refund(order.id,2,900,6000))).status,200);eq(stage(order.id),'refunded');eq(db.prepare('SELECT revoked_at FROM viewer_grants WHERE id=?').get(gift).revoked_at,null);eq(!!db.prepare('SELECT revoked_at FROM viewer_grants WHERE id=?').get(grant.id).revoked_at,true);
+ eq((await webhook(refund(order.id,2,900,6000))).status,200);eq(count('getplatinum_refunds'),2);eq((await webhook(event(order.id))).status,200);eq(count('viewer_grants'),2);
+ eq((await webhook(refund(order.id,3,900,1))).status,400);
+ // Remove only isolated fixture gift, never production data.
+ db.prepare('UPDATE viewer_grants SET revoked_at=? WHERE id=?').run(now,gift);env.GETPLATINUM_LIVE_ENABLED='true';db.exec("UPDATE site_display_settings SET mode='main';UPDATE payment_provider_settings SET gp_enabled=1;");
+ const second=await purchase();eq((await webhook(refund(second.id,4,901))).status,200);eq((await webhook(event(second.id,901))).status,200);eq(stage(second.id),'refunded');eq(count('viewer_grants'),2);
+ const third=await purchase();db.prepare("INSERT INTO access_blocks VALUES (?,'video',?,'fixture',?)").run(uid,video,now);eq((await webhook(event(third.id,902))).status,200);eq(count('viewer_grants'),2);db.exec('DELETE FROM access_blocks');
+ const fourth=await purchase();eq((await webhook(refund(fourth.id,5,903,null))).status,200);eq(db.prepare('SELECT reason FROM getplatinum_refunds WHERE refund_id=5').get().reason,'refund_details_missing');eq((await webhook({notificationType:1,dealId:fourth.id,isSuccess:false,paymentData:null})).status,200);eq(stage(fourth.id),'review');
+ const fifth=await purchase();eq((await webhook(event(fifth.id,900))).status,409);releasePending();
+ uncertain=true;await reject(()=>purchase(),'gp_api_uncertain');eq(db.prepare("SELECT COUNT(*) n FROM getplatinum_orders WHERE stage='uncertain'").get().n,1);const calls=initCalls;await reject(()=>purchase(),'gp_pending_order_exists');eq(initCalls,calls);
+ const history=await viewerSales(new Request(env.MEDIA_PUBLIC_ORIGIN),env,viewer,'history','GET');eq(history.orders.filter(o=>o.source==='getplatinum').length,count('getplatinum_orders'));
+ const journal=await handlePlatform(new Request(env.MEDIA_PUBLIC_ORIGIN+'/api/platform/admin/getplatinum',{headers:{'Cf-Access-Jwt-Assertion':staff.owner}}),env);eq(journal.status,200);const journalData=await journal.json();eq(journalData.orders.find(o=>o.id===order.id).refunded_minor,10000);eq(JSON.stringify(journalData).includes(env.GETPLATINUM_API_KEY),false);
+ const availability=await mediaAvailability(env,viewer);eq(availability.items[0].provider,'getplatinum');eq(JSON.stringify(availability).includes(env.GETPLATINUM_API_KEY),false);
+ response=await handlePlatform(req({...settings,request_id:crypto.randomUUID(),revision:2,gp_enabled:0,active_provider:'tribute'}),env);eq(response.status,200);eq(db.prepare('SELECT active_provider FROM payment_provider_settings').get().active_provider,'tribute');
+ console.log(JSON.stringify({checks,localOnly:true,realPayments:0,productionWrites:0,signature:'raw HMAC-SHA256 X-Checksum',migration:'0017 additive'}));
+}finally{globalThis.fetch=fetchBefore;f.close()}
+

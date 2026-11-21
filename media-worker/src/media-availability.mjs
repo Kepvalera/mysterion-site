@@ -1,3 +1,5 @@
+import {selectedPaymentProvider,paymentProviderSettings} from './payment-provider.mjs';
+import {gpCheckoutReady,gpProduct} from './getplatinum-checkout.mjs';
 import {temporarySite,newPurchasesAllowed} from './site-display-mode.mjs';
 import {publicDigitalSettings,digitalPublicOpen} from './digital-public-sales.mjs';
 import {time,rows,activeGrantSQL} from './platform-data.mjs';
@@ -8,6 +10,15 @@ export async function mediaAvailability(env,viewer){
  if(await temporarySite(env))return {site_mode:'services',public_sales_enabled:false,public_sales_paused:true,items:[]};
  const buyingAllowed=await newPurchasesAllowed(env);
  const db=env.MEDIA_DB,now=time(),available=await rows(db.prepare(`SELECT v.id,v.access,v.price_minor,v.currency,(v.source_type='youtube' OR (v.source_type='bunny' AND v.bunny_status=4)) AS playable,${viewer?`EXISTS(SELECT 1 FROM viewer_grants g WHERE ${activeGrantSQL} AND (g.video_id=v.id OR EXISTS(SELECT 1 FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.course_id=g.course_id AND l.video_id=v.id AND l.state='published' AND c.state IN ('published','archived'))))`:'0'} AS has_access FROM videos v WHERE v.state='published' AND v.publish_at<=? LIMIT 200`).bind(...(viewer?[viewer.id,now,now]:[]),new Date().toISOString()));
+ if(await selectedPaymentProvider(db)==='getplatinum'){
+  const ready=await gpCheckoutReady(env),settings=await paymentProviderSettings(db);let organizationReady=false;
+  if(ready&&settings.gp_vat)try{const org=await (await import('./getplatinum-api.mjs')).gpOrganization(env);organizationReady=org.isActive&&org.allowedVats.includes(settings.gp_vat)}catch{}
+  const items=[];for(const {playable,...v} of available){let terms=false;if(organizationReady&&v.access==='paid'&&!v.has_access)try{await gpProduct(db,v.id);terms=true}catch{}
+   let blocked=false;if(viewer)blocked=!!await db.prepare("SELECT 1 FROM access_blocks b WHERE viewer_id=? AND ((kind='video' AND product_id=?) OR (kind='course' AND EXISTS(SELECT 1 FROM platform_lessons WHERE course_id=b.product_id AND video_id=?)))").bind(viewer.id,v.id,v.id).first();
+   items.push({...v,provider:'getplatinum',has_access:v.access==='free'||!!v.has_access&&!blocked,can_buy:!blocked&&!v.has_access&&v.access==='paid'&&!!playable&&terms});}
+  if(!await gpCheckoutReady(env))for(const item of items)item.can_buy=false;
+  return {public_sales_enabled:ready,public_sales_paused:!ready,items};
+ }
  const publicState=await publicDigitalSettings(db),publicOpen=buyingAllowed&&digitalPublicOpen(env,publicState);
  let sales=[],paymentReady=buyingAllowed&&publicState?.enabled===1&&env.MEDIA_PAID_ENABLED==='true'&&publicEnabled(env)&&automaticEnabled(env)&&/^[1-9]\d*$/.test(env.TRIBUTE_SHOP_ID||'')&&!!env.TRIBUTE_API_KEY;
  // Reuse the existing read-only shop method; flags alone do not prove readiness.

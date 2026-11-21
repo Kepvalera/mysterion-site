@@ -1,3 +1,5 @@
+import {selectedPaymentProvider} from './payment-provider.mjs';
+import {gpOffer,gpCheckout,gpOrder} from './getplatinum-checkout.mjs';
 import {newPurchasesAllowed} from './site-display-mode.mjs';
 import {publicDigitalSettings,digitalPublicOpen} from './digital-public-sales.mjs';
 import {deny,time,rows,decode,videoAccess,courseAccess} from './platform-data.mjs';
@@ -7,6 +9,7 @@ import {createTributePayment} from './sales-tribute.mjs';
 import {telegramViewer} from './telegram-access.mjs';
 import {digitalProductRequest} from './digital-product-api.mjs';
 export async function publicSales(env){
+ if(await selectedPaymentProvider(env.MEDIA_DB)==='getplatinum')return {enabled:false,items:[],provider:'getplatinum'};
  if(!await newPurchasesAllowed(env)||!publicEnabled(env)||!(await publicDigitalSettings(env.MEDIA_DB))?.enabled)return {enabled:false,items:[]};
  const available=(await products(env.MEDIA_DB)).filter(p=>{
   if(!p.sale_enabled||p.state!=='published'||p.access!=='paid'||p.currency!=='RUB'||p.product_kind==='video'&&(!['bunny','youtube'].includes(p.source_type)||p.source_type==='bunny'&&p.bunny_status!==4||p.publish_at>new Date().toISOString()))return false;
@@ -17,6 +20,10 @@ export async function publicSales(env){
 }
 export async function viewerSales(request,env,viewer,path,method){
  const db=env.MEDIA_DB;if(env.SALES_ENABLED!=='true')deny(404,'not_found');
+ const common=path.match(/^purchase-offer\/([a-f0-9-]{36})$/);
+ if(common&&method==='GET'){if(await selectedPaymentProvider(db)==='getplatinum')return gpOffer(env,viewer,common[1]);path='digital-offer/'+common[1]}
+ if(path==='getplatinum/checkout'&&method==='POST')return gpCheckout(request,env,viewer);
+ const gp=path.match(/^getplatinum\/orders\/([a-f0-9-]{36})$/);if(gp&&method==='GET'){const o=await gpOrder(db,gp[1]);if(o.viewer_id!==viewer.id)deny(404,'gp_order_not_found');return {id:o.id,state:o.stage,reason:o.reason,has_access:!!(await videoAccess(db,viewer.id,o.video_id))?.expires_at}}
  const digital=path.match(/^digital-offer\/([a-f0-9-]{36})$/);
  if(digital&&method==='GET'){
   const videoId=digital[1];if((await videoAccess(db,viewer.id,videoId))?.expires_at)return {available:false,has_access:true};
@@ -44,9 +51,10 @@ export async function viewerSales(request,env,viewer,path,method){
   return {available:true,payment_url:p.payment_url,amount_minor:p.amount_minor,currency:'RUB'};
  }
  if(path==='telegram'||path.startsWith('telegram/'))return telegramViewer(request,env,viewer,path);
- if(path==='history'&&method==='GET')return {orders:(await rows(db.prepare('SELECT o.id,o.title,o.amount_minor,o.currency,o.created_at,o.access_expires_at,s.state,s.source,s.last_payment_status,s.payment_url FROM viewer_orders o JOIN sales_orders s ON s.order_id=o.id WHERE o.viewer_id=? ORDER BY o.created_at DESC LIMIT 200').bind(viewer.id))).map(decode)};
+ if(path==='history'&&method==='GET')return {orders:(await rows(db.prepare(`SELECT o.id,o.title,o.amount_minor,o.currency,o.created_at,o.access_expires_at,s.state,s.source,s.last_payment_status,s.payment_url FROM viewer_orders o JOIN sales_orders s ON s.order_id=o.id WHERE o.viewer_id=? UNION ALL SELECT o.id,o.title,o.amount_minor,o.currency,o.created_at,o.access_expires_at,CASE WHEN g.stage='paid' AND EXISTS(SELECT 1 FROM viewer_grants WHERE source_order_id=o.id AND revoked_at IS NULL) THEN 'granted' WHEN g.stage IN('new','creating','ready') THEN 'pending' ELSE g.stage END AS state,'getplatinum' AS source,g.reason AS last_payment_status,NULL AS payment_url FROM viewer_orders o JOIN getplatinum_orders g ON g.order_id=o.id WHERE o.viewer_id=? ORDER BY created_at DESC LIMIT 200`).bind(viewer.id,viewer.id))).map(decode)};
  if(path==='checkout'&&method==='POST'){if(!await newPurchasesAllowed(env))deny(503,'site_temporary_mode');
   if(!publicEnabled(env)||!(await publicDigitalSettings(db))?.enabled)deny(503,'public_sales_disabled');const d=await input(request,['request_id','kind','id','method']);if(!['manual','tribute'].includes(d.method))deny(400,'invalid_payment_method');if(d.method==='tribute'&&!automaticEnabled(env))deny(503,'automatic_payments_disabled');
+  if(d.method==='tribute'&&await selectedPaymentProvider(db)==='getplatinum')deny(409,'payment_provider_changed');
   await participant(db,viewer.id);const p=await item(db,d.kind,d.id),s=await db.prepare('SELECT * FROM sales_products WHERE kind=? AND product_id=? AND sale_enabled=1').bind(d.kind,p.id).first();
   if(!s||p.state!=='published'||p.access!=='paid'||p.currency!=='RUB'||env.MEDIA_PAID_ENABLED!=='true'||d.kind==='video'&&(p.source_type==='bunny'&&p.bunny_status!==4||!['bunny','youtube'].includes(p.source_type)||p.publish_at>new Date().toISOString()))deny(400,'not_for_sale');amount(p.price_minor);dates(s.policy);
   if(p.kind==='school'&&(p.price_minor!==3000000||JSON.parse(s.policy).mode!=='school'))deny(400,'school_terms_required');

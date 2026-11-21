@@ -1,0 +1,42 @@
+import {deny,decode,time,videoAccess} from './platform-data.mjs';
+import {input} from './platform-http.mjs';
+import {uuid,amount,dates,operation} from './sales-core.mjs';
+import {newPurchasesAllowed} from './site-display-mode.mjs';
+import {paymentProviderSettings} from './payment-provider.mjs';
+import {gpLiveReady,gpRequest,gpOrganization,gpPaymentURL} from './getplatinum-api.mjs';
+export async function gpCheckoutReady(env){const settings=await paymentProviderSettings(env.MEDIA_DB),sales=await env.MEDIA_DB.prepare('SELECT enabled FROM digital_public_sales WHERE id=1').first();return !!(gpLiveReady(env)&&settings?.gp_enabled===1&&settings.active_provider==='getplatinum'&&sales?.enabled===1&&await newPurchasesAllowed(env))}
+export async function gpProduct(db,id){
+ uuid(id);const v=await db.prepare("SELECT * FROM videos WHERE id=? AND state='published' AND access='paid' AND publish_at<=?").bind(id,new Date().toISOString()).first();
+ if(!v||v.currency!=='RUB'||!['youtube','bunny'].includes(v.source_type)||v.source_type==='bunny'&&v.bunny_status!==4)deny(409,'gp_video_unavailable');amount(v.price_minor);
+ const mappings=(await db.prepare('SELECT DISTINCT days FROM digital_product_mappings WHERE video_id=? AND active=1').bind(id).all()).results,s=await db.prepare("SELECT * FROM sales_products WHERE kind='video' AND product_id=? AND sale_enabled=1").bind(id).first();
+ let policy;if(mappings.length===1)policy={mode:'days',days:mappings[0].days};else if(mappings.length>1)deny(409,'gp_access_terms_conflict');else if(s){try{policy=JSON.parse(s.policy)}catch{deny(409,'gp_access_terms_missing')}}else deny(409,'gp_access_terms_missing');
+ dates(policy);return {...v,policy};
+}
+export async function gpOffer(env,viewer,id){
+ if((await videoAccess(env.MEDIA_DB,viewer.id,id))?.expires_at)return {available:false,has_access:true};
+ if(!await gpCheckoutReady(env))return {available:false,reason:'gp_checkout_disabled'};
+ const p=await gpProduct(env.MEDIA_DB,id),blocked=await env.MEDIA_DB.prepare("SELECT 1 FROM access_blocks b WHERE viewer_id=? AND ((kind='video' AND product_id=?) OR (kind='course' AND EXISTS(SELECT 1 FROM platform_lessons l WHERE l.course_id=b.product_id AND l.video_id=?)))").bind(viewer.id,id,id).first();if(blocked)deny(403,'access_restricted');
+ const s=await paymentProviderSettings(env.MEDIA_DB);if(!s.gp_vat)deny(409,'gp_vat_required');const a=await env.MEDIA_DB.prepare('SELECT email,telegram_only,email_verified_at FROM viewer_accounts WHERE id=?').bind(viewer.id).first();
+ return {provider:'getplatinum',available:true,video_id:id,title:decode(p).title,amount_minor:p.price_minor,currency:'RUB',policy:p.policy,receipt_email:a?.telegram_only!==1&&a?.email_verified_at?a.email:'',receipt_contact_required:true};
+}
+export async function gpOrder(db,id){uuid(id);const o=await db.prepare('SELECT o.*,g.policy,g.stage,g.payment_url,g.md_order,g.paid_at,g.reason,g.video_revision,g.vat,g.provider_revision FROM viewer_orders o JOIN getplatinum_orders g ON g.order_id=o.id WHERE o.id=?').bind(id).first();if(!o)deny(404,'gp_order_not_found');return o}
+export async function gpCheckout(request,env,viewer){
+ if(!await gpCheckoutReady(env))deny(503,'gp_checkout_disabled');const d=await input(request,['request_id','id','receipt_email','receipt_phone']);uuid(d.request_id);uuid(d.id);
+ const p=await gpProduct(env.MEDIA_DB,d.id);if((await videoAccess(env.MEDIA_DB,viewer.id,d.id))?.expires_at)deny(409,'access_already_available');await gpOffer(env,viewer,d.id);
+ const a=await env.MEDIA_DB.prepare('SELECT email,telegram_only,email_verified_at FROM viewer_accounts WHERE id=?').bind(viewer.id).first(),email=d.receipt_email??(a.telegram_only!==1&&a.email_verified_at?a.email:''),phone=d.receipt_phone??'';
+ if(typeof email!=='string'||typeof phone!=='string'||email.length>254||phone.length>20||email&&!/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email)||phone&&!/^\+\d{7,15}$/.test(phone))deny(400,'gp_receipt_contact_invalid');if(!email&&!phone)deny(400,'gp_receipt_contact_required');
+ const settings=await paymentProviderSettings(env.MEDIA_DB),id=crypto.randomUUID(),now=time();let saved;
+ try{saved=await operation(env.MEDIA_DB,viewer.id,'gp.checkout',d.id,d,{id},q=>[
+  q("INSERT INTO viewer_orders(id,viewer_id,video_id,title,amount_minor,currency,status,created_at,updated_at) SELECT ?,?,?,?,?,'RUB','pending_payment',?,? WHERE $guard",[id,viewer.id,p.id,p.title,p.price_minor,now,now]),
+  q('INSERT INTO getplatinum_orders(order_id,policy,video_revision,vat,provider_revision) SELECT ?,?,?,?,? WHERE $guard',[id,JSON.stringify(p.policy),p.revision,settings.gp_vat,settings.revision])
+ ],{sql:"EXISTS(SELECT 1 FROM videos WHERE id=? AND revision=? AND state='published') AND EXISTS(SELECT 1 FROM payment_provider_settings WHERE id=1 AND revision=? AND gp_enabled=1 AND active_provider='getplatinum') AND EXISTS(SELECT 1 FROM site_display_settings WHERE id=1 AND mode='main' AND purchases_paused=0) AND EXISTS(SELECT 1 FROM digital_public_sales WHERE id=1 AND enabled=1)",args:[p.id,p.revision,settings.revision]})}catch(e){if(e.status)throw e;if(await env.MEDIA_DB.prepare("SELECT 1 FROM viewer_orders WHERE viewer_id=? AND video_id=? AND status IN('pending_payment','in_review')").bind(viewer.id,d.id).first())deny(409,'gp_pending_order_exists');throw e}
+ let o=await gpOrder(env.MEDIA_DB,saved.id);if(o.stage!=='new')return {id:o.id,state:o.stage,...(o.stage==='ready'&&await gpCheckoutReady(env)?{payment_url:o.payment_url}:{})};
+ const reserved=await env.MEDIA_DB.prepare("UPDATE getplatinum_orders SET stage='creating',revision=revision+1 WHERE order_id=? AND stage='new'").bind(o.id).run();if(!reserved.meta.changes)return {id:o.id,state:'creating'};
+ try{
+  const org=await gpOrganization(env);if(!org.isActive||!org.allowedVats.includes(o.vat))deny(409,'gp_organization_or_vat_unavailable');if(!await gpCheckoutReady(env))deny(503,'gp_checkout_disabled');
+  const title=decode(o).title,titleText=(title.ru||title.en||'').replace(/<[^>]*>/g,'').trim();if(titleText.replace(/\s/g,'').length<5)deny(409,'gp_receipt_name_invalid');const origin=env.MEDIA_PUBLIC_ORIGIN;
+  const result=await gpRequest(env,'/init-payment-url',{dealId:o.id,amount:o.amount_minor,currency:o.currency,positions:[{prefix:p.category==='conference'?4:40,name:titleText.slice(0,255),price:o.amount_minor,quantity:1,vat:o.vat}],clientParams:{clientId:viewer.id,...(email?{email}:{}),...(phone?{phone}:{})},notificationUrl:origin+'/api/getplatinum/webhook',successUrl:origin+'/viewer-account.html?gp_order='+o.id+'&gp_result=success',failUrl:origin+'/viewer-account.html?gp_order='+o.id+'&gp_result=failed'});
+  if(result.dealId!==o.id)deny(502,'gp_deal_id_mismatch');const url=gpPaymentURL(env,result.formUrl);await env.MEDIA_DB.prepare("UPDATE getplatinum_orders SET stage='ready',payment_url=?,revision=revision+1 WHERE order_id=? AND stage='creating'").bind(url,o.id).run();o=await gpOrder(env.MEDIA_DB,o.id);
+  return {id:o.id,state:o.stage,...(o.stage==='ready'&&await gpCheckoutReady(env)?{payment_url:url}:{})};
+ }catch(e){const rejected=['gp_api_rejected','gp_organization_or_vat_unavailable','gp_checkout_disabled','gp_receipt_name_invalid'].includes(e.message);await env.MEDIA_DB.batch([env.MEDIA_DB.prepare("UPDATE getplatinum_orders SET stage=?,reason=?,revision=revision+1 WHERE order_id=? AND stage='creating'").bind(rejected?'failed':'uncertain',e.status?e.message:'gp_api_uncertain',o.id),...(rejected?[env.MEDIA_DB.prepare("UPDATE viewer_orders SET status='rejected',updated_at=? WHERE id=? AND status='pending_payment'").bind(time(),o.id)]:[])]);throw e}
+}

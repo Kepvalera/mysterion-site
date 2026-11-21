@@ -80,6 +80,7 @@ export async function handlePlatform(request,env){
   }
   const submit=path.match(/^orders\/([a-f0-9-]{36})\/submit$/);
   if(submit&&method==='POST'){
+   if(await db.prepare('SELECT 1 FROM getplatinum_orders WHERE order_id=?').bind(submit[1]).first())deny(409,'use_sales_workflow');
    if(env.SALES_ENABLED==='true'&&await db.prepare('SELECT 1 FROM sales_orders WHERE order_id=?').bind(submit[1]).first())deny(409,'use_sales_workflow');
    const data=await input(request,['revision']);await admitViewerOperation(request,env,'orders',{address:viewer.id});
    const result=await db.prepare("UPDATE viewer_orders SET status='in_review',revision=revision+1,updated_at=? WHERE id=? AND viewer_id=? AND status='pending_payment' AND revision=?").bind(time(),submit[1],viewer.id,revision(data.revision)).run();if(!result.meta.changes)deny(409,'revision_conflict');return json({ok:true});

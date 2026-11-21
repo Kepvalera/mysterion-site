@@ -1,3 +1,4 @@
+import {gpAdmin} from './getplatinum-admin.mjs';
 import {siteModeAdmin} from './site-mode-admin.mjs';
 import {verifiedIdentitySQL} from './viewer-identity.mjs';
 import {staffIdentity,requireOwner,canEditVideo,deny,rows,decode,time,idPattern,audit} from './platform-data.mjs';
@@ -35,6 +36,7 @@ function participantSearchSQL(query){
 }
 export async function platformAdmin(request,env,path,method){
  const db=env.MEDIA_DB,staff=await staffIdentity(request,env);if(method!=='GET')csrf(request,env);
+ if(path==='getplatinum'||path.startsWith('getplatinum/'))return gpAdmin(request,env,staff,path==='getplatinum'?'':path.slice(12),method);
  if(path==='site-mode'||path==='site-mode/content'||path==='site-mode/resume-sales')return siteModeAdmin(request,env,staff,path==='site-mode'?'':path.slice(10),method);
  if(path==='tribute-digital'||path.startsWith('tribute-digital/'))return digitalAdmin(request,env,staff,path.slice(16),method);
  if(path==='integrations/telegram/setup'&&method==='POST'){requireOwner(staff);await input(request,[]);return setupTelegramWebhook(env)}
@@ -226,8 +228,9 @@ export async function platformAdmin(request,env,path,method){
   const id=crypto.randomUUID();await db.prepare(`INSERT INTO viewer_grants(id,viewer_id,${target.column},starts_at,expires_at,granted_by,created_at) VALUES (?,?,?,?,?,?,?)`).bind(id,d.viewer_id,d.id,time(),until,staff.sub,time()).run();await audit(db,staff.sub,'grant.created',id);return {id};
  }
  const revoke=path.match(/^grants\/([a-f0-9-]{36})\/revoke$/);if(revoke&&method==='POST'){await input(request,[]);await db.prepare('UPDATE viewer_grants SET revoked_at=? WHERE id=? AND revoked_at IS NULL').bind(time(),revoke[1]).run();await audit(db,staff.sub,'grant.revoked',revoke[1]);return {ok:true}}
- if(path==='orders'&&method==='GET')return {items:(await rows(db.prepare('SELECT o.*,a.email FROM viewer_orders o JOIN viewer_accounts a ON a.id=o.viewer_id'+(env.SALES_ENABLED==='true'?' WHERE NOT EXISTS(SELECT 1 FROM sales_orders WHERE order_id=o.id)':'')+' ORDER BY o.created_at DESC LIMIT 200'))).map(decode)};
+ if(path==='orders'&&method==='GET')return {items:(await rows(db.prepare('SELECT o.*,a.email FROM viewer_orders o JOIN viewer_accounts a ON a.id=o.viewer_id'+(env.SALES_ENABLED==='true'?' WHERE NOT EXISTS(SELECT 1 FROM sales_orders WHERE order_id=o.id) AND NOT EXISTS(SELECT 1 FROM getplatinum_orders WHERE order_id=o.id)':'')+' ORDER BY o.created_at DESC LIMIT 200'))).map(decode)};
  const om=path.match(/^orders\/([a-f0-9-]{36})\/(approve|reject)$/);
+ if(om&&await db.prepare('SELECT 1 FROM getplatinum_orders WHERE order_id=?').bind(om[1]).first())deny(409,'use_sales_workflow');
  if(om&&env.SALES_ENABLED==='true'&&await db.prepare('SELECT 1 FROM sales_orders WHERE order_id=?').bind(om[1]).first())deny(409,'use_sales_workflow');
  if(om&&method==='POST'){
   const d=await input(request,['revision','expires_at','confirm_received']),rev=revision(d.revision),approval=crypto.randomUUID();
