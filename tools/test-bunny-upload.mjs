@@ -2,7 +2,7 @@
 import vm from 'node:vm';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
-const source=await fs.readFile(new URL('../bunny-upload.js',import.meta.url),'utf8');
+const source=await fs.readFile(new URL('../bunny-upload-resume.js',import.meta.url),'utf8');
 function harness(location='https://video.bunnycdn.com/tusupload/test') {
  let offset=0,grants=0,posts=0,patches=0,heads=0;
  const window={};
