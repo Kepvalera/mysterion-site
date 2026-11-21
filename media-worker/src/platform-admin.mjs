@@ -205,16 +205,41 @@ export async function platformAdmin(request,env,path,method){
   const result=await db.batch([db.prepare(`UPDATE viewer_accounts AS a SET first_name=?,last_name=?,status=?,updated_at=? WHERE a.id=? AND ${verifiedIdentitySQL('a')}`).bind(...names,d.status,time(),participant[1]),db.prepare("DELETE FROM viewer_sessions WHERE account_id=? AND EXISTS(SELECT 1 FROM viewer_accounts a WHERE a.id=account_id AND a.status='disabled')").bind(participant[1])]);
   if(!result[0].meta.changes)deny(409,'verified_account_required');await audit(db,staff.sub,'participant.updated',participant[1]);return {ok:true};
  }
- if(path==='courses'&&method==='GET')return {items:(await rows(db.prepare('SELECT * FROM platform_courses ORDER BY updated_at DESC LIMIT 200'))).map(decode)};
+ if(path==='courses'&&method==='GET')return {items:(await rows(db.prepare("SELECT c.*,(SELECT COUNT(*) FROM platform_lessons l WHERE l.course_id=c.id AND l.video_id IS NOT NULL AND l.state='published') AS video_count,(SELECT COUNT(*) FROM course_covers cc WHERE cc.course_id=c.id) AS has_cover FROM platform_courses c ORDER BY c.updated_at DESC LIMIT 200"))).map(decode)};
  const cm=path.match(/^courses\/([a-f0-9-]{36})$/);
+ const courseCover=path.match(/^courses\/([a-f0-9-]{36})\/cover$/);
+ if(courseCover&&method==='PUT'){
+  requireOwner(staff);const course=await db.prepare('SELECT id FROM platform_courses WHERE id=?').bind(courseCover[1]).first();if(!course)deny(404,'course_not_found');
+  const mime=request.headers.get('Content-Type');if(!['image/jpeg','image/png','image/webp'].includes(mime))deny(415,'invalid_cover');
+  const reader=request.body?.getReader();if(!reader)deny(400,'invalid_cover');const chunks=[];let size=0;
+  while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>524288){await reader.cancel();deny(413,'cover_too_large')}chunks.push(value)}
+  const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length}
+  const signature=mime==='image/png'?bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71:mime==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP';if(!signature)deny(400,'invalid_cover');
+  await db.prepare('INSERT INTO course_covers(course_id,mime,bytes) VALUES (?,?,?) ON CONFLICT(course_id) DO UPDATE SET mime=excluded.mime,bytes=excluded.bytes').bind(course.id,mime,bytes).run();
+  await audit(db,staff.sub,'course.cover',course.id);return {ok:true};
+ }
  if(cm&&method==='DELETE')return courseLifecycle(request,env,staff,cm[1]);
  if(path==='courses'&&method==='POST'||cm&&method==='PUT'){
-  const d=await input(request,['title','description','kind','stream','access','price_minor','currency','state','revision']);money(d);
-  if(!['school','conference','seminar','course'].includes(d.kind)||!['draft','published','archived'].includes(d.state)||(d.kind==='school'?![3,4,5,6].includes(d.stream):d.stream!==null))deny(400,'invalid_course');
+  const d=await input(request,['title','description','kind','stream','access','price_minor','currency','state','revision','duration_days','sale_enabled']);money(d);
+  if(!['school','conference','seminar','course'].includes(d.kind))deny(400,'invalid_course_kind');
+  if(!['draft','published','archived'].includes(d.state))deny(400,'invalid_course_status');
+  if(d.kind==='school'&&![3,4,5,6].includes(d.stream))deny(400,'invalid_school_stream');
+  if(d.kind!=='school'&&d.stream!==null&&d.stream!==undefined)deny(400,'stream_only_for_school');
+  if(d.kind==='conference'&&d.access==='paid'&&d.currency!=='RUB')deny(400,'conference_paid_requires_rub');
+  if(d.kind==='conference'&&d.access==='paid'&&(!Number.isInteger(d.duration_days)||d.duration_days<1||d.duration_days>3660))deny(400,'invalid_access_duration');
+  if(d.kind==='conference'&&d.access==='paid'&&d.sale_enabled!==undefined&&![0,1].includes(d.sale_enabled))deny(400,'invalid_sale_status');
   const old=cm?await db.prepare('SELECT title,description FROM platform_courses WHERE id=?').bind(cm[1]).first():null;
   const title=mergeTranslation(d.title,old?.title,300,true),description=mergeTranslation(d.description,old?.description,6000),id=cm?.[1]||crypto.randomUUID();
   if(cm)await updateResult(db.prepare('UPDATE platform_courses SET title=?,description=?,kind=?,stream=?,access=?,price_minor=?,currency=?,state=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?').bind(title,description,d.kind,d.stream,d.access,d.price_minor,d.currency,d.state,time(),id,revision(d.revision)));
-  else await db.prepare('INSERT INTO platform_courses(id,title,description,kind,stream,access,price_minor,currency,state,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,d.kind,d.stream,d.access,d.price_minor,d.currency,d.state,time(),time()).run();await audit(db,staff.sub,'course.saved',id);return decode(await db.prepare('SELECT * FROM platform_courses WHERE id=?').bind(id).first());
+  else await db.prepare('INSERT INTO platform_courses(id,title,description,kind,stream,access,price_minor,currency,state,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,d.kind,d.stream,d.access,d.price_minor,d.currency,d.state,time(),time()).run();
+  if(d.kind==='conference'){
+   const days=d.duration_days||90,enabled=d.access==='paid'&&d.state==='published'&&d.sale_enabled===1&&env.MEDIA_PAID_ENABLED==='true'?1:0;
+   const policy=JSON.stringify({mode:'days',days});
+   await db.prepare("INSERT INTO sales_products(kind,product_id,sale_enabled,policy,revision) VALUES ('course',?,?,?,1) ON CONFLICT(kind,product_id) DO UPDATE SET sale_enabled=excluded.sale_enabled,policy=excluded.policy,revision=sales_products.revision+1").bind(id,enabled,policy).run();
+  }else{
+   await db.prepare("UPDATE sales_products SET sale_enabled=0,revision=revision+1 WHERE kind='course' AND product_id=?").bind(id).run();
+  }
+  await audit(db,staff.sub,'course.saved',id);return decode(await db.prepare('SELECT * FROM platform_courses WHERE id=?').bind(id).first());
  }
  if(path==='lessons'&&method==='GET')return {items:(await rows(db.prepare('SELECT * FROM platform_lessons ORDER BY course_id,position LIMIT 500'))).map(decode)};
  const lm=path.match(/^lessons\/([a-f0-9-]{36})$/);

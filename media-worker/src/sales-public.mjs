@@ -1,6 +1,5 @@
 import {controlOffer} from './getplatinum-control.mjs';
 import {selectedPaymentProvider} from './payment-provider.mjs';
-import {gpOffer,gpCheckout,gpOrder} from './getplatinum-checkout.mjs';
 import {newPurchasesAllowed} from './site-display-mode.mjs';
 import {publicDigitalSettings,digitalPublicOpen} from './digital-public-sales.mjs';
 import {deny,time,rows,decode,videoAccess,courseAccess} from './platform-data.mjs';
@@ -9,6 +8,7 @@ import {publicEnabled,automaticEnabled,products,item,participant,amount,dates,op
 import {createTributePayment} from './sales-tribute.mjs';
 import {telegramViewer} from './telegram-access.mjs';
 import {digitalProductRequest} from './digital-product-api.mjs';
+import {gpOffer,gpCourseOffer,gpCheckout,gpOrder} from './getplatinum-checkout.mjs';
 export async function publicSales(env){
  if(await selectedPaymentProvider(env.MEDIA_DB)==='getplatinum')return {enabled:false,items:[],provider:'getplatinum'};
  if(!await newPurchasesAllowed(env)||!publicEnabled(env)||!(await publicDigitalSettings(env.MEDIA_DB))?.enabled)return {enabled:false,items:[]};
@@ -22,11 +22,11 @@ export async function publicSales(env){
 export async function viewerSales(request,env,viewer,path,method){
  const db=env.MEDIA_DB;if(env.SALES_ENABLED!=='true')deny(404,'not_found');
  const common=path.match(/^purchase-offer\/([a-f0-9-]{36})$/);
- if(common&&method==='GET'){if(await selectedPaymentProvider(db)==='getplatinum')return gpOffer(env,viewer,common[1]);path='digital-offer/'+common[1]}
+ if(common&&method==='GET'){if(await selectedPaymentProvider(db)==='getplatinum'){if(await db.prepare("SELECT 1 FROM platform_courses WHERE id=? AND kind='conference'").bind(common[1]).first())return gpCourseOffer(env,viewer,common[1]);return gpOffer(env,viewer,common[1])}path='digital-offer/'+common[1]}
  if(path==='getplatinum/control/offer'&&method==='GET')return controlOffer(env,viewer);
  if(path==='getplatinum/control/checkout'&&method==='POST')return gpCheckout(request,env,viewer,true);
  if(path==='getplatinum/checkout'&&method==='POST')return gpCheckout(request,env,viewer);
- const gp=path.match(/^getplatinum\/orders\/([a-f0-9-]{36})$/);if(gp&&method==='GET'){const o=await gpOrder(db,gp[1]);if(o.viewer_id!==viewer.id)deny(404,'gp_order_not_found');return {id:o.id,state:o.stage,reason:o.reason,has_access:!!(await videoAccess(db,viewer.id,o.video_id))?.expires_at}}
+ const gp=path.match(/^getplatinum\/orders\/([a-f0-9-]{36})$/);if(gp&&method==='GET'){const o=await gpOrder(db,gp[1]);if(o.viewer_id!==viewer.id)deny(404,'gp_order_not_found');const access=o.course_id?(await courseAccess(db,viewer.id,o.course_id)):(await videoAccess(db,viewer.id,o.video_id));return {id:o.id,state:o.stage,reason:o.reason,has_access:!!access?.expires_at}}
  const digital=path.match(/^digital-offer\/([a-f0-9-]{36})$/);
  if(digital&&method==='GET'){
   const videoId=digital[1];if((await videoAccess(db,viewer.id,videoId))?.expires_at)return {available:false,has_access:true};

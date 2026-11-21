@@ -26,7 +26,9 @@ export async function processGPEvent(env,event,bodyHash){
  if(o.md_order&&o.md_order!==p.mdOrder)deny(409,'gp_payment_identity_conflict');if(await db.prepare('SELECT 1 FROM getplatinum_refunds WHERE order_id=? AND md_order!=?').bind(o.id,p.mdOrder).first())deny(409,'gp_payment_identity_conflict');
  const key='gp.paid:'+p.mdOrder,request_id=await opId(key),confirmed=time();let start,end;try{[start,end]=dates(o.policy,confirmed)}catch{start=confirmed;end=confirmed;}
  const uncertainRefund=await db.prepare("SELECT 1 FROM getplatinum_refunds WHERE order_id=? AND status=4 AND reason IS NOT NULL").bind(o.id).first();
- const blocked=await db.prepare("SELECT 1 FROM access_blocks b WHERE viewer_id=? AND ((kind='video' AND product_id=?) OR (kind='course' AND EXISTS(SELECT 1 FROM platform_lessons WHERE course_id=b.product_id AND video_id=?)))").bind(o.viewer_id,o.video_id,o.video_id).first();
+ const blocked= o.course_id
+  ?await db.prepare("SELECT 1 FROM access_blocks WHERE viewer_id=? AND kind='course' AND product_id=?").bind(o.viewer_id,o.course_id).first()
+  :await db.prepare("SELECT 1 FROM access_blocks b WHERE viewer_id=? AND ((kind='video' AND product_id=?) OR (kind='course' AND EXISTS(SELECT 1 FROM platform_lessons WHERE course_id=b.product_id AND video_id=?)))").bind(o.viewer_id,o.video_id,o.video_id).first();
  const reason=end<=start?'access_period_ended':uncertainRefund?'refund_details_missing':blocked?'access_restricted':null;
  const receipt=providerReceipt(event);
  return operation(db,'getplatinum','gp.paid',o.id,{request_id,mdOrder:p.mdOrder,amount:p.amount,currency:o.currency},{ok:true},q=>[
@@ -36,6 +38,8 @@ export async function processGPEvent(env,event,bodyHash){
   q("UPDATE getplatinum_orders SET md_order=?,paid_at=COALESCE(paid_at,?),stage=CASE WHEN COALESCE((SELECT SUM(amount_minor) FROM getplatinum_refunds WHERE order_id=getplatinum_orders.order_id AND status=4 AND currency='RUB' AND reason IS NULL),0)>=? THEN 'refunded' WHEN ? IS NOT NULL THEN 'review' ELSE 'paid' END,reason=?,revision=revision+1 WHERE order_id=? AND $guard",[p.mdOrder,confirmed,o.amount_minor,reason,reason,o.id]),
   q(`UPDATE viewer_orders SET status=CASE WHEN ${refunded('viewer_orders')}>=amount_minor THEN 'rejected' ELSE 'paid' END,access_expires_at=?,updated_at=?,revision=revision+1 WHERE id=? AND $guard`,[end>start?end:null,confirmed,o.id]),
   q(`INSERT INTO viewer_grants(id,viewer_id,video_id,starts_at,expires_at,granted_by,source_order_id,created_at) SELECT ?,v.viewer_id,v.video_id,?,?,'getplatinum',v.id,? FROM viewer_orders v WHERE v.id=? AND ?>? AND ${refunded('v')}<v.amount_minor AND NOT EXISTS(SELECT 1 FROM getplatinum_refunds WHERE order_id=v.id AND status=4 AND reason IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM access_blocks b WHERE b.viewer_id=v.viewer_id AND ((b.kind='video' AND b.product_id=v.video_id) OR (b.kind='course' AND EXISTS(SELECT 1 FROM platform_lessons l WHERE l.course_id=b.product_id AND l.video_id=v.video_id)))) AND $guard`,[crypto.randomUUID(),start,end,confirmed,o.id,end,start])
+  ,
+   q(`INSERT INTO viewer_grants(id,viewer_id,course_id,starts_at,expires_at,granted_by,source_order_id,created_at) SELECT ?,v.viewer_id,v.course_id,?,?,'getplatinum',v.id,? FROM viewer_orders v WHERE v.id=? AND v.course_id IS NOT NULL AND ?>? AND ${refunded('v')}<v.amount_minor AND NOT EXISTS(SELECT 1 FROM getplatinum_refunds WHERE order_id=v.id AND status=4 AND reason IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM access_blocks b WHERE b.viewer_id=v.viewer_id AND b.kind='course' AND b.product_id=v.course_id) AND $guard`,[crypto.randomUUID(),start,end,confirmed,o.id,end,start])
  ],{sql:'NOT EXISTS(SELECT 1 FROM getplatinum_payments WHERE md_order=? OR order_id=?)',args:[p.mdOrder,o.id]});
 }
 async function refund(env,o,event,bodyHash){
