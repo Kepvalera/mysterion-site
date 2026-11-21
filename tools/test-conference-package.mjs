@@ -9,9 +9,14 @@ const request=(path,method='GET',body)=>new Request(env.MEDIA_PUBLIC_ORIGIN+'/ap
 const call=(path,method='GET',body)=>handlePlatform(request(path,method,body),env);
 const read=async promise=>{const r=await promise;const body=await r.json();assert.equal(r.status,200,JSON.stringify(body));checks++;return body};
 try{
- const conference=await read(call('admin/courses','POST',{title:{ru:'Конференция пакета',en:'Conference package'},description:{ru:'Пакет двух записей',en:'Two-record package'},kind:'conference',stream:null,access:'paid',price_minor:1000000,currency:'RUB',state:'published',duration_days:90,sale_enabled:1}));
+ const streamWrong=await call('admin/courses','POST',{title:{ru:'Неверная конференция',en:'Wrong conference'},description:{ru:'',en:''},kind:'conference',stream:3,access:'paid',price_minor:1000000,currency:'RUB',state:'published',duration_days:'60',sale_enabled:1});assert.equal(streamWrong.status,400);checks++;
+ const streamBody=await streamWrong.clone().json();assert.equal(streamBody.error,'stream_only_for_school');checks++;
+ const durationWrong=await call('admin/courses','POST',{title:{ru:'Неверный срок',en:'Wrong duration'},description:{ru:'',en:''},kind:'conference',stream:null,access:'paid',price_minor:1000000,currency:'RUB',state:'published',duration_days:'abc',sale_enabled:1});assert.equal(durationWrong.status,400);checks++;
+ const durationBody=await durationWrong.clone().json();assert.equal(durationBody.error,'invalid_access_duration');checks++;
+ const conference=await read(call('admin/courses','POST',{title:{ru:'Конференция пакета',en:'Conference package'},description:{ru:'Пакет двух записей',en:'Two-record package'},kind:'conference',stream:null,access:'paid',price_minor:1000000,currency:'RUB',state:'published',duration_days:'60',sale_enabled:1}));
+ await read(call('admin/courses/'+conference.id,'PUT',{title:{ru:'Конференция пакета',en:'Conference package'},description:{ru:'Пакет двух записей',en:'Two-record package'},kind:'conference',stream:null,access:'paid',price_minor:1000000,currency:'RUB',state:'published',revision:conference.revision,duration_days:'60',sale_enabled:1}));
  const product=db.prepare("SELECT kind,product_id,sale_enabled,policy FROM sales_products WHERE kind='course' AND product_id=?").get(conference.id);
- assert.equal(product.kind,'course');assert.equal(product.product_id,conference.id);assert.equal(product.sale_enabled,1);assert.equal(product.policy,JSON.stringify({mode:'days',days:90}));checks+=4;
+ assert.equal(product.kind,'course');assert.equal(product.product_id,conference.id);assert.equal(product.sale_enabled,1); assert.equal(product.policy,JSON.stringify({mode:'days',days:60}));checks+=4;
  const videoIds=[];
  for(const title of ['День 1','День 2']){
   const videoId=crypto.randomUUID();  db.prepare("INSERT INTO videos(id,title,description,category,year,source_type,source_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id) VALUES (?,?,?,'conference',2026,'bunny',?,'paid',1000000,'RUB','published',?,?,?)").run(videoId,JSON.stringify({ru:title,en:title}),'{}',crypto.randomUUID(),new Date().toISOString(),new Date().toISOString(),crypto.randomUUID());
@@ -25,10 +30,10 @@ try{
  assert.equal(packageItem.access,'paid');assert.equal(packageItem.price_minor,1000000);checks+=2;
  const viewerId=crypto.randomUUID(),now=Math.floor(Date.now()/1000),orderId=crypto.randomUUID(),grantId=crypto.randomUUID();
  db.prepare("INSERT INTO viewer_accounts(id,email,password_hash,email_verified_at,status,locale,created_at,updated_at) VALUES (?,?,?,?,'active','ru',?,?)").run(viewerId,'conference@example.invalid','fixture',now,now,now);
- db.prepare("INSERT INTO viewer_orders(id,viewer_id,course_id,title,amount_minor,currency,status,created_at,updated_at,access_expires_at) VALUES (?,?,?,?,1000000,'RUB','paid',?,?,?)").run(orderId,viewerId,conference.id,'{}',now,now,now+90*86400);
- db.prepare("INSERT INTO viewer_grants(id,viewer_id,course_id,starts_at,expires_at,granted_by,source_order_id,created_at) VALUES (?,?,?,?,?,'getplatinum',?,?)").run(grantId,viewerId,conference.id,now,now+90*86400,orderId,now);
+ db.prepare("INSERT INTO viewer_orders(id,viewer_id,course_id,title,amount_minor,currency,status,created_at,updated_at,access_expires_at) VALUES (?,?,?,?,1000000,'RUB','paid',?,?,?)").run(orderId,viewerId,conference.id,'{}',now,now,now+60*86400);
+ db.prepare("INSERT INTO viewer_grants(id,viewer_id,course_id,starts_at,expires_at,granted_by,source_order_id,created_at) VALUES (?,?,?,?,?,'getplatinum',?,?)").run(grantId,viewerId,conference.id,now,now+60*86400,orderId,now);
  db.prepare("DELETE FROM platform_lessons WHERE course_id=? AND video_id=?").run(conference.id,videoIds[1]);
  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM viewer_grants WHERE id=? AND source_order_id=? AND revoked_at IS NULL').get(grantId,orderId).n,1);checks++;
  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM platform_lessons WHERE course_id=?').get(conference.id).n,1);checks++;
- console.log(JSON.stringify({checks,conferenceId:conference.id,videoCount:2,priceMinor:1000000,durationDays:90,existingGrantPreserved:true,realPayments:0}));
+ console.log(JSON.stringify({checks,conferenceId:conference.id,videoCount:2,priceMinor:1000000,durationDays:60,existingGrantPreserved:true,realPayments:0}));
 }finally{f.close()}
