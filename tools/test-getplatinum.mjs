@@ -8,7 +8,7 @@ import {viewerSales} from '../media-worker/src/sales-public.mjs';
 import {mediaAvailability} from '../media-worker/src/media-availability.mjs';
 const f=await platformFixture(),{db,env,staff}=f,fetchBefore=globalThis.fetch;let checks=0,initCalls=0,lastBody,uncertain=false;
 const eq=(a,b)=>{assert.deepEqual(a,b);checks++},reject=async(fn,code)=>{await assert.rejects(fn,e=>e.message===code);checks++};
-Object.assign(env,{GETPLATINUM_API_KEY:'LOCAL_GETPLATINUM_FIXTURE_NOT_A_REAL_KEY',SALES_ENABLED:'true',MEDIA_PAID_ENABLED:'true'});
+Object.assign(env,{GETPLATINUM_API_KEY:'LOCAL_GETPLATINUM_FIXTURE_NOT_A_REAL_KEY',SALES_ENABLED:'true',SALES_PUBLIC_ENABLED:'true',MEDIA_PAID_ENABLED:'true'});
 const now=Math.floor(Date.now()/1000),uid=crypto.randomUUID(),other=crypto.randomUUID(),video=crypto.randomUUID(),viewer={id:uid};
 for(const [id,email] of [[uid,'buyer@example.invalid'],[other,'other@example.invalid']])db.prepare("INSERT INTO viewer_accounts(id,email,password_hash,status,email_verified_at,locale,created_at,updated_at) VALUES (?,?,'NO_LOGIN','active',?,'ru',?,?)").run(id,email,now,now,now);
 db.prepare("INSERT INTO videos(id,title,description,category,year,source_type,source_ref,access,price_minor,currency,state,publish_at,updated_at,mutation_id) VALUES (?,'{\"ru\":\"Тестовое видео\",\"en\":\"Fixture video\"}','{}','conference',2026,'youtube','AbcDEF123_-','paid',10000,'RUB','published',?,?,'fixture')").run(video,new Date((now-1)*1000).toISOString(),new Date().toISOString());
@@ -31,7 +31,7 @@ try{
  db.exec("UPDATE digital_public_sales SET enabled=1,activated_at=1;UPDATE site_display_settings SET mode='main',purchases_paused=0;");
  await reject(()=>purchase(undefined,{amount_minor:1}),'invalid_fields');
  const offer=await gpOffer(env,viewer,video);eq(offer.amount_minor,10000);eq(offer.policy.days,60);eq(offer.receipt_email,'buyer@example.invalid');
- for(const sql of ["UPDATE digital_public_sales SET enabled=0","UPDATE site_display_settings SET mode='services'","UPDATE site_display_settings SET purchases_paused=1"]){db.exec(sql);await reject(()=>purchase(),'gp_checkout_disabled');db.exec("UPDATE digital_public_sales SET enabled=1;UPDATE site_display_settings SET mode='main',purchases_paused=0")}
+ for(const sql of ["UPDATE digital_public_sales SET enabled=0","UPDATE site_display_settings SET purchases_paused=1"]){db.exec(sql);await reject(()=>purchase(),'gp_checkout_disabled');db.exec("UPDATE digital_public_sales SET enabled=1;UPDATE site_display_settings SET mode='main',purchases_paused=0")}
  db.exec('UPDATE payment_provider_settings SET gp_vat=NULL');await reject(()=>purchase(),'gp_vat_required');db.exec("UPDATE payment_provider_settings SET gp_vat='none'");
  db.prepare('UPDATE viewer_accounts SET telegram_only=1 WHERE id=?').run(uid);await reject(()=>purchase(),'gp_receipt_contact_required');db.prepare('UPDATE viewer_accounts SET telegram_only=0 WHERE id=?').run(uid);
  const rid=crypto.randomUUID(),order=await purchase(rid);eq(order.state,'ready');eq(lastBody.amount,10000);eq(lastBody.positions[0].price,10000);eq(lastBody.positions[0].vat,'none');eq(lastBody.clientParams.clientId,uid);eq(lastBody.notificationUrl,env.MEDIA_PUBLIC_ORIGIN+'/api/getplatinum/webhook');eq(Object.hasOwn(lastBody,'terminalId'),false);eq(Object.hasOwn(lastBody,'test'),false);

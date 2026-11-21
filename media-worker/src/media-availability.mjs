@@ -1,5 +1,5 @@
 import {selectedPaymentProvider,paymentProviderSettings} from './payment-provider.mjs';
-import {gpCheckoutReady,gpProduct} from './getplatinum-checkout.mjs';
+import {gpCheckoutReady,gpPublicProduct} from './getplatinum-checkout.mjs';
 import {temporarySite,newPurchasesAllowed} from './site-display-mode.mjs';
 import {publicDigitalSettings,digitalPublicOpen} from './digital-public-sales.mjs';
 import {time,rows,activeGrantSQL} from './platform-data.mjs';
@@ -13,7 +13,7 @@ export async function mediaAvailability(env,viewer){
  if(await selectedPaymentProvider(db)==='getplatinum'){
   const ready=await gpCheckoutReady(env),settings=await paymentProviderSettings(db);let organizationReady=false;
   if(ready&&settings.gp_vat)try{const org=await (await import('./getplatinum-api.mjs')).gpOrganization(env);organizationReady=org.isActive&&org.allowedVats.includes(settings.gp_vat)}catch{}
-  const items=[];for(const {playable,...v} of available){let terms=false;if(organizationReady&&v.access==='paid'&&!v.has_access)try{await gpProduct(db,v.id);terms=true}catch{}
+  const items=[];for(const {playable,...v} of available){let terms=false;if(organizationReady&&v.access==='paid'&&!v.has_access)try{await gpPublicProduct(db,v.id,env);terms=true}catch{}
    let blocked=false;if(viewer)blocked=!!await db.prepare("SELECT 1 FROM access_blocks b WHERE viewer_id=? AND ((kind='video' AND product_id=?) OR (kind='course' AND EXISTS(SELECT 1 FROM platform_lessons WHERE course_id=b.product_id AND video_id=?)))").bind(viewer.id,v.id,v.id).first();
    items.push({...v,provider:'getplatinum',has_access:v.access==='free'||!!v.has_access&&!blocked,can_buy:!blocked&&!v.has_access&&v.access==='paid'&&!!playable&&terms});}
   if(!await gpCheckoutReady(env))for(const item of items)item.can_buy=false;

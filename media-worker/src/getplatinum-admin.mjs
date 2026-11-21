@@ -1,3 +1,4 @@
+import {gpLaunch} from './getplatinum-launch.mjs';
 import {controlAdmin} from './getplatinum-control.mjs';
 import {requireOwner,deny,rows,decode,time} from './platform-data.mjs';
 import {input,revision} from './platform-http.mjs';
@@ -5,7 +6,7 @@ import {operation} from './sales-core.mjs';
 import {paymentProviderSettings} from './payment-provider.mjs';
 import {gpLiveReady,gpOrganization,gpKeyState,getplatinumTerminal} from './getplatinum-api.mjs';
 export async function gpAdmin(request,env,staff,path,method){
- requireOwner(staff);if(path==='control'||path.startsWith('control/'))return controlAdmin(request,env,staff,path,method);const db=env.MEDIA_DB;
+ requireOwner(staff);if(path==='services-sales')return gpLaunch(request,env,staff,method);if(path==='control'||path.startsWith('control/'))return controlAdmin(request,env,staff,path,method);const db=env.MEDIA_DB;
  if(path===''&&method==='GET')return {settings:await paymentProviderSettings(db),configured:gpKeyState(env)==='configured',key_state:gpKeyState(env),live_enabled:env.GETPLATINUM_LIVE_ENABLED==='true',live_ready:gpLiveReady(env),terminal:getplatinumTerminal,orders:(await rows(db.prepare("SELECT o.id,o.viewer_id,o.title,o.amount_minor,o.currency,o.created_at,g.stage,g.reason,g.md_order,g.paid_at,COALESCE((SELECT SUM(r.amount_minor) FROM getplatinum_refunds r WHERE r.order_id=o.id AND r.status=4 AND r.reason IS NULL),0) AS refunded_minor,(SELECT COUNT(*) FROM getplatinum_refunds r WHERE r.order_id=o.id) AS refund_count FROM viewer_orders o JOIN getplatinum_orders g ON g.order_id=o.id ORDER BY o.created_at DESC LIMIT 100"))).map(decode)};
  if(path==='check'&&method==='POST'){await input(request,[]);try{const org=await gpOrganization(env);await db.prepare('UPDATE payment_provider_settings SET checked_at=?,check_status=? WHERE id=1').bind(time(),org.isActive?'active':'inactive').run();return {ok:true,...org}}catch(e){await db.prepare("UPDATE payment_provider_settings SET checked_at=?,check_status='unavailable' WHERE id=1").bind(time()).run();throw e}}
  if(path===''&&method==='PUT'){
