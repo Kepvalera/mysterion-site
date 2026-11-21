@@ -130,7 +130,7 @@ export async function platformAdmin(request,env,path,method){
   }
   if(d.access==='paid'){
    const days=Number.isInteger(d.duration_days)&&d.duration_days>=1&&d.duration_days<=3660?d.duration_days:30;
-   const saleEnabled=d.state==='published'&&env.MEDIA_PAID_ENABLED==='true'?1:0;
+   const saleEnabled=d.sale_enabled===1&&d.state==='published'&&env.MEDIA_PAID_ENABLED==='true'?1:0;
    await db.prepare(`INSERT INTO sales_products(kind,product_id,sale_enabled,policy,revision)
       VALUES ('video',?,?,?,1)
       ON CONFLICT(kind,product_id) DO UPDATE SET
