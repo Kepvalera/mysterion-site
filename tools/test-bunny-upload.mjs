@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const source=await fs.readFile(new URL('../bunny-upload-resume.js',import.meta.url),'utf8');
-function harness(location='https://video.bunnycdn.com/tusupload/test') {
+function harness(location='https://video.bunnycdn.com/tusupload/test',head404Once=false) {
  let offset=0,grants=0,posts=0,patches=0,heads=0;
  const window={};
  class XHR {
@@ -17,7 +17,7 @@ function harness(location='https://video.bunnycdn.com/tusupload/test') {
  const fetch=async(url,options)=>{
   assert.equal(options.credentials,'omit');assert.equal(options.redirect,'error');assert.equal(options.headers.AccessKey,undefined);
   if(options.method==='POST'){posts++;assert.equal(options.headers['Upload-Length'],String(17*1024*1024));return new Response(null,{status:201,headers:{Location:location}})}
-  if(options.method==='HEAD'){heads++;return new Response(null,{status:200,headers:{'Upload-Offset':String(offset)}})}
+  if(options.method==='HEAD'){heads++;if(head404Once&&heads===1)return new Response(null,{status:404,headers:{}});return new Response(null,{status:200,headers:{'Upload-Offset':String(offset)}})}
   throw Error('Unexpected request');
  };
  vm.runInNewContext(source,{window,TextEncoder,Uint8Array,btoa,URL,Date,AbortController,DOMException,XMLHttpRequest:XHR,fetch,setTimeout,clearTimeout});
@@ -46,4 +46,7 @@ let passed=0;
 {
  const h=harness();h.state().setOffset(4*1024*1024);const upload=new h.Upload(file,h.authorize,()=>{});assert.equal(await upload.start(),true);assert.equal(h.state().offset,file.size);assert.equal(h.state().posts,1);passed++;
 }
-console.log(JSON.stringify({clientScenarios:passed,chunkSizeMiB:4,pauseResume:'HEAD resumes confirmed server offset',expiredGrant:'renewed',networkRetry:'bounded retry and HEAD confirmation',offsetMismatch:'reconciled by HEAD',externalLocation:'blocked',realUploads:0}));
+{
+ const h=harness('https://video.bunnycdn.com/tusupload/stale',true);const upload=new h.Upload(file,h.authorize,()=>{});upload.url='https://video.bunnycdn.com/tusupload/stale';assert.equal(await upload.start(),true);assert.equal(h.state().posts,1);assert.equal(h.state().heads,2);assert.equal(h.state().offset,file.size);passed++;
+}
+console.log(JSON.stringify({clientScenarios:passed,chunkSizeMiB:4,pauseResume:'HEAD resumes confirmed server offset',expiredGrant:'renewed',networkRetry:'bounded retry and HEAD confirmation',offsetMismatch:'reconciled by HEAD',head404:'new TUS session in existing Bunny video object',externalLocation:'blocked',realUploads:0}));

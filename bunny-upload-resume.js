@@ -24,22 +24,36 @@ window.MysterionBunnyUpload = class {
   }
  }
  async serverOffset(headers){
-  try{const response=await this.request('HEAD',headers,2);const raw=response.headers.get('Upload-Offset'),offset=Number(raw);if(!raw||!Number.isSafeInteger(offset)||offset<0||offset>this.file.size){const error=Error(raw?'invalid_upload_offset':'tus_offset_header_missing');error.phase='head';error.httpStatus=response.status;throw error}this.lastHttpStatus=response.status;return offset}catch(error){if(!error.phase){error.phase='head';error.httpStatus=this.lastHttpStatus||0}throw error}
+  try{const response=await this.request('HEAD',headers,2);const raw=response.headers.get('Upload-Offset'),offset=Number(raw);if(!raw||!Number.isSafeInteger(offset)||offset<0||offset>this.file.size){const error=Error(raw?'invalid_upload_offset':'tus_offset_header_missing');error.phase='head';error.httpStatus=response.status;throw error}this.lastHttpStatus=response.status;return offset}catch(error){if(error.message==='tus_404'){const missing=Error('tus_session_not_found');missing.phase='head';missing.httpStatus=404;throw missing}if(!error.phase){error.phase='head';error.httpStatus=this.lastHttpStatus||0}throw error}
+ }
+ async createSession(headers){
+  const encode=text=>btoa(String.fromCharCode(...new TextEncoder().encode(text)));
+  const extension=this.file.name.split('.').pop()?.toLowerCase();
+  const mime=this.file.type||({mov:'video/quicktime',webm:'video/webm',mp4:'video/mp4'}[extension])||'video/mp4';
+  const response=await this.request('POST',{...headers,'Upload-Length':String(this.file.size),'Upload-Metadata':`filetype ${encode(mime)},title ${encode(this.file.name.slice(0,180))}`});
+  const location=response.headers.get('Location');if(!location)throw Error('missing_upload_location');
+  this.url=this.location(location);if(this.onLocation)await this.onLocation(this.url);
+  return this.url;
  }
  async start(){
   if(this.running)return;this.running=true;this.paused=false;this.status('uploading');
   try{
    let headers=await this.credentials();if(this.paused)return false;
    if(!this.url){
-    const encode=text=>btoa(String.fromCharCode(...new TextEncoder().encode(text)));
-    const extension=this.file.name.split('.').pop()?.toLowerCase();
-    const mime=this.file.type||({mov:'video/quicktime',webm:'video/webm',mp4:'video/mp4'}[extension])||'video/mp4';
-    const response=await this.request('POST',{...headers,'Upload-Length':String(this.file.size),'Upload-Metadata':`filetype ${encode(mime)},title ${encode(this.file.name.slice(0,180))}`});
-    const location=response.headers.get('Location');if(!location)throw Error('missing_upload_location');this.url=this.location(location);if(this.onLocation)await this.onLocation(this.url);
+    await this.createSession(headers);
    }
    if(this.paused)return false;headers=await this.credentials();
    let confirmed;
-   try{confirmed=await this.serverOffset(headers)}catch(error){throw error}
+   try{confirmed=await this.serverOffset(headers)}
+   catch(error){
+    if(error.message==='tus_session_not_found'){
+     this.url=null;this.offset=0;this.status('upload_session_missing');
+     headers=await this.credentials();
+     await this.createSession(headers);
+     headers=await this.credentials();
+     confirmed=await this.serverOffset(headers);
+    }else throw error;
+   }
    this.offset=confirmed;
    while(this.offset<this.file.size&&!this.paused){
     headers=await this.credentials();const end=Math.min(this.offset+4*1024*1024,this.file.size);
@@ -62,7 +76,16 @@ window.MysterionBunnyUpload = class {
    });
    if(next?.header) return next.offset;
    let confirmed=null;
-   try{confirmed=await this.serverOffset(await this.credentials())}catch(error){if(attempt===this.maxRetries){error.phase='head';throw error}}
+   try{confirmed=await this.serverOffset(await this.credentials())}catch(error){
+    if(error.message==='tus_session_not_found'){
+     this.url=null;this.offset=0;this.status('upload_session_missing');
+     const headersNow=await this.credentials();
+     await this.createSession(headersNow);
+     this.offset=0;current=0;start=0;end=Math.min(4*1024*1024,this.file.size);
+     continue;
+    }
+    if(attempt===this.maxRetries){error.phase='head';throw error}
+   }
    if(confirmed!==null){this.offset=confirmed;current=confirmed;start=confirmed;end=Math.min(confirmed+4*1024*1024,this.file.size);if(confirmed===this.file.size)return confirmed;continue}
    if(attempt===this.maxRetries)return null;
    this.status('upload_connection_lost');
