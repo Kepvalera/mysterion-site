@@ -1,3 +1,4 @@
+import {uploadDiagnostics} from './bunny-upload-diagnostics.mjs';
 import {gpAdmin} from './getplatinum-admin.mjs';
 import {siteModeAdmin} from './site-mode-admin.mjs';
 import {verifiedIdentitySQL} from './viewer-identity.mjs';
@@ -89,7 +90,7 @@ export async function platformAdmin(request,env,path,method){
    return {ok:true};
   });
  }
- const vm=path.match(/^videos\/([a-f0-9-]{36})(?:\/(upload|status|resume|cover))?$/);
+ const vm=path.match(/^videos\/([a-f0-9-]{36})(?:\/(upload|status|resume|cover|upload-diagnostics))?$/);
  if(path==='videos'&&method==='POST'||vm&&!vm[2]&&method==='PUT'){
   const d=await input(request,['id','title','description','speaker','category','year','source_type','source_ref','youtube_ref','vk_ref','rutube_ref','access','price_minor','currency','state','revision','duration_days','sale_enabled']);
   if(d.id!==undefined&&(!idPattern.test(d.id)||vm&&d.id!==vm[1]))deny(400,'invalid_video');
@@ -169,6 +170,7 @@ export async function platformAdmin(request,env,path,method){
     return bunny.uploadGrant(env,current);
    });
   }
+  if(method==='GET'&&vm[2]==='upload-diagnostics'){requireOwner(staff);return uploadDiagnostics(env,video)}
   if(method==='POST'&&vm[2]==='status')return bunny.syncVideo(env,video);
   if(vm[2]==='resume'){
    if(video.state!=='draft'||video.source_type!=='bunny')deny(409,'bunny_draft_required');

@@ -62,7 +62,8 @@ export async function playback(env, row, maxExpiry) {
 }
 export async function uploadGrant(env, row) {
   boundVideo(env, row);
-  const expires = Math.floor(Date.now() / 1000) + 900;
+  // Bunny fixes the TUS resource expiry at creation; re-signing does not extend it.
+  const expires = Math.floor(Date.now() / 1000) + 86400;
   const signature = await sha256(env.BUNNY_LIBRARY_ID + env.BUNNY_API_KEY + expires + row.source_ref);
   return {endpoint: 'https://video.bunnycdn.com/tusupload', expires,
     headers: {AuthorizationSignature: signature, AuthorizationExpire: String(expires), LibraryId: env.BUNNY_LIBRARY_ID, VideoId: row.source_ref}};
