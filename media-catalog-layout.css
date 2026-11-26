@@ -1,0 +1,29 @@
+/* MEDIA presentation only: shared tracks align program/video titles and actions. */
+#media-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;align-items:stretch}
+#media-grid .media-item{display:grid;grid-template-rows:subgrid;grid-row:span 5;row-gap:10px;align-self:stretch;min-width:0;padding:0 0 18px;margin:0;border:0;border-bottom:1px solid #a47c394d;border-radius:0;background:transparent}
+#media-grid .program-card-body{display:contents}
+#media-grid .media-video-cover{width:100%;aspect-ratio:16/9;min-height:0;overflow:hidden;border-radius:10px;background:#14233c}
+#media-grid .media-video-cover>img,#media-grid .media-video-cover>.media-cover-placeholder{position:absolute;inset:0;display:block;width:100%;height:100%;max-height:none;aspect-ratio:auto;object-fit:cover}
+#media-grid .program-catalog-card .media-video-cover>img{object-fit:contain}
+#media-grid .media-card-heading{display:flex;flex-direction:column;gap:8px;min-width:0}
+#media-grid .media-card-heading>p{margin:0;font-size:11px;line-height:1.5;min-height:1.5em;color:#89662f;letter-spacing:.035em}
+#media-grid .media-card-heading h2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden;overflow-wrap:anywhere;font:500 clamp(23px,1.9vw,26px)/1.14 var(--font-display,Georgia,serif);height:3.42em;min-height:3.42em;max-height:3.42em;margin:0;color:#25374d}
+#media-grid .media-card-info{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0}
+#media-grid .media-card-info>p{margin:0;font-size:13px;line-height:1.5}
+#media-grid .media-card-description{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+#media-grid .media-card-description:empty{display:none}
+#media-grid .media-card-info .media-sale-offer{margin:0;gap:7px;align-items:center;width:100%;font-size:13px}
+#media-grid .media-card-info .media-sale-price{flex:0 1 auto;font-size:16px;line-height:1.4}
+#media-grid .media-card-info .media-payment-unavailable,#media-grid .media-card-info .telegram-purchase-notice{flex-basis:100%;margin:0;font-size:12px;line-height:1.45}
+#media-grid .program-price{gap:8px;font-size:16px;line-height:1.4}
+#media-grid .media-card-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:stretch;align-content:stretch;margin:0;min-width:0}
+#media-grid .media-card-actions>a,#media-grid .media-card-actions>button{display:flex;align-items:center;justify-content:center;min-width:0;max-width:100%;height:100%;min-height:46px;margin:0;padding:10px 12px;box-sizing:border-box;font:500 12px/1.4 var(--font-body,Arial,sans-serif);letter-spacing:.015em;text-align:center;white-space:normal;border:1px solid #a47c39;border-radius:999px;cursor:pointer}
+#media-grid .media-card-actions>:only-child{grid-column:1/-1;justify-self:start;min-width:124px}
+#media-grid .media-card-actions .btn-dark{background:#14233c;color:#fff;border-color:#14233c}
+#media-grid .media-card-actions .btn-light,#media-grid .media-card-actions>button:not(.btn-dark){background:transparent;color:#75531f}
+#media-grid .media-card-actions>a:hover,#media-grid .media-card-actions>button:hover{box-shadow:0 3px 12px #14233c12}
+#media-grid .media-card-caption{display:block;min-width:0}
+#media-grid .media-card-caption>p,#media-grid .media-card-caption>small{display:block;max-width:100%;margin:0;font-size:11px;line-height:1.4;color:#697383}
+@media(max-width:900px){#media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){#media-grid{grid-template-columns:minmax(0,1fr);row-gap:20px}#media-grid .media-card-heading h2{font-size:25px}#media-grid .media-card-actions>a,#media-grid .media-card-actions>button{min-height:46px}}
+@supports not(grid-template-rows:subgrid){#media-grid .media-item{display:flex;flex-direction:column;grid-row:auto;gap:10px}#media-grid .media-card-info{flex:1}#media-grid .media-card-actions{margin-top:auto}#media-grid .media-card-caption{min-height:4.2em}}
