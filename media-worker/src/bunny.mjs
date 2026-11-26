@@ -90,6 +90,7 @@ export async function syncVideo(env, row) {
   const thumbnail = /^[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(video.thumbnailFileName || '') ? video.thumbnailFileName : null;
   await env.MEDIA_DB.prepare('UPDATE videos SET bunny_status=?,bunny_progress=?,bunny_thumbnail=?,bunny_sync_at=? WHERE id=? AND source_ref=?')
     .bind(status, progress, thumbnail, new Date().toISOString(), row.id, row.source_ref).run();
+  if(Number.isSafeInteger(video.length)&&video.length>=0)await env.MEDIA_DB.prepare('INSERT INTO video_metadata VALUES (?,?) ON CONFLICT(video_id) DO UPDATE SET duration_seconds=excluded.duration_seconds').bind(row.id,video.length).run();
   return {status, progress, ready: status === 4, hasThumbnail: Boolean(thumbnail)};
 }
 export async function removeVideo(env, row) {

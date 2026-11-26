@@ -78,7 +78,7 @@ export async function handle(request,env) {
    const category=url.searchParams.get('category'),year=url.searchParams.get('year'),access=url.searchParams.get('access'),q=(url.searchParams.get('q')||'').trim();
    if(q.length>120 || (category && !categories.includes(category)) || (year && !/^\d{4}$/.test(year)) || (access && !['free','paid'].includes(access))) fail(400,'invalid_filter');
    const page=Math.min(10000,Math.max(1,Number(url.searchParams.get('page'))||1));
-   const where=["state='published'",'publish_at<=?',"NOT EXISTS(SELECT 1 FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.video_id=videos.id AND c.kind='conference')"],values=[new Date().toISOString()];
+   const where=["state='published'",'publish_at<=?',"NOT EXISTS(SELECT 1 FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.video_id=videos.id AND videos.access='paid' AND NOT EXISTS(SELECT 1 FROM sales_products s WHERE s.kind='video' AND s.product_id=videos.id AND s.sale_enabled=1))"],values=[new Date().toISOString()];
    const collection=url.searchParams.get('collection');
    if(collection){if(env.MEDIA_MEMBERS_ENABLED!=='true'||!bunny.uuid.test(collection))fail(400,'invalid_collection');where.push("EXISTS(SELECT 1 FROM collection_videos cv JOIN collections c ON c.id=cv.collection_id WHERE cv.video_id=videos.id AND c.id=? AND c.state='published')");values.push(collection)}
    for(const [column,value] of [['category',category],['year',year],['access',access]]) if(value){where.push(column+'=?');values.push(value)}

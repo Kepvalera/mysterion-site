@@ -1,3 +1,4 @@
+import {saveProgram,syncProgramMetadata} from './program-admin.mjs';
 import {uploadDiagnostics} from './bunny-upload-diagnostics.mjs';
 import {gpAdmin} from './getplatinum-admin.mjs';
 import {siteModeAdmin} from './site-mode-admin.mjs';
@@ -20,7 +21,7 @@ const loginHistoryRetention=90*86400,participantPageSize=25,historyPageSize=20;
 function money(d){if(!['free','paid'].includes(d.access)||!Number.isSafeInteger(d.price_minor)||d.price_minor<0||d.price_minor>100000000||!['EUR','USD','RUB'].includes(d.currency)||(d.access==='free'&&d.price_minor!==0)||(d.access==='paid'&&d.price_minor===0))deny(400,'invalid_price')}
 function mergeTranslation(value,previous,max,required=false){const next=JSON.parse(translations(value,max,required));if(previous){try{const old=JSON.parse(previous);if(typeof old.de==='string')next.de=old.de}catch{}}return JSON.stringify(next)}
 function coverURL(id){return '/api/platform/covers/'+id}
-async function videoRow(db,id){const row=await db.prepare("SELECT * FROM videos WHERE id=? AND state!='deleted'").bind(id).first();if(!row)deny(404,'not_found');return row}
+async function videoRow(db,id){const row=await db.prepare("SELECT v.*,m.duration_seconds FROM videos v LEFT JOIN video_metadata m ON m.video_id=v.id WHERE v.id=? AND v.state!='deleted'").bind(id).first();if(!row)deny(404,'not_found');return row}
 async function updateResult(statement){const result=await statement.run();if(!result.meta.changes)deny(409,'revision_conflict');return {ok:true}}
 function queryPage(request,allowed){
  const params=new URL(request.url).searchParams;
@@ -59,7 +60,7 @@ export async function platformAdmin(request,env,path,method){
   const row=await db.prepare("SELECT p.video_id,p.location,p.file_size,p.fingerprint,v.source_ref,v.bunny_status,v.state FROM platform_uploads p JOIN videos v ON v.id=p.video_id WHERE p.fingerprint=? AND v.state='draft' AND v.source_type='bunny' AND v.source_ref!='' ORDER BY p.updated_at DESC LIMIT 1").bind(d.fingerprint).first();
   return row?{found:true,video_id:row.video_id,location:row.location,file_size:row.file_size,bunny_status:row.bunny_status,source_ref:row.source_ref}:{found:false};
  }
- if(path==='videos'&&method==='GET')return {items:(await rows(db.prepare("SELECT * FROM videos WHERE (state!='deleted' OR (?='owner' AND bunny_delete_pending=1)) AND (?!='uploader' OR (created_by=? AND state='draft')) ORDER BY updated_at DESC LIMIT 200").bind(staff.role,staff.role,staff.sub))).map(decode)};
+ if(path==='videos'&&method==='GET')return {items:(await rows(db.prepare("SELECT videos.*,m.duration_seconds FROM videos LEFT JOIN video_metadata m ON m.video_id=videos.id WHERE (state!='deleted' OR (?='owner' AND bunny_delete_pending=1)) AND (?!='uploader' OR (created_by=? AND state='draft')) ORDER BY updated_at DESC LIMIT 200").bind(staff.role,staff.role,staff.sub))).map(decode)};
  const fullDelete=path.match(/^videos\/([a-f0-9-]{36})\/delete-bunny$/);
  if(fullDelete&&method==='POST'){
   requireOwner(staff);const d=await input(request,['revision']),expected=revision(d.revision),id=fullDelete[1];
@@ -91,9 +92,11 @@ export async function platformAdmin(request,env,path,method){
   });
  }
  const vm=path.match(/^videos\/([a-f0-9-]{36})(?:\/(upload|status|resume|cover|upload-diagnostics))?$/);
+ if(vm&&!vm[2]&&method==='GET'){const video=await videoRow(db,vm[1]);canEditVideo(staff,video);return decode(video)}
  if(path==='videos'&&method==='POST'||vm&&!vm[2]&&method==='PUT'){
-  const d=await input(request,['id','title','description','speaker','category','year','source_type','source_ref','youtube_ref','vk_ref','rutube_ref','access','price_minor','currency','state','revision','duration_days','sale_enabled']);
+  const d=await input(request,['id','title','description','speaker','category','year','source_type','source_ref','youtube_ref','vk_ref','rutube_ref','access','price_minor','currency','state','revision','duration_days','sale_enabled','duration_seconds']);
   if(d.id!==undefined&&(!idPattern.test(d.id)||vm&&d.id!==vm[1]))deny(400,'invalid_video');
+  if(d.duration_seconds!==undefined&&d.duration_seconds!==null&&(!Number.isSafeInteger(d.duration_seconds)||d.duration_seconds<0||d.duration_seconds>31536000))deny(400,'invalid_video_duration');
   const old=vm?await videoRow(db,vm[1]):null;if(old)canEditVideo(staff,old);money(d);
   if(!categories.includes(d.category)||!Number.isInteger(d.year)||d.year<1900||d.year>2100||!['youtube','vk','rutube','bunny'].includes(d.source_type)||!['draft','published'].includes(d.state))deny(400,'invalid_video');
   if(d.access==='paid'&&d.currency!=='RUB')deny(400,'paid_price_must_be_rub');
@@ -148,6 +151,7 @@ export async function platformAdmin(request,env,path,method){
   }else{
    await db.prepare("DELETE FROM sales_products WHERE kind='video' AND product_id=?").bind(id).run();
   }
+  if(d.duration_seconds!==undefined)await db.prepare('INSERT INTO video_metadata VALUES (?,?) ON CONFLICT(video_id) DO UPDATE SET duration_seconds=excluded.duration_seconds').bind(id,d.duration_seconds).run();
   await audit(db,staff.sub,'video.saved',id);return decode(await videoRow(db,id));
  }
  if(vm){
@@ -214,7 +218,7 @@ export async function platformAdmin(request,env,path,method){
   const result=await db.batch([db.prepare(`UPDATE viewer_accounts AS a SET first_name=?,last_name=?,status=?,updated_at=? WHERE a.id=? AND ${verifiedIdentitySQL('a')}`).bind(...names,d.status,time(),participant[1]),db.prepare("DELETE FROM viewer_sessions WHERE account_id=? AND EXISTS(SELECT 1 FROM viewer_accounts a WHERE a.id=account_id AND a.status='disabled')").bind(participant[1])]);
   if(!result[0].meta.changes)deny(409,'verified_account_required');await audit(db,staff.sub,'participant.updated',participant[1]);return {ok:true};
  }
- if(path==='courses'&&method==='GET')return {items:(await rows(db.prepare("SELECT c.*,(SELECT COUNT(*) FROM platform_lessons l WHERE l.course_id=c.id AND l.video_id IS NOT NULL AND l.state='published') AS video_count,(SELECT COUNT(*) FROM course_covers cc WHERE cc.course_id=c.id) AS has_cover,(SELECT s.policy FROM sales_products s WHERE s.kind='course' AND s.product_id=c.id) AS sales_policy,(SELECT s.sale_enabled FROM sales_products s WHERE s.kind='course' AND s.product_id=c.id) AS sale_enabled FROM platform_courses c ORDER BY c.updated_at DESC LIMIT 200"))).map(decode)};
+ if(path==='courses'&&method==='GET')return {items:(await rows(db.prepare("SELECT c.*,p.program_type,p.parent_id,p.sort_order,p.syllabus,(SELECT COUNT(*) FROM platform_lessons l JOIN videos v ON v.id=l.video_id WHERE l.course_id=c.id AND l.state='published' AND v.state='published' AND (v.source_type!='bunny' OR v.bunny_status=4)) AS video_count,(SELECT COUNT(*) FROM course_covers cc WHERE cc.course_id=c.id) AS has_cover,(SELECT s.policy FROM sales_products s WHERE s.kind='course' AND s.product_id=c.id) AS sales_policy,(SELECT s.sale_enabled FROM sales_products s WHERE s.kind='course' AND s.product_id=c.id) AS sale_enabled FROM platform_courses c LEFT JOIN program_settings p ON p.course_id=c.id ORDER BY COALESCE(p.sort_order,0),c.updated_at DESC"))).map(decode)};
  const cm=path.match(/^courses\/([a-f0-9-]{36})$/);
  const courseCover=path.match(/^courses\/([a-f0-9-]{36})\/cover$/);
  if(courseCover&&method==='PUT'){
@@ -228,47 +232,28 @@ export async function platformAdmin(request,env,path,method){
   await audit(db,staff.sub,'course.cover',course.id);return {ok:true};
  }
  if(cm&&method==='DELETE')return courseLifecycle(request,env,staff,cm[1]);
- if(path==='courses'&&method==='POST'||cm&&method==='PUT'){
-  const d=await input(request,['title','description','kind','stream','access','price_minor','currency','state','revision','duration_days','sale_enabled']);money(d);
-  if(!['school','conference','seminar','course'].includes(d.kind))deny(400,'invalid_course_kind');
-  if(!['draft','published','archived'].includes(d.state))deny(400,'invalid_course_status');
-  if(d.kind==='school'&&![3,4,5,6].includes(d.stream))deny(400,'invalid_school_stream');
-  if(d.kind!=='school'&&(d.stream!==null&&d.stream!==undefined&&d.stream!==''))deny(400,'stream_only_for_school');
-  if(d.kind==='conference'&&d.access==='paid'&&d.currency!=='RUB')deny(400,'conference_paid_requires_rub');
-  let conferenceDuration=null;
-  if(d.kind==='conference'){
-   const raw=d.duration_days;
-   conferenceDuration=typeof raw==='number'?raw:typeof raw==='string'&&/^\d+$/.test(raw.trim())?Number(raw.trim()):NaN;
-   if(d.access==='paid'&&(!Number.isInteger(conferenceDuration)||conferenceDuration<1||conferenceDuration>3660))deny(400,'invalid_access_duration');
-   if(d.access==='free')conferenceDuration=null;
-  }
-  if(d.kind==='conference'&&d.sale_enabled!==undefined&&d.sale_enabled!==null&&![0,1].includes(d.sale_enabled))deny(400,'invalid_sale_status');
-  const old=cm?await db.prepare('SELECT title,description FROM platform_courses WHERE id=?').bind(cm[1]).first():null;
-  const title=mergeTranslation(d.title,old?.title,300,true),description=mergeTranslation(d.description,old?.description,6000),id=cm?.[1]||crypto.randomUUID();
-  if(cm)await updateResult(db.prepare('UPDATE platform_courses SET title=?,description=?,kind=?,stream=?,access=?,price_minor=?,currency=?,state=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?').bind(title,description,d.kind,d.stream,d.access,d.price_minor,d.currency,d.state,time(),id,revision(d.revision)));
-  else await db.prepare('INSERT INTO platform_courses(id,title,description,kind,stream,access,price_minor,currency,state,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,description,d.kind,d.stream,d.access,d.price_minor,d.currency,d.state,time(),time()).run();
-  if(d.kind==='conference'){
-   const days=conferenceDuration||90,enabled=d.access==='paid'&&d.state==='published'&&(d.sale_enabled===undefined||d.sale_enabled===null||d.sale_enabled===1)&&env.MEDIA_PAID_ENABLED==='true'?1:0;
-   const policy=JSON.stringify({mode:'days',days});
-   await db.prepare("INSERT INTO sales_products(kind,product_id,sale_enabled,policy,revision) VALUES ('course',?,?,?,1) ON CONFLICT(kind,product_id) DO UPDATE SET sale_enabled=excluded.sale_enabled,policy=excluded.policy,revision=sales_products.revision+1").bind(id,enabled,policy).run();
-  }else{
-   await db.prepare("UPDATE sales_products SET sale_enabled=0,revision=revision+1 WHERE kind='course' AND product_id=?").bind(id).run();
-  }
-  await audit(db,staff.sub,'course.saved',id);return decode(await db.prepare('SELECT * FROM platform_courses WHERE id=?').bind(id).first());
- }
- if(path==='lessons'&&method==='GET')return {items:(await rows(db.prepare('SELECT * FROM platform_lessons ORDER BY course_id,position LIMIT 500'))).map(decode)};
+ if(path==='courses'&&method==='POST'||cm&&method==='PUT')return saveProgram(request,env,staff,cm?.[1]);
+ const syncProgram=path.match(/^courses\/([a-f0-9-]{36})\/sync-metadata$/);if(syncProgram&&method==='POST'){const d=await input(request,['after']);return syncProgramMetadata(env,syncProgram[1],d.after)}
+ if(path==='lessons'&&method==='GET')return {items:(await rows(db.prepare('SELECT * FROM platform_lessons ORDER BY course_id,position'))).map(decode)};
  const lm=path.match(/^lessons\/([a-f0-9-]{36})$/);
+ if(lm&&method==='GET'){const lesson=await db.prepare('SELECT * FROM platform_lessons WHERE id=?').bind(lm[1]).first();if(!lesson)deny(404,'lesson_not_found');return decode(lesson)}
  if(lm&&method==='DELETE'){
   requireOwner(staff);const d=await input(request,['revision']);const lesson=await db.prepare('SELECT revision FROM platform_lessons WHERE id=?').bind(lm[1]).first();if(!lesson)deny(404,'lesson_not_found');
+  if(await db.prepare('SELECT 1 FROM platform_lessons l WHERE l.id=? AND (EXISTS(SELECT 1 FROM viewer_orders o WHERE o.course_id=l.course_id) OR EXISTS(SELECT 1 FROM viewer_grants g WHERE g.course_id=l.course_id))').bind(lm[1]).first()){await updateResult(db.prepare("UPDATE platform_lessons SET state='draft',revision=revision+1 WHERE id=? AND revision=?").bind(lm[1],revision(d.revision)));await audit(db,staff.sub,'lesson.unpublished',lm[1]);return {ok:true,action:'unpublished'}}
   const result=await db.batch([db.prepare('DELETE FROM platform_progress WHERE lesson_id=?').bind(lm[1]),db.prepare('DELETE FROM platform_materials WHERE lesson_id=?').bind(lm[1]),db.prepare('DELETE FROM platform_lessons WHERE id=? AND revision=?').bind(lm[1],revision(d.revision))]);if(!result[2].meta.changes)deny(409,'revision_conflict');await audit(db,staff.sub,'lesson.deleted',lm[1]);return {ok:true};
  }
  if(path==='lessons'&&method==='POST'||lm&&method==='PUT'){
-  const d=await input(request,['course_id','title','description','video_id','position','state','public_preview','revision']);
+  const d=await input(request,['id','course_id','title','description','video_id','position','state','public_preview','revision']);
   if(!idPattern.test(d.course_id)||d.video_id!==null&&!idPattern.test(d.video_id)||!Number.isInteger(d.position)||d.position<0||d.position>10000||!['draft','published'].includes(d.state)||![0,1].includes(d.public_preview))deny(400,'invalid_lesson');
   const course=await db.prepare('SELECT * FROM platform_courses WHERE id=?').bind(d.course_id).first();if(!course)deny(404,'course_not_found');
-  if(d.video_id){const video=await videoRow(db,d.video_id);if(d.state==='published'&&video.state!=='published')deny(409,'published_video_required');if(course.access==='free'&&video.access!=='free')deny(400,'free_course_paid_video');if(course.access==='paid'&&!d.public_preview&&video.access==='free')deny(400,'public_video_requires_preview')}
-  const title=translations(d.title,300,true),description=translations(d.description,6000),id=lm?.[1]||crypto.randomUUID();
-  if(lm)await updateResult(db.prepare('UPDATE platform_lessons SET course_id=?,title=?,description=?,video_id=?,position=?,state=?,public_preview=?,revision=revision+1 WHERE id=? AND revision=?').bind(d.course_id,title,description,d.video_id,d.position,d.state,d.public_preview,id,revision(d.revision)));
+  if(d.video_id){const video=await videoRow(db,d.video_id);if(d.state==='published'&&video.state!=='published'&&!(video.source_type==='bunny'&&video.state==='draft'))deny(409,'published_video_required');if(course.access==='free'&&video.access!=='free')deny(400,'free_course_paid_video');if(course.access==='paid'&&!d.public_preview&&video.access==='free')deny(400,'public_video_requires_preview')}
+  const previous=lm?await db.prepare('SELECT * FROM platform_lessons WHERE id=?').bind(lm[1]).first():null;if(lm&&!previous)deny(404,'lesson_not_found');
+  const moving=!!previous&&previous.course_id!==d.course_id;const moveGuard="NOT EXISTS(SELECT 1 FROM viewer_orders WHERE course_id=?) AND NOT EXISTS(SELECT 1 FROM viewer_grants WHERE course_id=?)";
+  if(moving&&(await db.prepare('SELECT 1 FROM viewer_orders WHERE course_id=? UNION ALL SELECT 1 FROM viewer_grants WHERE course_id=? LIMIT 1').bind(previous.course_id,previous.course_id).first()))deny(409,'program_move_has_purchases');
+  const title=mergeTranslation(d.title,previous?.title,300,true),description=mergeTranslation(d.description,previous?.description,6000),id=lm?.[1]||d.id||crypto.randomUUID();if(!idPattern.test(id))deny(400,'invalid_lesson');
+  if(d.video_id&&await db.prepare('SELECT 1 FROM platform_lessons WHERE course_id=? AND video_id=? AND id!=?').bind(d.course_id,d.video_id,id).first())deny(409,'lesson_video_already_linked');
+  if(!lm){const same=await db.prepare('SELECT * FROM platform_lessons WHERE id=?').bind(id).first();if(same){if(same.course_id!==d.course_id||same.video_id!==d.video_id)deny(409,'revision_conflict');return decode(same)}}
+  if(lm)await updateResult(db.prepare('UPDATE platform_lessons SET course_id=?,title=?,description=?,video_id=?,position=?,state=?,public_preview=?,revision=revision+1 WHERE id=? AND revision=?'+(moving?' AND '+moveGuard:'')).bind(d.course_id,title,description,d.video_id,d.position,d.state,d.public_preview,id,revision(d.revision),...(moving?[previous.course_id,previous.course_id]:[])));
   else await db.prepare('INSERT INTO platform_lessons(id,course_id,title,description,video_id,position,state,public_preview) VALUES (?,?,?,?,?,?,?,?)').bind(id,d.course_id,title,description,d.video_id,d.position,d.state,d.public_preview).run();await audit(db,staff.sub,'lesson.saved',id);return decode(await db.prepare('SELECT * FROM platform_lessons WHERE id=?').bind(id).first());
  }
  if(path==='materials'&&method==='GET')return {items:(await rows(db.prepare('SELECT * FROM platform_materials LIMIT 500'))).map(decode)};

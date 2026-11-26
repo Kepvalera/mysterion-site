@@ -72,5 +72,5 @@
  $('catalog-search').addEventListener('input',render);$('catalog-category').addEventListener('change',render);
  $('catalog-language').addEventListener('click',()=>{language=language==='ru'?'en':'ru';try{localStorage.setItem('language',language)}catch{}render();window.dispatchEvent(new Event('mysterion:language'))});
  window.addEventListener('pagehide',()=>body.replaceChildren());render();
- api.request('catalog').then(data=>{items=[...data.courses.filter(c=>c.kind!=='conference'||c.access!=='paid').map(c=>({...c,productKind:'course'})),...data.videos.map(v=>({...v,productKind:'video'}))];loaded=true;render()}).catch(()=>$('catalog-status').textContent=t('Каталог ещё не подключён или временно недоступен. Публичная медиатека доступна в разделе «Медиа».','The catalog is not connected yet or temporarily unavailable. Public recordings remain available in Media.'));
+ api.request('catalog').then(data=>{items=data.videos.map(v=>({...v,productKind:'video'}));loaded=true;render()}).catch(()=>$('catalog-status').textContent=t('Каталог ещё не подключён или временно недоступен. Публичная медиатека доступна в разделе «Медиа».','The catalog is not connected yet or temporarily unavailable. Public recordings remain available in Media.'));
 })();

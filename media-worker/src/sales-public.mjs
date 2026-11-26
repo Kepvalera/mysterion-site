@@ -22,7 +22,7 @@ export async function publicSales(env){
 export async function viewerSales(request,env,viewer,path,method){
  const db=env.MEDIA_DB;if(env.SALES_ENABLED!=='true')deny(404,'not_found');
  const common=path.match(/^purchase-offer\/([a-f0-9-]{36})$/);
- if(common&&method==='GET'){if(await selectedPaymentProvider(db)==='getplatinum'){if(await db.prepare("SELECT 1 FROM platform_courses WHERE id=? AND kind='conference'").bind(common[1]).first())return gpCourseOffer(env,viewer,common[1]);return gpOffer(env,viewer,common[1])}path='digital-offer/'+common[1]}
+ if(common&&method==='GET'){if(await selectedPaymentProvider(db)==='getplatinum'){if(await db.prepare("SELECT 1 FROM platform_courses WHERE id=?").bind(common[1]).first())return gpCourseOffer(env,viewer,common[1]);return gpOffer(env,viewer,common[1])}path='digital-offer/'+common[1]}
  if(path==='getplatinum/control/offer'&&method==='GET')return controlOffer(env,viewer);
  if(path==='getplatinum/control/checkout'&&method==='POST')return gpCheckout(request,env,viewer,true);
  if(path==='getplatinum/checkout'&&method==='POST')return gpCheckout(request,env,viewer);
