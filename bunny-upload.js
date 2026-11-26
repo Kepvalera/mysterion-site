@@ -36,6 +36,10 @@ window.MysterionBunnyUpload=class {
   }
  }
  async serverOffset(){this.stats.heads++;const head=await this.request('HEAD',await this.credentials());const offset=this.offsetHeader(head.headers.get('Upload-Offset')),length=head.headers.get('Upload-Length');if(length!==null&&(!/^\d+$/.test(length)||Number(length)!==this.file.size))throw this.error('upload_length_mismatch','HEAD');this.diagnostic('upload_offset_confirmed',{phase:'HEAD',server_offset:offset,http_status:head.status});return offset}
+ async providerCompleted(){
+  if(!this.onProviderComplete||await this.onProviderComplete()!==true)return false;
+  this.offset=this.file.size;this.onProgress(this.offset,this.file.size);this.diagnostic('upload_complete_provider_verified',{phase:'complete',server_offset:this.offset});return true;
+ }
  async createSession(){
   const encode=text=>btoa(String.fromCharCode(...new TextEncoder().encode(text))),ext=this.file.name.split('.').pop()?.toLowerCase(),mime=this.file.type||({mov:'video/quicktime',webm:'video/webm',mp4:'video/mp4'}[ext])||'video/mp4';
   const response=await this.request('POST',{...await this.credentials(),'Upload-Length':String(this.file.size),'Upload-Metadata':`filetype ${encode(mime)},title ${encode(this.file.name.slice(0,180))}`});if(response.status!==201)throw this.error('tus_creation_status','POST',response.status);const location=response.headers.get('Location');if(!location)throw this.error('missing_upload_location','POST');this.url=this.location(location);if(this.onLocation)await this.onLocation(this.url);this.diagnostic('upload_session_created',{phase:'POST',http_status:201});
@@ -49,7 +53,7 @@ window.MysterionBunnyUpload=class {
   if(this.running)return false;this.running=true;this.paused=false;this.diagnostic('uploading');
   try{
    await this.credentials();if(this.paused)return false;if(this.url)this.url=this.location(this.url);else await this.createSession();
-   try{const confirmed=await this.serverOffset();if(confirmed<this.offset)throw this.error('invalid_upload_offset','HEAD');this.offset=confirmed}catch(e){if(![404,410].includes(e.httpStatus))throw e;this.diagnostic('upload_session_missing',{phase:'HEAD',http_status:e.httpStatus});if(this.stats.session_restarts>=1||!this.onSessionExpired||await this.onSessionExpired()!==true)throw this.error('tus_session_not_found','HEAD',e.httpStatus);if(this.paused)return false;this.stats.session_restarts++;this.url=null;this.offset=0;await this.createSession();this.offset=await this.serverOffset()}
+   try{const confirmed=await this.serverOffset();if(confirmed<this.offset)throw this.error('invalid_upload_offset','HEAD');this.offset=confirmed}catch(e){if(![404,410].includes(e.httpStatus))throw e;if(await this.providerCompleted())return true;this.diagnostic('upload_session_missing',{phase:'HEAD',http_status:e.httpStatus});if(this.stats.session_restarts>=1||!this.onSessionExpired||await this.onSessionExpired()!==true)throw this.error('tus_session_not_found','HEAD',e.httpStatus);if(this.paused)return false;this.stats.session_restarts++;this.url=null;this.offset=0;await this.createSession();this.offset=await this.serverOffset()}
    this.onProgress(this.offset,this.file.size);let failures=0;
    while(this.offset<this.file.size&&!this.paused){
     const start=this.offset,end=Math.min(start+this.chunkSize,this.file.size);let failure;
@@ -58,7 +62,7 @@ window.MysterionBunnyUpload=class {
     if(failure.httpStatus&&![0,204,400,401,403,404,410,408,409,413,423,429,500,502,503,504].includes(failure.httpStatus))throw failure;
     if([400,401,403,404,410].includes(failure.httpStatus))this.grant=null;
     // Never retransmit while HEAD is unknown: the failed request may have committed bytes.
-    let confirmed;try{confirmed=await this.serverOffset()}catch(e){if([404,410].includes(e.httpStatus)){this.diagnostic('upload_session_expired',{phase:'HEAD',http_status:e.httpStatus});throw this.error('tus_session_not_found','HEAD',e.httpStatus)}throw e}if(confirmed<start||confirmed>end)throw this.error('invalid_upload_offset','HEAD');this.offset=confirmed;this.onProgress(this.offset,this.file.size);
+    let confirmed;try{confirmed=await this.serverOffset()}catch(e){if([404,410].includes(e.httpStatus)){if(await this.providerCompleted())return true;this.diagnostic('upload_session_expired',{phase:'HEAD',http_status:e.httpStatus});throw this.error('tus_session_not_found','HEAD',e.httpStatus)}throw e}if(confirmed<start||confirmed>end)throw this.error('invalid_upload_offset','HEAD');this.offset=confirmed;this.onProgress(this.offset,this.file.size);
     if(confirmed>start){failures=0;this.diagnostic('upload_resumed',{phase:'HEAD',server_offset:confirmed});if(confirmed===end)continue}
     else failures++;
     if(failures>this.maxRetries)throw this.error('upload_retry_limit','PATCH',failure.httpStatus||0);
