@@ -1,3 +1,4 @@
+import {mediaHeroAdmin} from './media-hero.mjs';
 import {saveProgram,syncProgramMetadata} from './program-admin.mjs';
 import {uploadDiagnostics} from './bunny-upload-diagnostics.mjs';
 import {gpAdmin} from './getplatinum-admin.mjs';
@@ -38,6 +39,7 @@ function participantSearchSQL(query){
 }
 export async function platformAdmin(request,env,path,method){
  const db=env.MEDIA_DB,staff=await staffIdentity(request,env);if(method!=='GET')csrf(request,env);
+ if(path==='media-hero'||path.startsWith('media-hero/'))return mediaHeroAdmin(request,env,staff,path==='media-hero'?'':path.slice(11),method);
  if(path==='getplatinum'||path.startsWith('getplatinum/'))return gpAdmin(request,env,staff,path==='getplatinum'?'':path.slice(12),method);
  if(path==='site-mode'||path==='site-mode/content'||path==='site-mode/resume-sales')return siteModeAdmin(request,env,staff,path==='site-mode'?'':path.slice(10),method);
  if(path==='tribute-digital'||path.startsWith('tribute-digital/'))return digitalAdmin(request,env,staff,path.slice(16),method);

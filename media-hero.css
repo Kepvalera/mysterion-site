@@ -1,0 +1,30 @@
+/* MEDIA only: one fixed decorative layer, independent of the catalog layout. */
+.media-platform.has-media-hero{padding-top:0;padding-bottom:0;position:relative;isolation:isolate;background:#091a32}
+.has-media-hero .media-hero-visual{position:fixed;inset:var(--header-height,82px) 0 0;z-index:0;overflow:hidden;pointer-events:none;background:#091a32}
+.media-hero-poster,.media-hero-video{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center 55%;transform:scale(1.035)}
+.media-hero-video{opacity:0;transition:opacity 1.2s ease;pointer-events:none}
+.has-media-hero.is-playing .media-hero-video{opacity:1}
+.media-hero-visual:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(4,15,34,.83),rgba(6,22,44,.6) 52%,rgba(7,23,46,.36)),linear-gradient(0deg,rgba(5,18,38,.68),transparent 70%);z-index:2}
+.media-hero{position:relative;z-index:1;display:flex;align-items:center;width:100%;height:calc(100vh - var(--header-height,82px));height:calc(100svh - var(--header-height,82px));color:#fff}
+.media-hero .media-intro{max-width:960px;margin:0;padding:40px 0 70px}
+.media-hero .media-intro .eyebrow{color:#e4c98f;font-size:11px;letter-spacing:.2em}
+.media-hero .media-intro h1{font-size:clamp(76px,9vw,142px);line-height:.94;color:#fff;margin:24px 0 28px;text-shadow:0 4px 35px #06122555}
+.media-hero .media-intro h1 em{color:#e5c78c}
+.media-hero .media-intro>p:last-child{max-width:580px;color:#f4f2ed;font-size:17px;line-height:1.75}
+.media-catalog-surface{position:relative;z-index:1;padding:48px 0 70px;background:radial-gradient(ellipse at 10% 5%,#dcecf8b8,transparent 48%),radial-gradient(ellipse at 100% 40%,#eee8fad9,transparent 50%),linear-gradient(rgba(247,248,252,.94),#f7f8fc 360px)}
+.media-catalog-surface:before{content:"";position:absolute;inset:auto 0 100%;height:min(140px,18svh);pointer-events:none;background:linear-gradient(transparent,rgba(247,248,252,.96))}
+@media(prefers-reduced-motion:no-preference){
+ .has-media-hero:not(.hero-static) .media-hero-poster,.has-media-hero:not(.hero-static) .media-hero-video{animation:media-backdrop-drift 28s ease-in-out infinite alternate}
+ .media-hero .media-intro{animation:media-intro-arrive 1.15s ease both}
+ .media-catalog-surface .hero-card-pending{opacity:0;transform:translateY(12px)}
+ .media-catalog-surface .hero-card-visible{animation:media-card-arrive .65s ease both}
+}
+@keyframes media-backdrop-drift{from{transform:scale(1.035)}to{transform:scale(1.075)}}
+@keyframes media-intro-arrive{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes media-card-arrive{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(max-width:768px){.media-hero .media-intro{padding-bottom:50px}.media-hero .media-intro h1{font-size:clamp(48px,14vw,96px);margin:20px 0 24px}.media-hero .media-intro>p:last-child{font-size:15px;max-width:460px}.media-hero .media-intro .eyebrow{font-size:10px;letter-spacing:.16em}.media-catalog-surface{padding-top:28px}.media-hero-visual:after{background:linear-gradient(90deg,rgba(4,15,34,.82),rgba(6,22,44,.56)),linear-gradient(0deg,rgba(5,18,38,.65),transparent 75%)}}
+@media(max-height:480px) and (orientation:landscape){.media-hero .media-intro{padding:12px 0 24px}.media-hero .media-intro h1{font-size:clamp(40px,11vh,64px);margin:10px 0}.media-hero .media-intro>p:last-child{font-size:13px;line-height:1.5}.media-hero .media-intro .eyebrow{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.media-hero-poster,.media-hero-video{animation:none;transform:none;transition:none}.media-hero .media-intro,.media-catalog-surface .hero-card-pending,.media-catalog-surface .hero-card-visible{opacity:1;transform:none;animation:none}}
+
+.media-hero-admin{margin:24px 0;padding:22px;border:1px solid #c5a66b66;border-radius:14px}
+.media-hero-admin form{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;max-width:740px}.media-hero-admin label{display:grid;gap:6px}.media-hero-admin input[type=file]{max-width:100%;min-width:0}.media-hero-admin .hero-check{display:flex;align-items:flex-start;gap:10px}.media-hero-admin .hero-check input{flex:none;width:18px;height:18px;padding:0;margin-top:6px}.media-hero-admin img{max-width:320px;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px}.media-hero-admin button{min-height:44px;max-width:100%}.media-hero-admin .hero-actions{display:flex;gap:10px;flex-wrap:wrap}
