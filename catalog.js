@@ -1,7 +1,7 @@
 (() => {
  'use strict';
  const api=window.MysterionPlatform,node=api.node,$=id=>document.getElementById(id);
- let language;try{language=localStorage.getItem('language')==='en'?'en':'ru'}catch{language='ru'}
+ let language;try{language=(localStorage.getItem('mysterion-language')||localStorage.getItem('language'))==='en'?'en':'ru'}catch{language='ru'}
  let items=[],loaded=false;
  const t=(ru,en)=>language==='en'?en:ru,local=v=>v?.[language]||v?.ru||v?.en||'',dialog=$('catalog-detail'),body=$('catalog-detail-body');
  function error(e){return e.status===401?t('Войдите в личный кабинет для этого действия.','Sign in to your account to continue.'):e.status===403?t('У вас нет действующего доступа к материалу.','You do not have active access to this material.'):t('Действие недоступно. Попробуйте позже.','This action is unavailable. Try again later.')}
@@ -12,8 +12,8 @@
   document.documentElement.lang=language;
   $('catalog-title').textContent=t('Курсы и видеоматериалы','Courses and recordings');
   $('catalog-intro').textContent=t('Открытые материалы доступны всем. Закрытые материалы — только при действующем доступе.','Free materials are public. Protected materials require active access.');
-  $('catalog-account').textContent=t('Личный кабинет','My account');
-  $('catalog-language').textContent=language==='ru'?'EN':'RU';
+  if($('catalog-account'))$('catalog-account').textContent=t('Личный кабинет','My account');
+  if($('catalog-language'))$('catalog-language').textContent=language==='ru'?'EN':'RU';
   $('catalog-close').textContent=t('Закрыть','Close');
   $('catalog-search-label').textContent=t('Поиск','Search');
   $('catalog-category-label').textContent=t('Категория','Category');
@@ -70,7 +70,8 @@
  }
  $('catalog-close').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>body.replaceChildren());
  $('catalog-search').addEventListener('input',render);$('catalog-category').addEventListener('change',render);
- $('catalog-language').addEventListener('click',()=>{language=language==='ru'?'en':'ru';try{localStorage.setItem('language',language)}catch{}render();window.dispatchEvent(new Event('mysterion:language'))});
+ $('catalog-language')?.addEventListener('click',()=>{language=language==='ru'?'en':'ru';try{localStorage.setItem('language',language)}catch{}render();window.dispatchEvent(new Event('mysterion:language'))});
+ window.addEventListener('mysterion:language',()=>{const next=document.documentElement.lang==='en'?'en':'ru';if(language!==next){language=next;try{localStorage.setItem('language',language)}catch{}render()}});
  window.addEventListener('pagehide',()=>body.replaceChildren());render();
  api.request('catalog').then(data=>{items=data.videos.map(v=>({...v,productKind:'video'}));loaded=true;render()}).catch(()=>$('catalog-status').textContent=t('Каталог ещё не подключён или временно недоступен. Публичная медиатека доступна в разделе «Медиа».','The catalog is not connected yet or temporarily unavailable. Public recordings remain available in Media.'));
 })();

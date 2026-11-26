@@ -17,7 +17,7 @@
   <script defer src="conference-gallery.js?v=20261104-photos"></script>
 <link rel="stylesheet" href="/account.css"><link rel="stylesheet" href="/commerce.css?v=purchase-terms-20261126">
 <script defer src="/commerce.js?v=purchase-terms-v2-20261126"></script>
-</head>
+<link rel="stylesheet" href="/site-navigation.css?v=nav-20261126"><script defer src="/site-navigation.js?v=nav-20261126"></script></head>
 <body data-page="photos" data-conference-year="2024">
 <a class="skip-link" href="#main" data-i18n="skip">Перейти к содержимому</a>
 <header class="site-header" id="top">
@@ -26,16 +26,7 @@
       <span class="brand-symbol crown-mark" aria-hidden="true">M</span>
       <span class="brand-text">MYSTERION <small data-i18n="brandSubtitle">МЕЖДУНАРОДНОЕ СЛУЖЕНИЕ</small></span>
     </a>
-    <nav class="desktop-nav" aria-label="Main navigation">
-      <a href="/index.html#about" data-i18n="navAbout">О нас</a>
-      <a href="/index.html#founders" data-i18n="navFounders">Основатели</a>
-      <a href="/index.html#ministry" data-i18n="navMinistry">Направления</a>
-      <a href="/index.html#events" data-i18n="navEvents">События</a>
-      <a href="online-school.html" data-i18n="navSchool">Онлайн-школа</a>
-      <a href="photos.html" data-i18n="navPhotos">Фото</a>
-      <a href="/media.html" data-i18n="navMedia">Медиа</a>
-      <a href="/contacts.html" data-i18n="navContacts">Контакты</a>
-    </nav>
+    <nav class="desktop-nav site-navigation" aria-label="Основная навигация"><details class="nav-group" data-nav-section="about"><summary><span data-nav-ru="О нас" data-nav-en="About us">О нас</span><span class="nav-chevron" aria-hidden="true"></span></summary><div class="nav-submenu"><a href="/index.html#about" data-nav-ru="О нас" data-nav-en="About us">О нас</a><a href="/index.html#founders" data-nav-ru="Основатели" data-nav-en="Founders">Основатели</a><a href="/index.html#ministry" data-nav-ru="Направления" data-nav-en="Ministries">Направления</a><a href="/contacts.html" data-nav-ru="Контакты" data-nav-en="Contact">Контакты</a></div></details><details class="nav-group" data-nav-section="events"><summary><span data-nav-ru="События" data-nav-en="Events">События</span><span class="nav-chevron" aria-hidden="true"></span></summary><div class="nav-submenu"><a href="/events.html" data-nav-ru="Все события" data-nav-en="All events">Все события</a><a href="/events.html?section=schools" data-nav-ru="Онлайн-школы и потоки" data-nav-en="Online schools & cohorts">Онлайн-школы и потоки</a><a href="/events.html?section=conferences" data-nav-ru="Конференции" data-nav-en="Conferences">Конференции</a><a href="/events.html?section=upcoming" data-nav-ru="Предстоящие мероприятия" data-nav-en="Upcoming events">Предстоящие мероприятия</a></div></details><details class="nav-group" data-nav-section="media"><summary><span data-nav-ru="Медиа" data-nav-en="Media">Медиа</span><span class="nav-chevron" aria-hidden="true"></span></summary><div class="nav-submenu"><a href="/media.html" data-nav-ru="Видеотека" data-nav-en="Video library">Видеотека</a><a href="/photos.html" data-nav-ru="Фотогалерея" data-nav-en="Photo gallery">Фотогалерея</a></div></details></nav>
     <div class="header-actions"><div class="site-account"><a class="account-entry" href="/media-login.html">Войти</a><button class="account-menu-toggle" type="button" aria-label="Меню аккаунта" aria-controls="account-menu" aria-expanded="false" hidden>⌄</button><nav class="account-menu" id="account-menu" aria-label="Аккаунт" hidden><a href="/media-login.html" data-account="account">Личный кабинет</a><a href="/admin-media.html" data-account="manage" hidden>Панель управления</a><a href="/cdn-cgi/access/logout" data-account="logout">Выйти</a></nav></div>
       <div class="language-picker">
         <button class="lang-toggle" type="button" aria-label="Language: Русский" aria-haspopup="listbox" aria-controls="language-menu" aria-expanded="false"><span aria-hidden="true"></span><span class="lang-strong">RU</span><span class="language-chevron" aria-hidden="true">⌄</span></button>
@@ -49,16 +40,7 @@
       <button class="menu-toggle" type="button" aria-controls="mobile-nav" aria-expanded="false" aria-label="Open menu"><span></span><span></span></button>
     </div>
   </div>
-  <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation" hidden>
-    <a href="/index.html#about" data-i18n="navAbout">О нас</a>
-    <a href="/index.html#founders" data-i18n="navFounders">Основатели</a>
-    <a href="/index.html#ministry" data-i18n="navMinistry">Направления</a>
-    <a href="/index.html#events" data-i18n="navEvents">События</a>
-      <a href="online-school.html" data-i18n="navSchool">Онлайн-школа</a>
-      <a href="photos.html" data-i18n="navPhotos">Фото</a>
-      <a href="/media.html" data-i18n="navMedia">Медиа</a>
-    <a href="/contacts.html" data-i18n="navContacts">Контакты</a>
-  </nav>
+  <nav class="mobile-nav site-navigation" id="mobile-nav" hidden aria-label="Мобильная навигация"><details class="nav-group" data-nav-section="about"><summary><span data-nav-ru="О нас" data-nav-en="About us">О нас</span><span class="nav-chevron" aria-hidden="true"></span></summary><div class="nav-submenu"><a href="/index.html#about" data-nav-ru="О нас" data-nav-en="About us">О нас</a><a href="/index.html#founders" data-nav-ru="Основатели" data-nav-en="Founders">Основатели</a><a href="/index.html#ministry" data-nav-ru="Направления" data-nav-en="Ministries">Направления</a><a href="/contacts.html" data-nav-ru="Контакты" data-nav-en="Contact">Контакты</a></div></details><details class="nav-group" data-nav-section="events"><summary><span data-nav-ru="События" data-nav-en="Events">События</span><span class="nav-chevron" aria-hidden="true"></span></summary><div class="nav-submenu"><a href="/events.html" data-nav-ru="Все события" data-nav-en="All events">Все события</a><a href="/events.html?section=schools" data-nav-ru="Онлайн-школы и потоки" data-nav-en="Online schools & cohorts">Онлайн-школы и потоки</a><a href="/events.html?section=conferences" data-nav-ru="Конференции" data-nav-en="Conferences">Конференции</a><a href="/events.html?section=upcoming" data-nav-ru="Предстоящие мероприятия" data-nav-en="Upcoming events">Предстоящие мероприятия</a></div></details><details class="nav-group" data-nav-section="media"><summary><span data-nav-ru="Медиа" data-nav-en="Media">Медиа</span><span class="nav-chevron" aria-hidden="true"></span></summary><div class="nav-submenu"><a href="/media.html" data-nav-ru="Видеотека" data-nav-en="Video library">Видеотека</a><a href="/photos.html" data-nav-ru="Фотогалерея" data-nav-en="Photo gallery">Фотогалерея</a></div></details></nav>
 </header>
 <main id="main" class="library-page">
   <section class="library-intro container">
