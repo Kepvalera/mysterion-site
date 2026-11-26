@@ -7,8 +7,8 @@ Only the prepared montage and WebP poster are published; the full source is not 
 The background layer is fixed below the existing header. The hero uses viewport height minus
 header height (stable viewport units on mobile). The catalog transitions to a light background.
 Scrolling never changes the MP4 source, unloads it or resets currentTime. One player has
-autoplay/muted/loop/playsinline and no controls. Hidden tabs and open viewing dialogs pause it.
-Reduced motion and data saving / slow connections use a static poster and never request the MP4.
+autoplay/muted/loop/playsinline and no controls. Hidden tabs pause it; foreground playback resumes on return. Opening a dialog does not pause it.
+Reduced motion and explicit data-saving preferences use a static poster and never request the MP4. Network speed estimates (effectiveType, RTT, downlink) do not disable playback. Unexpected pauses resume automatically; transient network errors have at most two reload attempts, preserving the playback position.
 Autoplay/media/config failures retain the poster. Card reveal only adds decorative classes;
 existing card markup, filters, prices, access checks and checkout are unchanged.
 
