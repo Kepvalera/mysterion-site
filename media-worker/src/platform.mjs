@@ -1,3 +1,4 @@
+import {publicConferences} from './public-conferences.mjs';
 import {serviceCatalog} from './service-catalog.mjs';
 import {loadServiceExample} from './service-example.mjs';
 import {temporarySite,newPurchasesAllowed} from './site-display-mode.mjs';
@@ -19,6 +20,7 @@ export async function handlePlatform(request,env){
   const url=new URL(request.url),path=url.pathname.replace(/^\/api\/platform\//,''),method=request.method,db=env.MEDIA_DB;
   if(path.startsWith('admin/'))return json(await platformAdmin(request,env,path.slice(6),method));
   if(method!=='GET')csrf(request,env);
+  const conference=path.match(/^conferences(?:\/([a-f0-9-]{36}))?$/);if(conference&&method==='GET'){let viewer=null;try{viewer=await requireViewerSession(request,env)}catch(e){if(e.status!==401)throw e}return json(await publicConferences(env,viewer,conference[1]))}
   if(path==='currency-rates'&&method==='GET'){const r=await db.prepare('SELECT eur_rub,usd_rub FROM display_currency_rates WHERE id=1').first();return json(r)}
   if(path==='sales/catalog'&&method==='GET')return json(await publicSales(env));
   if(path==='media/availability'&&method==='GET'){let viewer=null;try{viewer=await requireViewerSession(request,env)}catch(error){if(error.status!==401)throw error}return json(await mediaAvailability(env,viewer))}

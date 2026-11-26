@@ -16,7 +16,7 @@ export async function gpProduct(db,id){
  dates(policy);return {...v,policy};
 }
 export async function gpPublicProduct(db,id,env){
- const p=await gpProduct(db,id);if(!await db.prepare("SELECT 1 FROM sales_products WHERE kind='video' AND product_id=? AND sale_enabled=1").bind(id).first())deny(409,'gp_product_sale_disabled');
+ const p=await gpProduct(db,id);if(await db.prepare("SELECT 1 FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.video_id=? AND c.kind='conference'").bind(id).first())deny(409,'gp_conference_bundle_required');if(!await db.prepare("SELECT 1 FROM sales_products WHERE kind='video' AND product_id=? AND sale_enabled=1").bind(id).first())deny(409,'gp_product_sale_disabled');
  if(await db.prepare("SELECT 1 FROM videos WHERE id!=? AND access='free' AND state!='deleted' AND source_type=? AND lower(source_ref)=lower(?) AND bunny_library_id IS ?").bind(id,p.source_type,p.source_ref,p.bunny_library_id).first())deny(409,'gp_duplicate_free_source');if(p.source_type==='youtube')youtubeId(p.source_ref);if(env&&p.source_type==='bunny')boundVideo(env,p);return p;
 }
 export async function gpCoursePublicProduct(db,id){
