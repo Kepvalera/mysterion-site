@@ -151,7 +151,7 @@ export async function platformAdmin(request,env,path,method){
   }else{
    await db.prepare("DELETE FROM sales_products WHERE kind='video' AND product_id=?").bind(id).run();
   }
-  if(d.duration_seconds!==undefined)await db.prepare('INSERT INTO video_metadata VALUES (?,?) ON CONFLICT(video_id) DO UPDATE SET duration_seconds=excluded.duration_seconds').bind(id,d.duration_seconds).run();
+  if(d.duration_seconds!==undefined&&d.source_type!=='bunny')await db.prepare('INSERT INTO video_metadata VALUES (?,?) ON CONFLICT(video_id) DO UPDATE SET duration_seconds=excluded.duration_seconds').bind(id,d.duration_seconds).run();
   await audit(db,staff.sub,'video.saved',id);return decode(await videoRow(db,id));
  }
  if(vm){

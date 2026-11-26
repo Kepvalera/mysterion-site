@@ -34,7 +34,7 @@ are labelled partial when some published recording lengths are unknown. Speakers
 come from the existing video speaker field. New Bunny status syncs store provider
 duration. Existing recordings can be refreshed through Refresh Bunny durations;
 each request performs only one provider GET and stores duration metadata. No new
-Bunny objects are created. Known durations can also be entered in the video editor.
+Bunny objects are created. Known durations for non-Bunny videos can also be entered in the video editor. Bunny duration is read-only and comes from the provider.
 
 Edit a lesson to change its program or position. Moving a lesson out of a program
 with any purchases/grants is rejected, including an atomic recheck at update time.
