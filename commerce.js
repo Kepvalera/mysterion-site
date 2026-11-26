@@ -1,63 +1,6 @@
 /* Information only: no payment, account or administration requests. */
 (() => {
-  const copy = {
-    ru: {
-      sellerHeading:'Информация о продавце',
-      sellerStatus:'Самозанятый, плательщик налога на профессиональный доход (НПД)',
-      sellerTax:'ИНН: 503825148254',
-      paymentLink:'Оплата и условия', contactsLink:'Контакты',
-      paymentTitle:'Оплата и условия | MYSTERION INTERNATIONAL',
-      paymentDescription:'Стоимость онлайн-школы MYSTERION — 30 000 ₽. Стоимость видеозаписей, информация о продавце и контакты.',
-      paymentHeading:'Оплата и условия',
-      paymentIntro:'Стоимость обучения и видеоматериалов MYSTERION INTERNATIONAL, информация о продавце и вопросы перед оплатой.',
-      schoolHeading:'Онлайн-школа MYSTERION', schoolPrice:'30 000 ₽', schoolPriceLabel:'Стоимость обучения',
-      schoolTermsHeading:'Условия обучения',
-      schoolTuition:'Стоимость: 30 000 ₽.',
-      schoolDuration:'Продолжительность обучения: 3 месяца.',
-      schoolRecordingAccess:'Доступ к записям: 6 месяцев после окончания обучения.',
-      recordingsHeading:'Записи и отдельные видео',
-      recordingsPrice:'Записи конференций, семинаров и отдельные видео — стоимость будет указана при публикации соответствующих материалов.',
-      conditionsHeading:'Перед оплатой',
-      conditionsText:'Свяжитесь с продавцом, чтобы уточнить выбранный поток или материал, формат участия, даты начала занятий и порядок предоставления обучения или записей, а также условия отмены и возврата.',
-      conditionsContact:'Вопросы о стоимости и условиях можно направить по указанным ниже контактам.',
-      contactsTitle:'Контакты | MYSTERION INTERNATIONAL',
-      contactsDescription:'Контакты MYSTERION INTERNATIONAL, информация о продавце и ссылка на стоимость обучения и условия оплаты.',
-      contactsHeading:'Контакты',
-      contactsIntro:'Свяжитесь с нами по вопросам онлайн-школы, видеоматериалов, стоимости и условий участия.',
-      contactHeading:'Будем на связи', emailLabel:'Электронная почта', phoneLabel:'Телефон',
-      costHeading:'Стоимость и условия',
-      costText:'Онлайн-школа MYSTERION — 30 000 ₽. Стоимость записей конференций, семинаров и отдельных видео будет указана при публикации соответствующих материалов.',
-      writeLink:'Написать нам', contactDetailsLink:'Все контакты и информация о продавце'
-    },
-    en: {
-      sellerHeading:'Seller information',
-      sellerStatus:'Self-employed, payer of professional income tax (NPD)',
-      sellerTax:'Taxpayer identification number (INN): 503825148254',
-      paymentLink:'Payment and terms', contactsLink:'Contact',
-      paymentTitle:'Payment and terms | MYSTERION INTERNATIONAL',
-      paymentDescription:'MYSTERION Online School tuition: RUB 30,000. Recording prices, seller information and contact details.',
-      paymentHeading:'Payment and terms',
-      paymentIntro:'MYSTERION INTERNATIONAL tuition and recording prices, seller information and questions before payment.',
-      schoolHeading:'MYSTERION Online School', schoolPrice:'RUB 30,000', schoolPriceLabel:'Tuition fee',
-      schoolTermsHeading:'School terms',
-      schoolTuition:'Tuition fee: RUB 30,000.',
-      schoolDuration:'Course duration: 3 months.',
-      schoolRecordingAccess:'Access to recordings: 6 months after the course ends.',
-      recordingsHeading:'Recordings and individual videos',
-      recordingsPrice:'Prices for conference and seminar recordings and individual videos will be listed when the respective materials are published.',
-      conditionsHeading:'Before payment',
-      conditionsText:'Contact the seller to confirm your chosen cohort or material, participation format, class start dates and delivery of the school or recordings, as well as cancellation and refund terms.',
-      conditionsContact:'Please use the contact details below for questions about prices and terms.',
-      contactsTitle:'Contact | MYSTERION INTERNATIONAL',
-      contactsDescription:'MYSTERION INTERNATIONAL contact details, seller information, tuition prices and payment terms.',
-      contactsHeading:'Contact',
-      contactsIntro:'Contact us about the online school, video materials, prices and participation terms.',
-      contactHeading:'Get in touch', emailLabel:'Email', phoneLabel:'Phone',
-      costHeading:'Prices and terms',
-      costText:'MYSTERION Online School tuition: RUB 30,000. Prices for conference and seminar recordings and individual videos will be listed when the respective materials are published.',
-      writeLink:'Send an email', contactDetailsLink:'All contact details and seller information'
-    }
-  };
+  const copy = {"ru":{"paymentLink":"Условия покупки","requisitesLink":"Реквизиты","contactsLink":"Контакты","paymentTitle":"Условия покупки | MYSTERION INTERNATIONAL","paymentDescription":"Оплата, предоставление доступа к материалам MYSTERION, отмена и возврат. Актуальные цены и сроки — в карточках материалов.","paymentHeading":"Условия покупки","paymentIntro":"Правила приобретения и просмотра материалов MYSTERION INTERNATIONAL. Актуальная стоимость, состав и срок доступа указаны в карточке выбранного материала.","catalogLink":"Открыть каталог","priceHeading":"Цена и состав покупки","priceText":"Перед оплатой проверьте название, состав программы или видео, стоимость и срок доступа в актуальной карточке материала. Здесь нет отдельного прайс-листа. Ориентировочные суммы в EUR и USD служат для справки; итоговая сумма и валюта оплаты отображаются на странице платёжного сервиса.","payHeading":"Оплата","payText":"Войдите в личный кабинет, выберите материал и нажмите кнопку покупки. Оплата проводится на защищённой странице подключённого платёжного сервиса GetPlatinum. Доступные способы и окончательная сумма показываются до подтверждения платежа. Неуспешная или отменённая оплата не предоставляет доступ.","accessHeading":"Предоставление доступа","accessText":"После серверного подтверждения успешной оплаты материал появляется в личном кабинете покупателя. Возврат со страницы оплаты сам по себе не подтверждает покупку. Срок и правила отсчёта доступа определяются карточкой материала; для комплекта доступ распространяется на входящие в него опубликованные записи. Полное видео просматривается на сайте при действующем доступе.","cancelHeading":"Отмена и возврат","cancelText":"До завершения оплаты можно закрыть страницу платёжного сервиса. Если платёж уже подтверждён, для отмены покупки, запроса возврата или решения проблемы с доступом напишите на указанный ниже email: сообщите номер заказа, название материала и email аккаунта. Не отправляйте пароль или полные данные банковской карты.","refundText":"Обращения и основания возврата рассматриваются с учётом фактически предоставленного исполнения и требований законодательства РФ, включая обязательные права потребителя. Эти условия не ограничивают законные права на отказ и возврат. При подтверждённом возврате доступ по соответствующей покупке прекращается в применимой части; история заказа сохраняется. Возврат оформляется через платёжный сервис, срок зачисления зависит от банка и способа оплаты.","helpHeading":"Вопросы по покупке","requisitesTitle":"Реквизиты | MYSTERION INTERNATIONAL","requisitesDescription":"Сведения об исполнителе MYSTERION INTERNATIONAL и контакты по вопросам покупки.","requisitesHeading":"Реквизиты","requisitesIntro":"Сведения об исполнителе и контакты по вопросам приобретения материалов.","providerLabel":"Исполнитель","providerName":"Громов Валерий Витальевич","providerStatus":"Самозанятый, плательщик налога на профессиональный доход (НПД)","sellerTax":"ИНН: 503825148254","contactsTitle":"Контакты | MYSTERION INTERNATIONAL","contactsDescription":"Контакты MYSTERION INTERNATIONAL и ссылки на условия покупки и реквизиты.","contactsHeading":"Контакты","contactsIntro":"Свяжитесь с нами по вопросам материалов, покупок и доступа.","contactHeading":"Будем на связи","emailLabel":"Электронная почта","phoneLabel":"Телефон","costHeading":"Материалы и условия покупки","costText":"Актуальная цена, состав и срок доступа указаны в карточке выбранной программы или видеозаписи в каталоге.","schoolTermsHeading":"Условия обучения","schoolDuration":"Продолжительность обучения: 3 месяца.","schoolRecordingAccess":"Доступ к записям: 6 месяцев после окончания обучения.","schoolCurrentPrice":"Стоимость и условия выбранного потока смотрите в актуальной карточке программы.","writeLink":"Написать нам","contactDetailsLink":"Все контакты"},"en":{"paymentLink":"Purchase terms","requisitesLink":"Provider details","contactsLink":"Contact","paymentTitle":"Purchase terms | MYSTERION INTERNATIONAL","paymentDescription":"Payment, access, cancellation and refunds for MYSTERION materials. Current prices and access periods are shown in material listings.","paymentHeading":"Purchase terms","paymentIntro":"Terms for purchasing and viewing MYSTERION INTERNATIONAL materials. The selected material listing shows its current price, contents and access period.","catalogLink":"Browse materials","priceHeading":"Price and purchase contents","priceText":"Before paying, check the title, programme or video contents, price and access period in the current listing. There is no separate price list here. EUR and USD estimates are for reference; the payment service displays the final amount and payment currency.","payHeading":"Payment","payText":"Sign in to your account, choose a material and select purchase. Payment takes place on the secure page of the connected GetPlatinum payment service. Available methods and the final amount are displayed before payment confirmation. Failed or cancelled payments do not grant access.","accessHeading":"Access to materials","accessText":"After the server confirms successful payment, the material appears in the buyer’s account. Returning from the payment page alone does not confirm a purchase. The listing specifies the access period and when it starts; bundle access covers its published recordings. Full videos are viewed on the website while access is valid.","cancelHeading":"Cancellation and refunds","cancelText":"Before completing payment, you can close the payment service page. If payment has already been confirmed, email the address below to request cancellation, a refund or help with access. Include the order number, material title and account email. Do not send your password or full bank card details.","refundText":"Requests and refund grounds are reviewed taking into account actual performance and Russian law, including mandatory consumer rights. These terms do not limit statutory cancellation or refund rights. Once a refund is confirmed, access from that purchase ends to the applicable extent; order history is retained. Refunds are processed through the payment service; crediting time depends on the bank and payment method.","helpHeading":"Purchase support","requisitesTitle":"Provider details | MYSTERION INTERNATIONAL","requisitesDescription":"MYSTERION INTERNATIONAL provider details and purchase support contacts.","requisitesHeading":"Provider details","requisitesIntro":"Provider information and contact details for material purchases.","providerLabel":"Service provider","providerName":"Valery Vitalyevich Gromov","providerStatus":"Self-employed, payer of professional income tax (NPD)","sellerTax":"Taxpayer identification number (INN): 503825148254","contactsTitle":"Contact | MYSTERION INTERNATIONAL","contactsDescription":"MYSTERION INTERNATIONAL contacts, purchase terms and provider details.","contactsHeading":"Contact","contactsIntro":"Contact us about materials, purchases and access.","contactHeading":"Get in touch","emailLabel":"Email","phoneLabel":"Phone","costHeading":"Materials and purchase terms","costText":"The selected programme or video listing shows its current price, contents and access period.","schoolTermsHeading":"School terms","schoolDuration":"Course duration: 3 months.","schoolRecordingAccess":"Access to recordings: 6 months after the course ends.","schoolCurrentPrice":"See the current programme listing for the selected cohort’s price and terms.","writeLink":"Send an email","contactDetailsLink":"All contact details"}};
   function translate() {
     const t = copy[document.documentElement.lang] || copy.ru;
     document.querySelectorAll('[data-commerce]').forEach(node => {
@@ -65,7 +8,7 @@
       if (value !== undefined) node.textContent = value;
     });
     const page = document.body.dataset.commercePage;
-    if (!['payment','contacts'].includes(page)) return;
+    if (!['payment','contacts','requisites'].includes(page)) return;
     document.title = t[page+'Title'];
     document.querySelector('meta[name="description"]')?.setAttribute('content',t[page+'Description']);
     document.querySelector('meta[property="og:title"]')?.setAttribute('content',t[page+'Title']);
@@ -74,5 +17,6 @@
   window.addEventListener('mysterion:language',translate);
   // The existing catalog changes html.lang using its own language control.
   new MutationObserver(translate).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+  const preferred=new URLSearchParams(location.search).get('lang');if(['ru','en'].includes(preferred))document.documentElement.lang=preferred;
   translate();
 })();

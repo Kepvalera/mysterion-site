@@ -9,7 +9,7 @@ export async function routeSiteDisplay(context,next){
  // reachable. API catalog and purchase gates enforce the mode independently.
  if(path==='/api'||path.startsWith('/api/')||/^\/admin-media(?:\.html)?(?:\/|$)/.test(path)||/^\/media-login(?:\.html)?(?:\/|$)/.test(path)||/\.(?:js|css|svg|ico|png|jpe?g|webp|avif|gif|woff2?|ttf|otf|mp4|webm|pdf)$/.test(path))return next();
  let state;try{state=await siteDisplayState(context.env)}catch{return new Response('Site mode unavailable. / Режим сайта временно недоступен.',{status:503,headers:{...noStore,'Content-Type':'text/plain; charset=utf-8'}})}
- if(state.mode==='main')return uncached(await next());
+ if(state.mode==='main'||/^\/(?:payment-terms|requisites|contacts)(?:\.html)?\/?$/.test(path))return uncached(await next());
  if(/^\/viewer-account(?:\.html)?\/?$/.test(path)){
   const response=await next();const rewritten=new HTMLRewriter()
    .on('body',{element(e){e.setAttribute('class',(e.getAttribute('class')||'')+' site-services-account')}})

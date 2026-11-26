@@ -34,3 +34,6 @@
   .commerce-actions { flex-direction:column; align-items:stretch; }
   .seller-footer-links { flex-direction:column; align-items:flex-start; gap:0; }
 }
+
+/* Compact legal links; product prices remain in the live catalog. */
+.legal-footer{margin-top:22px;padding-block:16px;border-top:1px solid #bba47c55;font-size:13px}.legal-footer-links{display:flex;flex-wrap:wrap;gap:4px 22px}.legal-footer-links a{display:inline-flex;align-items:center;min-height:44px;text-decoration:underline;text-underline-offset:4px}.legal-footer small{display:block;margin-top:4px;font-size:12px}.purchase-content{max-width:900px;display:grid;gap:18px}.purchase-document .commerce-intro{padding-block:48px 24px}.purchase-document .commerce-intro h1{font-size:clamp(38px,6vw,64px);margin-block:12px 18px}.purchase-document .commerce-card{padding:clamp(20px,3vw,30px);border-radius:16px}.purchase-document .commerce-card h2{font-size:clamp(25px,3vw,32px);margin-bottom:14px}.purchase-document p{line-height:1.75}.platform-shell .legal-footer{max-width:1140px;padding-inline:20px;color:var(--platform-muted)}.platform-shell .legal-footer a{color:var(--platform-gold)}@media(max-width:640px){.legal-footer-links{gap:0 16px}.purchase-document .commerce-intro{padding-top:32px}}
