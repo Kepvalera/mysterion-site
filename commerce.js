@@ -17,6 +17,6 @@
   window.addEventListener('mysterion:language',translate);
   // The existing catalog changes html.lang using its own language control.
   new MutationObserver(translate).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
-  const preferred=new URLSearchParams(location.search).get('lang');if(['ru','en'].includes(preferred))document.documentElement.lang=preferred;
+  const preferred=new URLSearchParams(location.search).get('lang');if(['ru','en'].includes(preferred)){if(typeof window.setLanguage==='function'&&document.querySelector('.lang-toggle'))window.setLanguage(preferred);else{document.documentElement.lang=preferred;try{localStorage.setItem('mysterion-language',preferred)}catch{}}}
   translate();
 })();
