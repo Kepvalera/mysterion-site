@@ -4,6 +4,7 @@
 #media-grid .program-card-body{display:contents}
 #media-grid .media-video-cover{width:100%;aspect-ratio:16/9;min-height:0;overflow:hidden;border-radius:10px;background:#14233c}
 #media-grid .media-video-cover>img,#media-grid .media-video-cover>.media-cover-placeholder{position:absolute;inset:0;display:block;width:100%;height:100%;max-height:none;aspect-ratio:auto;object-fit:cover}
+#media-grid .media-video-cover>.media-cover-placeholder{display:grid;place-items:center}
 #media-grid .program-catalog-card .media-video-cover>img{object-fit:contain}
 #media-grid .media-card-heading{display:flex;flex-direction:column;gap:8px;min-width:0}
 #media-grid .media-card-heading>p{margin:0;font-size:11px;line-height:1.5;min-height:1.5em;color:#89662f;letter-spacing:.035em}
