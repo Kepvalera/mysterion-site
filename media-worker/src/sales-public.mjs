@@ -12,9 +12,8 @@ import {gpOffer,gpCourseOffer,gpCheckout,gpOrder} from './getplatinum-checkout.m
 export async function publicSales(env){
  if(await selectedPaymentProvider(env.MEDIA_DB)==='getplatinum')return {enabled:false,items:[],provider:'getplatinum'};
  if(!await newPurchasesAllowed(env)||!publicEnabled(env)||!(await publicDigitalSettings(env.MEDIA_DB))?.enabled)return {enabled:false,items:[]};
- const available=(await products(env.MEDIA_DB)).filter(p=>{
+ const available=(await products(env.MEDIA_DB)).filter(p=>{if(p.archived)return false;
   if(!p.sale_enabled||p.state!=='published'||p.access!=='paid'||p.currency!=='RUB'||p.product_kind==='video'&&(!['bunny','youtube'].includes(p.source_type)||p.source_type==='bunny'&&p.bunny_status!==4||p.publish_at>new Date().toISOString()))return false;
-  if(p.kind==='school'&&(p.price_minor!==3000000||p.policy?.mode!=='school'))return false;
   try{dates(p.policy);return true}catch{return false}
  });
  return {enabled:true,tribute:automaticEnabled(env),items:available.map(p=>({id:p.id,kind:p.product_kind,title:decode(p).title,description:decode(p).description,price_minor:p.price_minor,currency:p.currency,policy:p.policy}))};
@@ -29,7 +28,7 @@ export async function viewerSales(request,env,viewer,path,method){
  const gp=path.match(/^getplatinum\/orders\/([a-f0-9-]{36})$/);if(gp&&method==='GET'){const o=await gpOrder(db,gp[1]);if(o.viewer_id!==viewer.id)deny(404,'gp_order_not_found');const access=o.course_id?(await courseAccess(db,viewer.id,o.course_id)):(await videoAccess(db,viewer.id,o.video_id));return {id:o.id,state:o.stage,reason:o.reason,has_access:!!access?.expires_at}}
  const digital=path.match(/^digital-offer\/([a-f0-9-]{36})$/);
  if(digital&&method==='GET'){
-  const videoId=digital[1];if((await videoAccess(db,viewer.id,videoId))?.expires_at)return {available:false,has_access:true};
+  const videoId=digital[1];if(await db.prepare('SELECT 1 FROM video_archives WHERE video_id=?').bind(videoId).first())return {available:false,reason:'video_archived'};if((await videoAccess(db,viewer.id,videoId))?.expires_at)return {available:false,has_access:true};
   if(!await newPurchasesAllowed(env))return {available:false,reason:'site_temporary_mode'};
   const settings=await db.prepare('SELECT * FROM digital_integration_settings WHERE id=1').first();
   const publicState=await publicDigitalSettings(db),publicOpen=digitalPublicOpen(env,publicState),testAllowed=!publicState?.activated_at&&settings?.mode==='test'&&settings.test_viewer_id===viewer.id;
@@ -51,6 +50,7 @@ export async function viewerSales(request,env,viewer,path,method){
   const current=await publicDigitalSettings(db);
   if(publicOpen&&(!digitalPublicOpen(env,current)||current.revision!==publicState.revision))return {available:false,reason:'public_sales_paused'};
   if(testAllowed&&!publicOpen){const latest=await db.prepare('SELECT * FROM digital_integration_settings WHERE id=1').first();if(current?.activated_at||latest?.mode!=='test'||latest.test_viewer_id!==viewer.id||latest.revision!==settings.revision)return {available:false,reason:'test_participant_mismatch'}}
+  if(await db.prepare('SELECT 1 FROM video_archives WHERE video_id=?').bind(videoId).first())return {available:false,reason:'video_archived'};
   return {available:true,payment_url:p.payment_url,amount_minor:p.amount_minor,currency:'RUB'};
  }
  if(path==='telegram'||path.startsWith('telegram/'))return telegramViewer(request,env,viewer,path);
@@ -60,7 +60,6 @@ export async function viewerSales(request,env,viewer,path,method){
   if(d.method==='tribute'&&await selectedPaymentProvider(db)==='getplatinum')deny(409,'payment_provider_changed');
   await participant(db,viewer.id);const p=await item(db,d.kind,d.id),s=await db.prepare('SELECT * FROM sales_products WHERE kind=? AND product_id=? AND sale_enabled=1').bind(d.kind,p.id).first();
   if(!s||p.state!=='published'||p.access!=='paid'||p.currency!=='RUB'||env.MEDIA_PAID_ENABLED!=='true'||d.kind==='video'&&(p.source_type==='bunny'&&p.bunny_status!==4||!['bunny','youtube'].includes(p.source_type)||p.publish_at>new Date().toISOString()))deny(400,'not_for_sale');amount(p.price_minor);dates(s.policy);
-  if(p.kind==='school'&&(p.price_minor!==3000000||JSON.parse(s.policy).mode!=='school'))deny(400,'school_terms_required');
   const oldOperation=await db.prepare('SELECT 1 FROM sales_operations WHERE id=? AND actor=?').bind(d.request_id,viewer.id).first();
   if(!oldOperation&&(await (d.kind==='video'?videoAccess:courseAccess)(db,viewer.id,p.id))?.expires_at)deny(409,'access_already_available');
   const id=crypto.randomUUID(),created=await operation(db,viewer.id,'checkout',p.id,d,{id},q=>[

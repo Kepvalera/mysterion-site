@@ -11,7 +11,7 @@ export function date(value){if(!Number.isSafeInteger(value)||value<1||value>FORE
 export function addMonths(seconds,months){const d=new Date(seconds*1000),day=d.getUTCDate();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+months);const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();d.setUTCDate(Math.min(day,last));return Math.floor(d.getTime()/1000)}
 export function policy(value,item){
  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['mode','days','starts_at','ends_at'].includes(k)))deny(400,'invalid_policy');
- if(item?.kind==='school'){
+ if(value.mode==='school'&&item?.kind==='school'){
   if(value.mode!=='school')deny(400,'school_dates_required');const starts=date(value.starts_at);return {mode:'school',starts_at:starts,training_ends_at:addMonths(starts,3),ends_at:addMonths(addMonths(starts,3),6)};
  }
  if(value.mode==='days'&&Number.isInteger(value.days)&&value.days>0&&value.days<=3660)return {mode:'days',days:value.days};
@@ -25,7 +25,7 @@ export function dates(snapshot,at=time(),override){
  const start=['school','absolute'].includes(p.mode)?p.starts_at:at,end=p.mode==='lifetime'?FOREVER:p.mode==='days'?start+p.days*86400:p.ends_at;
  if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||end<=start||end<=at)deny(409,'access_period_ended');return [start,end];
 }
-export async function item(db,kind,id){const target=product({kind,id}),row=await db.prepare(`SELECT * FROM ${target.table} WHERE id=? AND state!='${kind==='video'?'deleted':'archived'}'`).bind(id).first();if(!row)deny(404,'product_not_found');return {...row,product_kind:kind,column:target.column,table:target.table}}
+export async function item(db,kind,id){const target=product({kind,id}),row=await db.prepare(`SELECT * FROM ${target.table} WHERE id=? AND state!='${kind==='video'?'deleted':'archived'}'`).bind(id).first();if(!row)deny(404,'product_not_found');if(kind==='video'&&await db.prepare('SELECT 1 FROM video_archives WHERE video_id=?').bind(id).first())deny(409,'video_archived');return {...row,product_kind:kind,column:target.column,table:target.table}}
 export async function participant(db,id){uuid(id);const row=await db.prepare(`SELECT a.id,CASE WHEN a.telegram_only=1 THEN NULL ELSE a.email END AS email FROM viewer_accounts a WHERE a.id=? AND a.status='active' AND ${verifiedIdentitySQL('a')}`).bind(id).first();if(!row)deny(400,'active_participant_required');return row}
 export async function manager(env,staff){if(!enabled(env))return false;if(staff.role==='owner')return true;if(staff.role!=='publisher')return false;return !!(await env.MEDIA_DB.prepare('SELECT 1 FROM sales_managers WHERE access_sub=? AND active=1').bind(staff.sub).first())}
 export async function order(db,id){uuid(id);const row=await db.prepare('SELECT o.*,s.source,s.state,s.policy,s.revision AS sales_revision,s.provider_uuid,s.shop_id,s.provider_stage,s.payment_url,s.last_payment_status FROM viewer_orders o JOIN sales_orders s ON s.order_id=o.id WHERE o.id=?').bind(id).first();if(!row)deny(404,'sales_order_not_found');return row}
@@ -50,7 +50,7 @@ export function createGrant(q,viewer,kind,id,start,end,actor,source=null,grantId
 }
 export async function products(db){
  const result=[];for(const kind of ['video','course']){const table=kind==='video'?'videos':'platform_courses',column=kind+'_id';
-  const found=await rows(db.prepare(`SELECT '${kind}' AS product_kind,p.id,p.title,p.description,${kind==='course'?'p.kind,':'p.publish_at,p.source_type,p.bunny_status,'}p.access,p.price_minor,p.currency,p.state,p.revision,s.policy,s.sale_enabled,s.revision AS policy_revision,
+  const found=await rows(db.prepare(`SELECT '${kind}' AS product_kind,p.id,p.title,p.description,${kind==='course'?'p.kind,':'p.publish_at,p.source_type,p.bunny_status,'}p.access,p.price_minor,p.currency,p.state,p.revision,${kind==='video'?'EXISTS(SELECT 1 FROM video_archives va WHERE va.video_id=p.id)':'0'} AS archived,s.policy,s.sale_enabled,s.revision AS policy_revision,
    (SELECT COUNT(*) FROM viewer_orders o WHERE o.${column}=p.id AND o.status='paid') AS purchases,
    (SELECT COUNT(*) FROM viewer_grants g WHERE g.${column}=p.id AND g.revoked_at IS NULL AND g.expires_at>?) AS grants
    FROM ${table} p LEFT JOIN sales_products s ON s.kind=? AND s.product_id=p.id WHERE p.state!=? ORDER BY p.updated_at DESC LIMIT 200`).bind(time(),kind,kind==='video'?'deleted':'archived'));

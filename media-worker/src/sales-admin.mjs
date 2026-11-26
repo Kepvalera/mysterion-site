@@ -47,10 +47,12 @@ export async function salesAdmin(request,env,staff,path,method){
   const d=await input(request,['request_id','kind','id','revision','policy_revision','access','price_minor','sale_enabled','policy','confirm_rub_price']),p=await item(db,d.kind,d.id);revision(d.revision);
   if(p.access==='paid'&&p.currency!=='RUB'&&d.access==='paid'&&d.confirm_rub_price!==true)deny(409,'confirm_rub_price_required');
   if(!['free','paid'].includes(d.access)||![0,1].includes(d.sale_enabled))deny(400,'invalid_price');const price=d.access==='free'?0:amount(d.price_minor);if(d.access==='free'&&(d.price_minor!==0||d.sale_enabled))deny(400,'invalid_price');
-  if(p.kind==='school'&&d.access==='paid'&&price!==3000000)deny(400,'school_price_fixed');
   if(d.access==='paid'&&d.kind==='video'&&(!['bunny','youtube'].includes(p.source_type)||!p.source_ref))deny(400,'protected_storage_required');
   if(d.sale_enabled&&(p.state!=='published'||d.kind==='video'&&(p.source_type==='bunny'&&p.bunny_status!==4||p.publish_at>new Date().toISOString())||env.MEDIA_PAID_ENABLED!=='true'))deny(409,'product_not_ready');
-  const terms=policy(d.policy,p);if(d.sale_enabled)dates(terms);const previous=await db.prepare('SELECT revision FROM sales_products WHERE kind=? AND product_id=?').bind(d.kind,p.id).first();if((previous?.revision||0)!==d.policy_revision)deny(409,'revision_conflict');
+  const previous=await db.prepare('SELECT * FROM sales_products WHERE kind=? AND product_id=?').bind(d.kind,p.id).first();
+  const unchanged=previous&&JSON.stringify(d.policy)===JSON.stringify(JSON.parse(previous.policy)),terms=unchanged?JSON.parse(previous.policy):policy(d.policy,p);
+  if(d.kind==='course'&&terms.mode!=='days'&&(!unchanged||d.sale_enabled===1&&previous.sale_enabled!==1))deny(400,'unsupported_checkout_policy');
+  if(d.sale_enabled&&!unchanged)dates(terms);if((previous?.revision||0)!==d.policy_revision)deny(409,'revision_conflict');
   return operation(db,staff.sub,'product.save',p.id,d,{ok:true},q=>[
    q(`UPDATE ${p.table} SET access=?,price_minor=?,currency='RUB',revision=revision+1,updated_at=? WHERE id=? AND $guard`,[d.access,price,d.kind==='video'?new Date().toISOString():time(),p.id]),
    q('INSERT INTO sales_products(kind,product_id,sale_enabled,policy) SELECT ?,?,?,? WHERE $guard ON CONFLICT(kind,product_id) DO UPDATE SET sale_enabled=excluded.sale_enabled,policy=excluded.policy,revision=sales_products.revision+1',[d.kind,p.id,d.sale_enabled,JSON.stringify(terms)])
@@ -59,8 +61,7 @@ export async function salesAdmin(request,env,staff,path,method){
  if(path==='orders'&&method==='POST'){
   const d=await input(request,['request_id','viewer_id','kind','id','amount_minor']),p=await item(db,d.kind,d.id);await participant(db,d.viewer_id);
   const configured=await db.prepare('SELECT policy,revision FROM sales_products WHERE kind=? AND product_id=?').bind(d.kind,p.id).first();if(p.state!=='published'||p.access!=='paid'||!configured||p.currency!=='RUB')deny(400,'not_for_sale');
-  if(p.kind==='school'&&JSON.parse(configured.policy).mode!=='school')deny(400,'school_dates_required');
-  const price=amount(d.amount_minor??p.price_minor),id=crypto.randomUUID();if(p.kind==='school'&&price!==3000000)deny(400,'school_price_fixed');dates(configured.policy);
+  const price=amount(d.amount_minor??p.price_minor),id=crypto.randomUUID();dates(configured.policy);
   return operation(db,staff.sub,'order.create',p.id,d,{id},q=>[
    q(`INSERT INTO viewer_orders(id,viewer_id,${p.column},title,amount_minor,currency,status,created_at,updated_at) SELECT ?,?,?,?,?,'RUB','pending_payment',?,? WHERE $guard`,[id,d.viewer_id,p.id,p.title,price,time(),time()]),
    q("INSERT INTO sales_orders(order_id,source,state,policy) SELECT ?,'manual','pending',? WHERE $guard",[id,configured.policy])

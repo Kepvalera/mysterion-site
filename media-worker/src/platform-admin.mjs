@@ -1,3 +1,4 @@
+import {ensureDeletable,archiveVideo} from './video-archive.mjs';
 import {mediaHeroAdmin} from './media-hero.mjs';
 import {saveProgram,syncProgramMetadata} from './program-admin.mjs';
 import {uploadDiagnostics} from './bunny-upload-diagnostics.mjs';
@@ -20,9 +21,9 @@ import {setupTelegramWebhook} from './telegram-access.mjs';
 const categories=['sermon','testimony','conference','school'];
 const loginHistoryRetention=90*86400,participantPageSize=25,historyPageSize=20;
 function money(d){if(!['free','paid'].includes(d.access)||!Number.isSafeInteger(d.price_minor)||d.price_minor<0||d.price_minor>100000000||!['EUR','USD','RUB'].includes(d.currency)||(d.access==='free'&&d.price_minor!==0)||(d.access==='paid'&&d.price_minor===0))deny(400,'invalid_price')}
-function mergeTranslation(value,previous,max,required=false){const next=JSON.parse(translations(value,max,required));if(previous){try{const old=JSON.parse(previous);if(typeof old.de==='string')next.de=old.de}catch{}}return JSON.stringify(next)}
+function mergeTranslation(value,previous,max,required=false){let old={};try{old=JSON.parse(previous||'{}')}catch{};if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['ru','en'].includes(k)))deny(400,'invalid_translation');const next=JSON.parse(translations({ru:old.ru||'',en:old.en||'',...value},max,required));if(typeof old.de==='string')next.de=old.de;return JSON.stringify(next)}
 function coverURL(id){return '/api/platform/covers/'+id}
-async function videoRow(db,id){const row=await db.prepare("SELECT v.*,m.duration_seconds FROM videos v LEFT JOIN video_metadata m ON m.video_id=v.id WHERE v.id=? AND v.state!='deleted'").bind(id).first();if(!row)deny(404,'not_found');return row}
+async function videoRow(db,id){const row=await db.prepare("SELECT v.*,m.duration_seconds,(SELECT policy FROM sales_products WHERE kind='video' AND product_id=v.id) AS sales_policy,(SELECT sale_enabled FROM sales_products WHERE kind='video' AND product_id=v.id) AS sale_enabled,EXISTS(SELECT 1 FROM video_archives WHERE video_id=v.id) AS archived FROM videos v LEFT JOIN video_metadata m ON m.video_id=v.id WHERE v.id=? AND v.state!='deleted'").bind(id).first();if(!row)deny(404,'not_found');return row}
 async function updateResult(statement){const result=await statement.run();if(!result.meta.changes)deny(409,'revision_conflict');return {ok:true}}
 function queryPage(request,allowed){
  const params=new URL(request.url).searchParams;
@@ -62,7 +63,8 @@ export async function platformAdmin(request,env,path,method){
   const row=await db.prepare("SELECT p.video_id,p.location,p.file_size,p.fingerprint,v.source_ref,v.bunny_status,v.state FROM platform_uploads p JOIN videos v ON v.id=p.video_id WHERE p.fingerprint=? AND v.state='draft' AND v.source_type='bunny' AND v.source_ref!='' ORDER BY p.updated_at DESC LIMIT 1").bind(d.fingerprint).first();
   return row?{found:true,video_id:row.video_id,location:row.location,file_size:row.file_size,bunny_status:row.bunny_status,source_ref:row.source_ref}:{found:false};
  }
- if(path==='videos'&&method==='GET')return {items:(await rows(db.prepare("SELECT videos.*,m.duration_seconds FROM videos LEFT JOIN video_metadata m ON m.video_id=videos.id WHERE (state!='deleted' OR (?='owner' AND bunny_delete_pending=1)) AND (?!='uploader' OR (created_by=? AND state='draft')) ORDER BY updated_at DESC LIMIT 200").bind(staff.role,staff.role,staff.sub))).map(decode)};
+ if(path==='videos'&&method==='GET')return {items:(await rows(db.prepare("SELECT videos.*,m.duration_seconds,(SELECT policy FROM sales_products WHERE kind='video' AND product_id=videos.id) AS sales_policy,(SELECT sale_enabled FROM sales_products WHERE kind='video' AND product_id=videos.id) AS sale_enabled,EXISTS(SELECT 1 FROM video_archives WHERE video_id=videos.id) AS archived FROM videos LEFT JOIN video_metadata m ON m.video_id=videos.id WHERE (state!='deleted' OR (?='owner' AND bunny_delete_pending=1)) AND (?!='uploader' OR (created_by=? AND state='draft')) ORDER BY updated_at DESC LIMIT 200").bind(staff.role,staff.role,staff.sub))).map(decode)};
+ const restoreVideo=path.match(/^videos\/([a-f0-9-]{36})\/restore$/);if(restoreVideo&&method==='POST'){requireOwner(staff);const d=await input(request,['revision']);return archiveVideo(db,staff,restoreVideo[1],revision(d.revision),true)}
  const fullDelete=path.match(/^videos\/([a-f0-9-]{36})\/delete-bunny$/);
  if(fullDelete&&method==='POST'){
   requireOwner(staff);const d=await input(request,['revision']),expected=revision(d.revision),id=fullDelete[1];
@@ -71,6 +73,7 @@ export async function platformAdmin(request,env,path,method){
   return bunny.withLease(env,id,async()=>{
    let current=await db.prepare('SELECT * FROM videos WHERE id=?').bind(id).first();if(!current)deny(404,'video_not_found');
    if(current.source_type!=='bunny')deny(409,'bunny_required');bunny.boundVideo(env,current);
+   await ensureDeletable(db,id);
    if(current.revision!==expected)deny(409,'revision_conflict');
    if(current.state==='deleted'){
     if(current.bunny_delete_pending!==1)deny(409,'video_not_pending_deletion');
@@ -99,7 +102,10 @@ export async function platformAdmin(request,env,path,method){
   const d=await input(request,['id','title','description','speaker','category','year','source_type','source_ref','youtube_ref','vk_ref','rutube_ref','access','price_minor','currency','state','revision','duration_days','sale_enabled','duration_seconds']);
   if(d.id!==undefined&&(!idPattern.test(d.id)||vm&&d.id!==vm[1]))deny(400,'invalid_video');
   if(d.duration_seconds!==undefined&&d.duration_seconds!==null&&(!Number.isSafeInteger(d.duration_seconds)||d.duration_seconds<0||d.duration_seconds>31536000))deny(400,'invalid_video_duration');
-  const old=vm?await videoRow(db,vm[1]):null;if(old)canEditVideo(staff,old);money(d);
+  const old=vm?await videoRow(db,vm[1]):null;if(old){canEditVideo(staff,old);for(const key of ['title','description','speaker','category','year','source_type','source_ref','access','price_minor','currency','state'])if(d[key]===undefined)d[key]=['title','description'].includes(key)?Object.fromEntries(Object.entries(JSON.parse(old[key])).filter(([k])=>['ru','en'].includes(k))):old[key];}money(d);
+  const previousTerms=old?await db.prepare("SELECT * FROM sales_products WHERE kind='video' AND product_id=?").bind(old.id).first():null;
+  if(d.duration_days!==undefined&&(!Number.isInteger(d.duration_days)||d.duration_days<1||d.duration_days>3660))deny(400,'invalid_access_duration');
+  if(d.sale_enabled!==undefined&&![0,1].includes(d.sale_enabled))deny(400,'invalid_sale_status');
   if(!categories.includes(d.category)||!Number.isInteger(d.year)||d.year<1900||d.year>2100||!['youtube','vk','rutube','bunny'].includes(d.source_type)||!['draft','published'].includes(d.state))deny(400,'invalid_video');
   if(d.access==='paid'&&d.currency!=='RUB')deny(400,'paid_price_must_be_rub');
   if(staff.role==='uploader'&&d.state!=='draft')deny(403,'publisher_required');
@@ -142,14 +148,14 @@ export async function platformAdmin(request,env,path,method){
    if(saved.title!==title||saved.description!==description||['category','year','access','price_minor','currency','state'].some(k=>saved[k]!==d[k])||saved.source_type!==sourceType||saved.source_ref!==ref||saved.youtube_ref!==youtubeRef||saved.vk_ref!==vkRef||saved.rutube_ref!==rutubeRef)deny(409,'revision_conflict');
   }
   if(d.access==='paid'){
-   const days=Number.isInteger(d.duration_days)&&d.duration_days>=1&&d.duration_days<=3660?d.duration_days:30;
-   const saleEnabled=d.sale_enabled===1&&d.state==='published'&&env.MEDIA_PAID_ENABLED==='true'?1:0;
+   const terms=d.duration_days===undefined&&previousTerms?previousTerms.policy:JSON.stringify({mode:'days',days:d.duration_days??30});
+   const saleEnabled=(d.sale_enabled??previousTerms?.sale_enabled??0)===1&&d.state==='published'&&env.MEDIA_PAID_ENABLED==='true'?1:0;
    await db.prepare(`INSERT INTO sales_products(kind,product_id,sale_enabled,policy,revision)
       VALUES ('video',?,?,?,1)
       ON CONFLICT(kind,product_id) DO UPDATE SET
         sale_enabled=excluded.sale_enabled,
         policy=excluded.policy,
-        revision=sales_products.revision+1`).bind(id,saleEnabled,JSON.stringify({mode:'days',days})).run();
+        revision=sales_products.revision+1`).bind(id,saleEnabled,terms).run();
   }else{
    await db.prepare("DELETE FROM sales_products WHERE kind='video' AND product_id=?").bind(id).run();
   }
@@ -166,7 +172,7 @@ export async function platformAdmin(request,env,path,method){
    const signature=mime==='image/png'?bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71:mime==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP';if(!signature)deny(400,'invalid_cover');
    await db.batch([db.prepare('INSERT INTO media_covers VALUES (?,?,?) ON CONFLICT(video_id) DO UPDATE SET mime=excluded.mime,bytes=excluded.bytes').bind(video.id,mime,bytes),db.prepare("UPDATE videos SET cover_key='d1',cover_type=? WHERE id=?").bind(mime,video.id)]);await audit(db,staff.sub,'video.cover',video.id);return {ok:true,url:coverURL(video.id)};
   }
-  if(method==='DELETE'&&!vm[2]){requireOwner(staff);const d=await input(request,['revision']);await updateResult(db.prepare("UPDATE videos SET state='deleted',bunny_delete_pending=0,revision=revision+1,mutation_id=?,updated_at=? WHERE id=? AND revision=? AND state!='deleted' AND NOT EXISTS(SELECT 1 FROM bunny_leases WHERE video_id=videos.id AND expires_at>?)").bind(crypto.randomUUID(),new Date().toISOString(),video.id,revision(d.revision),time()));await audit(db,staff.sub,'video.hidden_deleted',video.id);return {ok:true}}
+  if(method==='DELETE'&&!vm[2]){requireOwner(staff);const d=await input(request,['revision']);return archiveVideo(db,staff,video.id,revision(d.revision))}
   if(method==='POST'&&vm[2]==='upload'){
    if(video.state!=='draft'||video.source_type!=='bunny')deny(409,'bunny_draft_required');bunny.configured(env);
    return bunny.withLease(env,video.id,async()=>{

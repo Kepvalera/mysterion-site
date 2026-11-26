@@ -1,3 +1,4 @@
+import {ensureDeletable} from './video-archive.mjs';
 import {temporarySite} from './site-display-mode.mjs';
 import {HttpError,administrator,entitledViewer,siteSession,logAccessFailure} from './auth.mjs';
 import * as bunny from './bunny.mjs';
@@ -78,7 +79,7 @@ export async function handle(request,env) {
    const category=url.searchParams.get('category'),year=url.searchParams.get('year'),access=url.searchParams.get('access'),q=(url.searchParams.get('q')||'').trim();
    if(q.length>120 || (category && !categories.includes(category)) || (year && !/^\d{4}$/.test(year)) || (access && !['free','paid'].includes(access))) fail(400,'invalid_filter');
    const page=Math.min(10000,Math.max(1,Number(url.searchParams.get('page'))||1));
-   const where=["state='published'",'publish_at<=?',"NOT EXISTS(SELECT 1 FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.video_id=videos.id AND videos.access='paid' AND NOT EXISTS(SELECT 1 FROM sales_products s WHERE s.kind='video' AND s.product_id=videos.id AND s.sale_enabled=1))"],values=[new Date().toISOString()];
+   const where=["NOT EXISTS(SELECT 1 FROM video_archives va WHERE va.video_id=videos.id)","state='published'",'publish_at<=?',"NOT EXISTS(SELECT 1 FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.video_id=videos.id AND videos.access='paid' AND NOT EXISTS(SELECT 1 FROM sales_products s WHERE s.kind='video' AND s.product_id=videos.id AND s.sale_enabled=1))"],values=[new Date().toISOString()];
    const collection=url.searchParams.get('collection');
    if(collection){if(env.MEDIA_MEMBERS_ENABLED!=='true'||!bunny.uuid.test(collection))fail(400,'invalid_collection');where.push("EXISTS(SELECT 1 FROM collection_videos cv JOIN collections c ON c.id=cv.collection_id WHERE cv.video_id=videos.id AND c.id=? AND c.state='published')");values.push(collection)}
    for(const [column,value] of [['category',category],['year',year],['access',access]]) if(value){where.push(column+'=?');values.push(value)}
@@ -239,7 +240,7 @@ export async function handle(request,env) {
    return json({ok:true});
   }
   if(edit && !edit[2] && method==='DELETE') {
-   if(user.role!=='admin')fail(403,'admin_required');const revision=Number(request.headers.get('If-Match'));if(!Number.isInteger(revision)||revision<1)fail(400,'revision_required');
+   if(user.role!=='admin')fail(403,'admin_required');await ensureDeletable(env.MEDIA_DB,edit[1]);const revision=Number(request.headers.get('If-Match'));if(!Number.isInteger(revision)||revision<1)fail(400,'revision_required');
    const mutation=crypto.randomUUID();await mutate(env,user,edit[1],'delete',env.MEDIA_DB.prepare("UPDATE videos SET state='deleted',bunny_delete_pending=CASE WHEN source_type='bunny' AND source_ref!='' THEN 1 ELSE 0 END,revision=revision+1,mutation_id=?,updated_at=? WHERE id=? AND revision=? AND state!='deleted'"+noLease).bind(mutation,new Date().toISOString(),edit[1],revision),mutation);
    const deleted=await env.MEDIA_DB.prepare('SELECT * FROM videos WHERE id=?').bind(edit[1]).first();
    if(deleted.bunny_delete_pending){try{await bunny.withLease(env,deleted.id,()=>bunny.removeVideo(env,deleted))}catch{return json({ok:true,cleanupPending:true},202)}}

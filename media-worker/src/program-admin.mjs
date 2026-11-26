@@ -12,7 +12,10 @@ export async function saveProgram(request,env,staff,id){
  if(!['paid','free'].includes(d.access)||!Number.isSafeInteger(d.price_minor)||d.price_minor<0||d.price_minor>100000000||d.access==='paid'&&d.price_minor===0||d.access==='free'&&d.price_minor!==0||!['RUB','EUR','USD'].includes(d.currency))deny(400,'invalid_price');
  if(d.program_type&&d.currency!=='RUB'||kind==='conference'&&d.access==='paid'&&d.currency!=='RUB')deny(400,'conference_paid_requires_rub');
  const stream=type==='stream'?d.stream:null;if(type==='stream'&&![3,4,5,6].includes(stream))deny(400,'invalid_school_stream');if(type!=='stream'&&d.stream!==undefined&&d.stream!==null&&d.stream!=='')deny(400,'stream_only_for_school');
- const raw=d.duration_days,days=typeof raw==='number'?raw:typeof raw==='string'&&/^\d+$/.test(raw.trim())?Number(raw):!d.program_type&&kind!=='conference'?90:NaN;if(d.access==='paid'&&(!Number.isInteger(days)||days<1||days>3660))deny(400,'invalid_access_duration');
+ const previousTerms=await db.prepare("SELECT * FROM sales_products WHERE kind='course' AND product_id=?").bind(id).first();
+ const raw=d.duration_days,days=typeof raw==='number'?raw:typeof raw==='string'&&/^\d+$/.test(raw.trim())?Number(raw):undefined;
+ if(raw!==undefined&&(!Number.isInteger(days)||days<1||days>3660))deny(400,'invalid_access_duration');
+ const terms=raw===undefined&&previousTerms?previousTerms.policy:JSON.stringify({mode:'days',days:days??90});
  if(d.sale_enabled!==undefined&&![0,1].includes(d.sale_enabled))deny(400,'invalid_sale_status');
  const parent=d.parent_id===undefined?(old?.parent_id||null):d.parent_id||null,sort=d.sort_order===undefined?(old?.sort_order||0):d.sort_order;
  if(!Number.isInteger(sort)||sort<0||sort>1000000)deny(400,'invalid_program_order');
@@ -23,8 +26,9 @@ export async function saveProgram(request,env,staff,id){
  const statements=[old?db.prepare("INSERT INTO platform_audit SELECT ?,?,'program.saved',id,? FROM platform_courses WHERE id=? AND revision=?").bind(receipt,staff.sub,now,id,rev):db.prepare("INSERT INTO platform_audit SELECT ?,?,'program.created',?,? WHERE NOT EXISTS(SELECT 1 FROM platform_courses WHERE id=?)").bind(receipt,staff.sub,id,now,id)];
  statements.push(old?db.prepare(`UPDATE platform_courses SET title=?,description=?,kind=?,stream=?,access=?,price_minor=?,currency=?,state=?,revision=revision+1,updated_at=? WHERE id=? AND ${guard}`).bind(title,description,kind,stream,d.access,d.price_minor,d.currency,d.state,now,id,receipt):db.prepare(`INSERT INTO platform_courses(id,title,description,kind,stream,access,price_minor,currency,state,created_at,updated_at) SELECT ?,?,?,?,?,?,?,?,?,?,? WHERE ${guard}`).bind(id,title,description,kind,stream,d.access,d.price_minor,d.currency,d.state,now,now,receipt));
  statements.push(db.prepare(`INSERT INTO program_settings(course_id,program_type,parent_id,sort_order,syllabus) SELECT ?,?,?,?,? WHERE ${guard} ON CONFLICT(course_id) DO UPDATE SET program_type=excluded.program_type,parent_id=excluded.parent_id,sort_order=excluded.sort_order,syllabus=excluded.syllabus`).bind(id,type,parent,sort,syllabus,receipt));
- const enabled=d.access==='paid'&&d.state==='published'&&env.MEDIA_PAID_ENABLED==='true'&&(d.sale_enabled===1||!d.program_type&&kind==='conference'&&d.sale_enabled===undefined)?1:0;
- statements.push(db.prepare(`INSERT INTO sales_products(kind,product_id,sale_enabled,policy,revision) SELECT 'course',?,?,?,1 WHERE ${guard} ON CONFLICT(kind,product_id) DO UPDATE SET sale_enabled=excluded.sale_enabled,policy=excluded.policy,revision=sales_products.revision+1`).bind(id,enabled,JSON.stringify({mode:'days',days:Number.isInteger(days)?days:90}),receipt));
+ if(d.sale_enabled===1&&JSON.parse(terms).mode!=='days'&&previousTerms?.sale_enabled!==1)deny(400,'unsupported_checkout_policy');
+ const enabled=d.access==='paid'&&d.state==='published'&&env.MEDIA_PAID_ENABLED==='true'&&((d.sale_enabled??previousTerms?.sale_enabled??(!d.program_type&&kind==='conference'?1:0))===1)?1:0;
+ statements.push(db.prepare(`INSERT INTO sales_products(kind,product_id,sale_enabled,policy,revision) SELECT 'course',?,?,?,1 WHERE ${guard} ON CONFLICT(kind,product_id) DO UPDATE SET sale_enabled=excluded.sale_enabled,policy=excluded.policy,revision=sales_products.revision+1`).bind(id,enabled,terms,receipt));
  const result=await db.batch(statements);if(!result[0].meta.changes)deny(409,'revision_conflict');return decode(await db.prepare('SELECT c.*,p.program_type,p.parent_id,p.sort_order,p.syllabus FROM platform_courses c LEFT JOIN program_settings p ON p.course_id=c.id WHERE c.id=?').bind(id).first());
 }
 export async function syncProgramMetadata(env,id,after){

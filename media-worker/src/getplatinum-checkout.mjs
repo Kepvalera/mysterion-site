@@ -9,7 +9,7 @@ import {paymentProviderSettings} from './payment-provider.mjs';
 import {gpLiveReady,gpRequest,gpOrganization,gpPaymentURL} from './getplatinum-api.mjs';
 export async function gpCheckoutReady(env){const settings=await paymentProviderSettings(env.MEDIA_DB),sales=await env.MEDIA_DB.prepare('SELECT enabled FROM digital_public_sales WHERE id=1').first();return !!(gpLiveReady(env)&&settings?.gp_enabled===1&&settings.active_provider==='getplatinum'&&sales?.enabled===1&&await gpPublicSiteAllowed(env))}
 export async function gpProduct(db,id){
- uuid(id);const v=await db.prepare("SELECT * FROM videos WHERE id=? AND state='published' AND access='paid' AND publish_at<=?").bind(id,new Date().toISOString()).first();
+ uuid(id);const v=await db.prepare("SELECT * FROM videos WHERE NOT EXISTS(SELECT 1 FROM video_archives va WHERE va.video_id=videos.id) AND id=? AND state='published' AND access='paid' AND publish_at<=?").bind(id,new Date().toISOString()).first();
  if(!v||v.currency!=='RUB'||!['youtube','bunny'].includes(v.source_type)||v.source_type==='bunny'&&v.bunny_status!==4)deny(409,'gp_video_unavailable');amount(v.price_minor);
  const mappings=(await db.prepare('SELECT DISTINCT days FROM digital_product_mappings WHERE video_id=? AND active=1').bind(id).all()).results,s=await db.prepare("SELECT * FROM sales_products WHERE kind='video' AND product_id=? AND sale_enabled=1").bind(id).first();
  let policy;if(mappings.length===1)policy={mode:'days',days:mappings[0].days};else if(mappings.length>1)deny(409,'gp_access_terms_conflict');else if(s){try{policy=JSON.parse(s.policy)}catch{deny(409,'gp_access_terms_missing')}}else deny(409,'gp_access_terms_missing');
