@@ -1,3 +1,4 @@
+import {purgeProgram} from './program-purge.mjs';
 import {eventSettings} from './program-events-core.mjs';
 import {eventAdmin} from './program-events.mjs';
 import {ensureDeletable,archiveVideo} from './video-archive.mjs';
@@ -203,6 +204,7 @@ export async function platformAdmin(request,env,path,method){
  // Every non-video administrative operation is owner-only, including lists.
  requireOwner(staff);
  if(path==='participant-search'&&method==='GET')return searchParticipants(db,request);
+ const purgeCourse=path.match(/^courses\/([a-f0-9-]{36})\/delete-permanently$/);if(purgeCourse&&method==='POST')return purgeProgram(request,env,staff,purgeCourse[1]);
  const restoreCourse=path.match(/^courses\/([a-f0-9-]{36})\/restore$/);if(restoreCourse&&method==='POST')return courseLifecycle(request,env,staff,restoreCourse[1],true);
  if(path==='overview'&&method==='GET')return {participants:(await db.prepare('SELECT COUNT(*) n FROM viewer_accounts').first()).n,videos:(await db.prepare("SELECT COUNT(*) n FROM videos WHERE state!='deleted'").first()).n,courses:(await db.prepare("SELECT COUNT(*) n FROM platform_courses WHERE state!='archived'").first()).n,orders:(await db.prepare("SELECT COUNT(*) n FROM viewer_orders WHERE status='in_review'").first()).n};
  if(path==='participants'&&method==='GET'){
