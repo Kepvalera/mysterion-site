@@ -1,1 +1,28 @@
 .event-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}.event-cover{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;max-height:320px}.event-body{padding:24px;min-width:0}.event-body h1,.event-body h2{overflow-wrap:break-word}.event-detail{display:grid;grid-template-columns:minmax(0,40%) minmax(0,60%);align-items:start;max-width:1160px;margin:32px auto;background:#fff}.event-detail>.event-cover{margin-top:24px}.event-eyebrow{color:#a57d35;letter-spacing:.12em;text-transform:uppercase;font-size:.8rem}.event-speaker{display:flex;align-items:center;gap:16px;margin:16px 0}.event-speaker img{border-radius:50%;object-fit:cover}.event-account-card{padding:20px;border:1px solid #d9c593;border-radius:12px;margin:16px 0;background:var(--member-card,#fff);overflow-wrap:anywhere}.event-account-card button{margin:8px 12px 8px 0}.event-zoom-password{user-select:all}.event-admin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.event-admin-form label{display:flex;flex-direction:column;gap:6px;min-width:0}.event-admin-form input,.event-admin-form select{width:100%;box-sizing:border-box}.event-admin-note{grid-column:1/-1;overflow-wrap:break-word}.event-admin-dialog{width:min(850px,92vw);max-height:88vh;overflow:auto;box-sizing:border-box}#upcoming-events{padding:64px max(20px,calc((100% - 1160px)/2));background:linear-gradient(135deg,#0b1830,#162846);color:#fff}#upcoming-events .events-card{background:#fff;color:#14233b;border:1px solid #d9c593;border-radius:12px;overflow:hidden}#upcoming-events h2{font-size:clamp(1.5rem,3vw,2.5rem)}.event-admin-list{max-width:100%;overflow-x:auto}.event-admin-list td,.event-admin-list th{padding:8px;text-align:left}.event-admin-dialog button{margin:8px 6px 8px 0;min-height:44px}.event-admin-dialog p{overflow-wrap:break-word}@media(max-width:1000px){.event-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.event-detail{display:block;margin:16px}.event-detail>.event-cover{max-height:220px;margin-top:0}.event-grid,.event-admin-form{grid-template-columns:1fr}.event-body{padding:18px}.event-body .conference-actions{flex-wrap:wrap}.event-admin-dialog{padding:16px}.event-account-card .btn{max-width:100%;white-space:normal}.event-admin-note{grid-column:1}}@media(prefers-reduced-motion:reduce){#upcoming-events *{animation:none;transition:none}}
+
+/* Account cards own their palette: the account has no --member-card token. */
+.event-account{margin-top:32px;color:#edf0f5;min-width:0}
+.event-account>h2{color:#efd29b;font-family:var(--font-display,Georgia,serif);font-size:clamp(30px,3vw,42px);line-height:1.15;margin:0 0 20px;letter-spacing:-.02em}
+.event-account>p{color:#c5d1e3;line-height:1.65}
+.event-account .event-account-card{padding:clamp(20px,3vw,30px);margin:16px 0;background:linear-gradient(135deg,#162640,#0e192b);border:1px solid #796340;border-radius:16px;color:#edf0f5;box-shadow:0 14px 36px #03091326;min-width:0}
+.event-account .event-account-name{font-family:var(--font-display,Georgia,serif);color:#f3deb7;font-size:clamp(26px,2.6vw,36px);font-weight:500;line-height:1.18;letter-spacing:-.02em;margin:0 0 16px}
+.event-account .event-account-card p{color:#c5d1e3;font-size:14px;line-height:1.65;margin:0 0 10px;overflow-wrap:break-word}
+.event-account .event-account-card .event-account-status{color:#edce96}
+.event-account .event-account-card .event-account-countdown{color:#f5f7fb;font-weight:500;font-variant-numeric:tabular-nums;margin-bottom:20px}
+.event-account-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.event-account .event-account-card .btn{min-height:46px;margin:0;padding:12px 20px;border-radius:999px;border:1px solid #e5c68e;background:#e5c68e;color:#101d30;box-shadow:none;font-size:12px;line-height:1.45;text-decoration:none;white-space:normal}
+.event-account .event-account-card .event-account-link{background:transparent;color:#f0d49c;border-color:#a18a62}
+.event-account .event-account-card .btn:disabled{background:#23334c;border-color:#687994;color:#d3dbea;opacity:1;cursor:not-allowed;transform:none}
+.event-account .event-account-card .btn:not(:disabled):hover{background:#f2dbb4;border-color:#f2dbb4;color:#101d30}
+.event-account .event-account-card .btn:focus-visible{outline:2px solid #f2dbb4;outline-offset:4px}
+.event-account .event-account-card .event-zoom-hint{color:#bacbe1;font-size:13px;margin:14px 0 0;max-width:660px}
+.event-account .event-zoom-password{color:#f3deb7;padding-top:12px}
+/* A seminar's public page keeps a light surface with explicit dark text. */
+.event-detail{background:#fff;color:#14233b}
+.event-detail h1,.event-detail h2,.event-detail h3,.event-detail .event-body{color:#14233b}
+.event-detail .event-eyebrow{color:#805e22}
+.event-detail .conference-note{color:#526176}
+.event-detail a:not(.btn){color:#735019;text-underline-offset:3px}
+.event-detail .btn-dark{background:#152641;border-color:#152641;color:#fff}
+.event-detail .btn-light{background:#fff;border-color:#b49968;color:#152641}
+@media(max-width:600px){.event-account{margin-top:26px}.event-account-actions{align-items:stretch;flex-direction:column}.event-account-actions>.btn{width:100%;box-sizing:border-box}.event-account .event-account-card{padding:20px}.event-account .event-account-name{font-size:28px}}
