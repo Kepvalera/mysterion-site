@@ -6,6 +6,7 @@ function translated(value,old,max,required=false){const next=JSON.parse(translat
 export async function saveProgram(request,env,staff,id){
  const db=env.MEDIA_DB,d=await input(request,['id','title','description','kind','program_type','parent_id','sort_order','syllabus','stream','access','price_minor','currency','state','revision','duration_days','sale_enabled']),old=id?await db.prepare('SELECT c.*,p.program_type,p.parent_id,p.sort_order,p.syllabus FROM platform_courses c LEFT JOIN program_settings p ON p.course_id=c.id WHERE c.id=?').bind(id).first():null;
  if(id&&d.id!==undefined&&d.id!==id)deny(400,'invalid_program');if(id&&!old)deny(404,'course_not_found');id=id||d.id||crypto.randomUUID();if(!idPattern.test(id))deny(400,'invalid_program');
+ if(old&&await db.prepare('SELECT 1 FROM program_events WHERE course_id=?').bind(id).first()&&(d.program_type||d.kind)!=='seminar')deny(409,'event_type_immutable');
  const type=d.program_type||(d.kind==='school'?'stream':d.kind);if(!kinds.includes(type))deny(400,'invalid_course_kind');
  const kind=d.program_type?(type==='stream'?'school':['school','bundle'].includes(type)?'course':type):d.kind;
  if(!['draft','published','archived'].includes(d.state))deny(400,'invalid_course_status');

@@ -1,3 +1,5 @@
+import {eventSettings} from './program-events-core.mjs';
+import {eventAdmin} from './program-events.mjs';
 import {ensureDeletable,archiveVideo} from './video-archive.mjs';
 import {mediaHeroAdmin} from './media-hero.mjs';
 import {saveProgram,syncProgramMetadata} from './program-admin.mjs';
@@ -40,6 +42,7 @@ function participantSearchSQL(query){
 }
 export async function platformAdmin(request,env,path,method){
  const db=env.MEDIA_DB,staff=await staffIdentity(request,env);if(method!=='GET')csrf(request,env);
+ if(path.startsWith('events/'))return eventAdmin(request,env,staff,path.slice(7),method);
  if(path==='media-hero'||path.startsWith('media-hero/'))return mediaHeroAdmin(request,env,staff,path==='media-hero'?'':path.slice(11),method);
  if(path==='getplatinum'||path.startsWith('getplatinum/'))return gpAdmin(request,env,staff,path==='getplatinum'?'':path.slice(12),method);
  if(path==='site-mode'||path==='site-mode/content'||path==='site-mode/resume-sales')return siteModeAdmin(request,env,staff,path==='site-mode'?'':path.slice(10),method);
@@ -254,7 +257,7 @@ export async function platformAdmin(request,env,path,method){
   const d=await input(request,['id','course_id','title','description','video_id','position','state','public_preview','revision']);
   if(!idPattern.test(d.course_id)||d.video_id!==null&&!idPattern.test(d.video_id)||!Number.isInteger(d.position)||d.position<0||d.position>10000||!['draft','published'].includes(d.state)||![0,1].includes(d.public_preview))deny(400,'invalid_lesson');
   const course=await db.prepare('SELECT * FROM platform_courses WHERE id=?').bind(d.course_id).first();if(!course)deny(404,'course_not_found');
-  if(d.video_id){const video=await videoRow(db,d.video_id);if(d.state==='published'&&video.state!=='published'&&!(video.source_type==='bunny'&&video.state==='draft'))deny(409,'published_video_required');if(course.access==='free'&&video.access!=='free')deny(400,'free_course_paid_video');if(course.access==='paid'&&!d.public_preview&&video.access==='free')deny(400,'public_video_requires_preview')}
+  if(d.video_id){const video=await videoRow(db,d.video_id);if(video.access==='free'&&await eventSettings(db,course.id))deny(400,'event_protected_recording_required');if(d.state==='published'&&video.state!=='published'&&!(video.source_type==='bunny'&&video.state==='draft'))deny(409,'published_video_required');if(course.access==='free'&&video.access!=='free'&&!await eventSettings(db,course.id))deny(400,'free_course_paid_video');if(course.access==='paid'&&!d.public_preview&&video.access==='free')deny(400,'public_video_requires_preview')}
   const previous=lm?await db.prepare('SELECT * FROM platform_lessons WHERE id=?').bind(lm[1]).first():null;if(lm&&!previous)deny(404,'lesson_not_found');
   const moving=!!previous&&previous.course_id!==d.course_id;const moveGuard="NOT EXISTS(SELECT 1 FROM viewer_orders WHERE course_id=?) AND NOT EXISTS(SELECT 1 FROM viewer_grants WHERE course_id=?)";
   if(moving&&(await db.prepare('SELECT 1 FROM viewer_orders WHERE course_id=? UNION ALL SELECT 1 FROM viewer_grants WHERE course_id=? LIMIT 1').bind(previous.course_id,previous.course_id).first()))deny(409,'program_move_has_purchases');

@@ -1,3 +1,5 @@
+import {publicEventList,viewerEvents} from './program-events.mjs';
+import {eventSettings,eventLessonAccess} from './program-events-core.mjs';
 import {publicPrograms} from './public-programs.mjs';
 import {publicConferences} from './public-conferences.mjs';
 import {serviceCatalog} from './service-catalog.mjs';
@@ -19,8 +21,10 @@ export async function handlePlatform(request,env){
  try{
   requireMediaOrigin(request,env);if(env.VIEWER_PLATFORM_ENABLED!=='true'||!env.MEDIA_DB)deny(503,'platform_not_configured');
   const url=new URL(request.url),path=url.pathname.replace(/^\/api\/platform\//,''),method=request.method,db=env.MEDIA_DB;
-  if(path.startsWith('admin/'))return json(await platformAdmin(request,env,path.slice(6),method));
+  if(path.startsWith('admin/')){const result=await platformAdmin(request,env,path.slice(6),method);return result instanceof Response?result:json(result)}
   if(method!=='GET')csrf(request,env);
+  const eventImage=path.match(/^event-images\/([a-f0-9-]{36})$/);if(eventImage&&method==='GET'){const image=await db.prepare("SELECT i.mime,i.bytes FROM program_event_images i JOIN platform_courses c ON c.id=i.course_id WHERE i.course_id=? AND c.state='published'").bind(eventImage[1]).first();if(!image)deny(404,'not_found');return new Response(image.bytes,{headers:{'Content-Type':image.mime,'X-Content-Type-Options':'nosniff','Cache-Control':'no-store'}})}
+  if(path==='events'&&method==='GET')return json(await publicEventList(db,url.searchParams.get('home')==='1'));
   const program=path.match(/^programs(?:\/([a-f0-9-]{36}))?$/);if(program&&method==='GET'){let viewer=null;try{viewer=await requireViewerSession(request,env)}catch(e){if(e.status!==401)throw e}return json(await publicPrograms(env,viewer,program[1]))}
   const conference=path.match(/^conferences(?:\/([a-f0-9-]{36}))?$/);if(conference&&method==='GET'){let viewer=null;try{viewer=await requireViewerSession(request,env)}catch(e){if(e.status!==401)throw e}return json(await publicConferences(env,viewer,conference[1]))}
   if(path==='currency-rates'&&method==='GET'){const r=await db.prepare('SELECT eur_rub,usd_rub FROM display_currency_rates WHERE id=1').first();return json(r)}
@@ -67,11 +71,13 @@ export async function handlePlatform(request,env){
   }
   if(lessonMatch&&method==='GET'){
    const lesson=await db.prepare("SELECT l.*,c.access,c.state AS course_state FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.id=? AND l.state='published' AND c.state IN ('published','archived')").bind(lessonMatch[1]).first();if(!lesson)deny(404,'not_found');
-   if(lesson.access==='paid'&&!lesson.public_preview||lesson.course_state==='archived'){const user=await requireViewerSession(request,env),grant=await courseAccess(db,user.id,lesson.course_id);if(!grant?.expires_at)deny(403,'viewing_right_required')}
+   if(!await eventSettings(db,lesson.course_id)&&(lesson.access==='paid'&&!lesson.public_preview||lesson.course_state==='archived')){const user=await requireViewerSession(request,env),grant=await courseAccess(db,user.id,lesson.course_id);if(!grant?.expires_at)deny(403,'viewing_right_required')}
+   if(await eventSettings(db,lesson.course_id)){const user=await requireViewerSession(request,env);await eventLessonAccess(db,user.id,lesson.course_id,lesson.video_id)}
    const materials=await rows(db.prepare('SELECT id,title,content FROM platform_materials WHERE lesson_id=? ORDER BY id').bind(lesson.id));
    return json({...decode(lesson),materials:materials.map(m=>({...m,title:localized(m.title)}))});
   }
   const viewer=await requireViewerSession(request,env);
+  if(path==='events/mine'||path.startsWith('events/')){if(method!=='GET')await admitViewerOperation(request,env,'orders',{address:viewer.id});return json(await viewerEvents(request,env,viewer,path==='events/mine'?'':path.slice(7),method))}
   if(path.startsWith('sales/')){if(method!=='GET')await admitViewerOperation(request,env,'orders',{address:viewer.id});return json(await viewerSales(request,env,viewer,path.slice(6),method))}
   if(path==='profile'&&method==='PUT'){
    const data=await input(request,['first_name','last_name']);await admitViewerOperation(request,env,'profile',{address:viewer.id});
@@ -98,7 +104,8 @@ export async function handlePlatform(request,env){
    const data=await input(request,['position_seconds','completed']);await admitViewerOperation(request,env,'progress',{address:viewer.id});
    if(!Number.isInteger(data.position_seconds)||data.position_seconds<0||data.position_seconds>86400||![0,1].includes(data.completed))deny(400,'invalid_fields');
    const lesson=await db.prepare("SELECT l.*,c.access,c.state AS course_state FROM platform_lessons l JOIN platform_courses c ON c.id=l.course_id WHERE l.id=? AND l.state='published' AND c.state IN ('published','archived')").bind(progress[1]).first();if(!lesson)deny(404,'not_found');
-   if((lesson.access==='paid'&&!lesson.public_preview||lesson.course_state==='archived')&&!(await courseAccess(db,viewer.id,lesson.course_id))?.expires_at)deny(403,'viewing_right_required');
+   if(!await eventSettings(db,lesson.course_id)&&(lesson.access==='paid'&&!lesson.public_preview||lesson.course_state==='archived')&&!(await courseAccess(db,viewer.id,lesson.course_id))?.expires_at)deny(403,'viewing_right_required');
+   if(await eventSettings(db,lesson.course_id)){const user=await requireViewerSession(request,env);await eventLessonAccess(db,user.id,lesson.course_id,lesson.video_id)}
    await db.prepare('INSERT INTO platform_progress VALUES (?,?,?,?,?) ON CONFLICT(viewer_id,lesson_id) DO UPDATE SET position_seconds=excluded.position_seconds,completed=excluded.completed,updated_at=excluded.updated_at').bind(viewer.id,lesson.id,data.position_seconds,data.completed,time()).run();return json({ok:true});
   }
   deny(404,'not_found');

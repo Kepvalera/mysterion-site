@@ -1,3 +1,4 @@
+import {publicEvent} from './program-events.mjs';
 import {rows,decode,courseAccess,deny} from './platform-data.mjs';
 import {gpCheckoutReady,gpCoursePublicProduct} from './getplatinum-checkout.mjs';
 export async function publicPrograms(env,viewer,id){
@@ -9,6 +10,6 @@ export async function publicPrograms(env,viewer,id){
   const access=viewer?await courseAccess(db,viewer.id,c.id):null;let canBuy=false;if(ready&&!access?.expires_at&&c.access==='paid')try{await gpCoursePublicProduct(db,c.id);canBuy=true}catch{}
   const blocked=viewer?await db.prepare("SELECT 1 FROM access_blocks WHERE viewer_id=? AND kind='course' AND product_id=?").bind(viewer.id,c.id).first():false;
   const streams=await rows(db.prepare("SELECT c.id,c.title,c.access,c.price_minor,c.currency FROM program_settings p JOIN platform_courses c ON c.id=p.course_id WHERE p.parent_id=? AND c.state='published' ORDER BY p.sort_order,c.id").bind(c.id));
-  items.push({id:c.id,title:decode(c).title,description:decode(c).description,program_type:c.program_type||(c.kind==='school'?'stream':c.kind),parent_id:c.parent_id||null,stream:c.stream,sort_order:c.sort_order||0,syllabus,access:c.access,price_minor:c.price_minor,currency:c.currency,has_cover:!!c.has_cover,policy,lessons,streams:streams.map(decode),video_count:published.length,total_duration_seconds:known.length?known.reduce((s,l)=>s+l.duration_seconds,0):null,duration_complete:published.length>0&&known.length===published.length,has_access:!!access?.expires_at,can_buy:canBuy&&!blocked,provider:'getplatinum'});
+  items.push({event:await publicEvent(db,c.id),id:c.id,title:decode(c).title,description:decode(c).description,program_type:c.program_type||(c.kind==='school'?'stream':c.kind),parent_id:c.parent_id||null,stream:c.stream,sort_order:c.sort_order||0,syllabus,access:c.access,price_minor:c.price_minor,currency:c.currency,has_cover:!!c.has_cover,policy,lessons,streams:streams.map(decode),video_count:published.length,total_duration_seconds:known.length?known.reduce((s,l)=>s+l.duration_seconds,0):null,duration_complete:published.length>0&&known.length===published.length,has_access:!!access?.expires_at,can_buy:canBuy&&!blocked,provider:'getplatinum'});
  }if(id){if(!items.length)deny(404,'program_not_found');return items[0]}return {items};
 }
