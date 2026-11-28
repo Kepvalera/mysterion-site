@@ -1,3 +1,4 @@
+import {eventWindow} from './program-event-sessions.mjs';
 import {eventCheckout,eventError} from './program-events-core.mjs';
 import {boundVideo} from './bunny.mjs';
 import {youtubeId} from './video-source.mjs';
@@ -26,7 +27,7 @@ export async function gpCoursePublicProduct(db,id){
  amount(c.price_minor);const s=await db.prepare("SELECT * FROM sales_products WHERE kind='course' AND product_id=? AND sale_enabled=1").bind(id).first();if(!s)deny(409,'gp_product_sale_disabled');
  let policy;try{policy=JSON.parse(s.policy)}catch{deny(409,'gp_access_terms_missing')}if(policy.mode!=='days'||!Number.isInteger(policy.days)||policy.days<1)deny(409,'gp_access_terms_missing');
  const count=(await db.prepare("SELECT COUNT(*) AS n FROM platform_lessons l JOIN videos v ON v.id=l.video_id WHERE l.course_id=? AND l.state='published' AND v.state='published' AND (v.source_type!='bunny' OR v.bunny_status=4)").bind(id).first())?.n||0;if(count<1&&!event)deny(409,'gp_conference_empty');
- dates(policy);return {...c,event_revision:event?.revision||0,policy:event?{mode:'absolute',starts_at:time(),ends_at:event.starts_at+event.duration_minutes*60}:policy};
+ dates(policy);return {...c,event_revision:event?.revision||0,policy:event?{mode:'absolute',starts_at:time(),ends_at:(await eventWindow(db,event)).ends_at}:policy};
 }
 export async function gpCourseOffer(env,viewer,id){
  if((await courseAccess(env.MEDIA_DB,viewer.id,id))?.expires_at)return {available:false,has_access:true};

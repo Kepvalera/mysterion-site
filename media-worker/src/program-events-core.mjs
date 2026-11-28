@@ -1,7 +1,8 @@
+import {eventWindow} from './program-event-sessions.mjs';
 import {deny,time,courseAccess,videoAccess} from './platform-data.mjs';
 export const recordingScopeSQL="NOT EXISTS(SELECT 1 FROM program_events pe WHERE pe.course_id=c.id)";
 export async function eventSettings(db,id){return db.prepare('SELECT * FROM program_events WHERE course_id=?').bind(id).first()}
-export async function eventCheckout(db,id){const e=await eventSettings(db,id);if(e&&(e.registration_open!==1||e.lifecycle!=='scheduled'||e.starts_at<=time()))deny(409,'event_registration_closed');return e}
+export async function eventCheckout(db,id){const e=await eventSettings(db,id);const w=e?await eventWindow(db,e):null;if(e&&(e.registration_open!==1||e.lifecycle!=='scheduled'||!w.first_at||w.first_at<=time()))deny(409,'event_registration_closed');return e}
 export async function eventLessonAccess(db,viewerId,courseId,videoId){
  if(await eventSettings(db,courseId)&&(!viewerId||!videoId||!(await videoAccess(db,viewerId,videoId))?.expires_at))deny(403,'event_recording_access_required');
 }

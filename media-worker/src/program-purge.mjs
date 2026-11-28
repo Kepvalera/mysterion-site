@@ -24,7 +24,8 @@ export async function purgeProgram(request,env,staff,id){
  const receipt=crypto.randomUUID(),guard='EXISTS(SELECT 1 FROM platform_audit WHERE id=?)';
  const statements=[db.prepare(`INSERT INTO platform_audit SELECT ?,?,'course.purged',id,? FROM platform_courses WHERE id=? AND state='archived' AND revision=? AND NOT (${related})`).bind(receipt,staff.sub,time(),id,rev)];
  // No video, lesson, grant, account, order, payment or provider object is deleted.
- for(const table of ['program_event_secrets','program_event_images','program_events','course_covers','program_settings'])statements.push(db.prepare(`DELETE FROM ${table} WHERE course_id=? AND ${guard}`).bind(id,receipt));
+ statements.push(db.prepare(`DELETE FROM program_event_session_secrets WHERE session_id IN(SELECT id FROM program_event_sessions WHERE course_id=?) AND ${guard}`).bind(id,receipt));
+ for(const table of ['program_event_session_history','program_event_sessions','program_event_secrets','program_event_images','program_events','course_covers','program_settings'])statements.push(db.prepare(`DELETE FROM ${table} WHERE course_id=? AND ${guard}`).bind(id,receipt));
  statements.push(db.prepare(`DELETE FROM sales_products WHERE kind='course' AND product_id=? AND ${guard}`).bind(id,receipt));
  statements.push(db.prepare(`DELETE FROM platform_courses WHERE id=? AND ${guard}`).bind(id,receipt));
  const result=await db.batch(statements);if(!result[0].meta.changes)deny(409,'course_purge_conflict');if(!result.at(-1).meta.changes)deny(409,'course_purge_conflict');return {ok:true,action:'purged'};

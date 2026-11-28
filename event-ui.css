@@ -26,3 +26,6 @@
 .event-detail .btn-dark{background:#152641;border-color:#152641;color:#fff}
 .event-detail .btn-light{background:#fff;border-color:#b49968;color:#152641}
 @media(max-width:600px){.event-account{margin-top:26px}.event-account-actions{align-items:stretch;flex-direction:column}.event-account-actions>.btn{width:100%;box-sizing:border-box}.event-account .event-account-card{padding:20px}.event-account .event-account-name{font-size:28px}}
+
+/* Multiple meetings remain in the existing seminar palette. */
+.event-session-list{grid-column:1/-1;min-width:0;margin-top:18px}.event-session-row{padding:16px 0;border-top:1px solid #a18a6266;min-width:0}.event-session-row h4{font-size:18px;line-height:1.4;margin:0 0 10px;overflow-wrap:anywhere}.event-account .event-session-list h3,.event-account .event-session-row h4{color:#f3deb7}.event-account .event-session-row .btn{margin:8px 0}.event-session-admin-list .platform-record{display:block;padding:16px 0;border-bottom:1px solid #a18a6266}.event-session-admin-list h3{font-size:20px;overflow-wrap:anywhere}.event-session-admin-list button{max-width:100%;white-space:normal}.event-detail .event-session-list{color:#14233b}.event-detail .event-session-list h3,.event-detail .event-session-list h4{color:#14233b}@media(max-width:600px){.event-session-row .btn{width:100%;box-sizing:border-box}.event-session-list{width:100%}}

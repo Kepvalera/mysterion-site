@@ -1,3 +1,4 @@
+import {eventWindow} from './program-event-sessions.mjs';
 import {eventSettings} from './program-events-core.mjs';
 import {deny,time} from './platform-data.mjs';
 import {hash,operation,dates} from './sales-core.mjs';
@@ -13,6 +14,9 @@ function providerReceipt(event) {
 }
 const refunded=alias=>`COALESCE((SELECT SUM(r.amount_minor) FROM getplatinum_refunds r WHERE r.order_id=${alias}.id AND r.status=4 AND r.currency='RUB' AND r.reason IS NULL),0)`;
 export async function processGPEvent(env,event,bodyHash){
+ for(let attempt=0;attempt<3;attempt++){try{return await applyGPEvent(env,event,bodyHash)}catch(error){if(error.message!=='revision_conflict'||attempt===2)throw error}}
+}
+async function applyGPEvent(env,event,bodyHash){
  if(!event||typeof event!=='object'||Array.isArray(event)||Object.hasOwn(event,'checksum'))deny(400,'gp_v2_callback_required');
  if(![1,9].includes(event.notificationType))return {ignored:true};
  const db=env.MEDIA_DB,o=await gpOrder(db,event.dealId);if(typeof event.isSuccess!=='boolean')deny(400,'gp_invalid_callback');
@@ -26,6 +30,7 @@ export async function processGPEvent(env,event,bodyHash){
  const existing=await db.prepare('SELECT * FROM getplatinum_payments WHERE md_order=? OR order_id=?').bind(p.mdOrder,o.id).first();if(existing&&(existing.order_id!==o.id||existing.md_order!==p.mdOrder||existing.amount_minor!==p.amount||existing.currency!==o.currency))deny(409,'gp_payment_identity_conflict');
  if(o.md_order&&o.md_order!==p.mdOrder)deny(409,'gp_payment_identity_conflict');if(await db.prepare('SELECT 1 FROM getplatinum_refunds WHERE order_id=? AND md_order!=?').bind(o.id,p.mdOrder).first())deny(409,'gp_payment_identity_conflict');
  const key='gp.paid:'+p.mdOrder,request_id=await opId(key),confirmed=time();let start,end;try{[start,end]=dates(o.policy,confirmed)}catch{start=confirmed;end=confirmed;}
+ let eventRevision=null;if(o.course_id){const e=await eventSettings(db,o.course_id);if(e){eventRevision=e.revision;const w=await eventWindow(db,e);if(w.multi&&w.ends_at>confirmed){start=confirmed;end=Math.max(end,w.ends_at)}}}
  const uncertainRefund=await db.prepare("SELECT 1 FROM getplatinum_refunds WHERE order_id=? AND status=4 AND reason IS NOT NULL").bind(o.id).first();
  const blocked= o.course_id
   ?await db.prepare("SELECT 1 FROM access_blocks WHERE viewer_id=? AND kind='course' AND product_id=?").bind(o.viewer_id,o.course_id).first()
@@ -41,7 +46,7 @@ export async function processGPEvent(env,event,bodyHash){
   q(`INSERT INTO viewer_grants(id,viewer_id,video_id,starts_at,expires_at,granted_by,source_order_id,created_at) SELECT ?,v.viewer_id,v.video_id,?,?,'getplatinum',v.id,? FROM viewer_orders v WHERE v.id=? AND v.video_id IS NOT NULL AND ?>? AND ${refunded('v')}<v.amount_minor AND NOT EXISTS(SELECT 1 FROM getplatinum_refunds WHERE order_id=v.id AND status=4 AND reason IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM access_blocks b WHERE b.viewer_id=v.viewer_id AND ((b.kind='video' AND b.product_id=v.video_id) OR (b.kind='course' AND EXISTS(SELECT 1 FROM platform_lessons l WHERE l.course_id=b.product_id AND NOT EXISTS(SELECT 1 FROM program_events pe WHERE pe.course_id=l.course_id) AND l.video_id=v.video_id)))) AND $guard`,[crypto.randomUUID(),start,end,confirmed,o.id,end,start])
   ,
    q(`INSERT INTO viewer_grants(id,viewer_id,course_id,starts_at,expires_at,granted_by,source_order_id,created_at) SELECT ?,v.viewer_id,v.course_id,?,?,'getplatinum',v.id,? FROM viewer_orders v WHERE v.id=? AND v.course_id IS NOT NULL AND ?>? AND ${refunded('v')}<v.amount_minor AND NOT EXISTS(SELECT 1 FROM getplatinum_refunds WHERE order_id=v.id AND status=4 AND reason IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM access_blocks b WHERE b.viewer_id=v.viewer_id AND b.kind='course' AND b.product_id=v.course_id) AND $guard`,[crypto.randomUUID(),start,end,confirmed,o.id,end,start])
- ],{sql:'NOT EXISTS(SELECT 1 FROM getplatinum_payments WHERE md_order=? OR order_id=?)',args:[p.mdOrder,o.id]});
+ ],{sql:'NOT EXISTS(SELECT 1 FROM getplatinum_payments WHERE md_order=? OR order_id=?)'+(eventRevision!==null?' AND EXISTS(SELECT 1 FROM program_events WHERE course_id=? AND revision=?)':''),args:[p.mdOrder,o.id,...(eventRevision!==null?[o.course_id,eventRevision]:[])]});
 }
 async function refund(env,o,event,bodyHash){
  const r=event.refundData;if(!r||!numeric(r.refundId)||!numeric(r.mdOrder)||![2,4].includes(r.status)||event.isSuccess!==(r.status===4)||o.md_order&&o.md_order!==r.mdOrder)deny(400,'gp_refund_mismatch');
